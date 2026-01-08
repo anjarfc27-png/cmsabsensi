@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Duta Mruput</string>
+    <string name="title_activity_main">Duta Mruput</string>
+    <string name="package_name">com.dutasol.mruput</string>
+    <string name="custom_url_scheme">com.dutasol.mruput</string>
+</resources>

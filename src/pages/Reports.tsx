@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -8,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Download, BarChart3, Filter, FileText, TrendingUp, Clock, AlertCircle } from 'lucide-react';
+import { Loader2, Download, BarChart3, Filter, FileText, TrendingUp, Clock, AlertCircle, ChevronLeft } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { TableSkeleton } from '@/components/LoadingSkeletons';
@@ -35,6 +36,7 @@ type ProfileRow = {
 };
 
 export default function ReportsPage() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -151,24 +153,30 @@ export default function ReportsPage() {
 
   return (
     <DashboardLayout>
-      <div className="relative">
-        <div className="absolute -top-6 -left-6 w-[calc(100%+3rem)] h-[220px] bg-gradient-to-r from-slate-900 to-slate-800 rounded-b-[40px] z-0 shadow-lg" />
+      <div className="relative min-h-screen bg-slate-50/50">
+        <div className="absolute top-0 left-0 w-full h-[150px] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
-        <div className="relative z-10 space-y-6 max-w-[1600px] mx-auto pt-6 pb-20 px-2">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-white">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-md flex items-center gap-2">
-                <BarChart3 className="h-7 w-7" />
-                Audit & Laporan Kehadiran
+        <div className="relative z-10 space-y-4 max-w-[1600px] mx-auto pt-[calc(3.5rem+env(safe-area-inset-top))] pb-20 px-4 md:px-6">
+          {/* Header with Back Button - Compact */}
+          <div className="flex items-start gap-3 text-white">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/dashboard')}
+              className="text-white hover:bg-white/20 hover:text-white shrink-0 -ml-2"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-lg md:text-xl font-bold tracking-tight drop-shadow-md flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Laporan Kehadiran
               </h1>
-              <p className="text-sm text-slate-300 font-medium opacity-90">Pantau produktivitas dan kepatuhan karyawan di seluruh cabang.</p>
+              <p className="text-xs text-blue-50 font-medium opacity-90 mt-0.5">Pantau produktivitas karyawan</p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-white/20" onClick={exportCsv} disabled={attendances.length === 0}>
-                <Download className="mr-2 h-4 w-4" /> Export CSV
-              </Button>
-            </div>
+            <Button variant="secondary" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg text-xs h-8 px-3" onClick={exportCsv} disabled={attendances.length === 0}>
+              <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
+            </Button>
           </div>
 
           {/* Quick Filters */}

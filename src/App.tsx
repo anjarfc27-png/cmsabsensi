@@ -28,6 +28,10 @@ import Shifts from "./pages/Shifts";
 import ComingSoon from "./pages/ComingSoon";
 import LeavePage from "./pages/Leave";
 import OvertimePage from "./pages/Overtime";
+import SalarySlips from "./pages/SalarySlips";
+import FaceRegistrationPage from "./pages/FaceRegistration";
+import QuickAttendancePage from "./pages/QuickAttendance";
+import InformationPage from "./pages/Information";
 
 const queryClient = new QueryClient();
 
@@ -43,12 +47,16 @@ const App = () => (
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/information" element={<ProtectedRoute><InformationPage /></ProtectedRoute>} />
               <Route path="/reimbursement" element={<ProtectedRoute><Reimbursement /></ProtectedRoute>} />
               <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
+              <Route path="/quick-attendance" element={<ProtectedRoute><QuickAttendancePage /></ProtectedRoute>} />
+              <Route path="/face-registration" element={<ProtectedRoute><FaceRegistrationPage /></ProtectedRoute>} />
               <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
               <Route path="/overtime" element={<ProtectedRoute><OvertimePage /></ProtectedRoute>} />
               <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
               <Route path="/corrections" element={<ProtectedRoute><Corrections /></ProtectedRoute>} />
+              <Route path="/salary-slips" element={<ProtectedRoute><SalarySlips /></ProtectedRoute>} />
               <Route path="/employees/:id/salary" element={<ProtectedRoute allowedRoles={['admin_hr']}><EmployeeSalary /></ProtectedRoute>} />
               <Route path="/team-map" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><TeamMap /></ProtectedRoute>} />
               <Route path="/locations" element={<ProtectedRoute allowedRoles={['admin_hr']}><Locations /></ProtectedRoute>} />
@@ -56,7 +64,7 @@ const App = () => (
               <Route path="/payroll-report" element={<ProtectedRoute allowedRoles={['admin_hr']}><PayrollReport /></ProtectedRoute>} />
               <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
               <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
-              <Route path="/approval" element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
+              <Route path="/approvals" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><Approvals /></ProtectedRoute>} />
               <Route path="/payroll/:id" element={<ProtectedRoute allowedRoles={['admin_hr']}><PayrollDetail /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />

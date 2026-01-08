@@ -135,7 +135,7 @@ export default function ReimbursementPage() {
                 <div className="absolute top-0 left-0 w-full h-[200px] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
                 {/* Floating Content */}
-                <div className="relative z-10 space-y-6 max-w-[1600px] mx-auto px-4 pt-8 pb-24 md:px-6">
+                <div className="relative z-10 space-y-6 max-w-[1600px] mx-auto px-4 pt-[calc(3.5rem+env(safe-area-inset-top))] pb-24 md:px-6">
 
                     {/* Header Section */}
                     <div className="flex items-center justify-between text-white">

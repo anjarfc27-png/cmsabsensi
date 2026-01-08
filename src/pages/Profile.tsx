@@ -157,7 +157,7 @@ export default function ProfilePage() {
         {/* Background Gradient */}
         <div className="absolute top-0 left-0 w-full h-[240px] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 pt-8 pb-24 space-y-8 md:px-8">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 pt-[calc(3.5rem+env(safe-area-inset-top))] pb-24 space-y-8 md:px-8">
           {/* Header Text */}
           <div className="flex items-start gap-4 text-white">
             <Button

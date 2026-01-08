@@ -22,14 +22,14 @@ export function GoogleMapsEmbed({ latitude, longitude }: GoogleMapsEmbedProps) {
 
     if (!isLoaded) {
         return (
-            <div className="h-[300px] w-full bg-slate-50 rounded-xl flex items-center justify-center border border-slate-200">
+            <div className="h-[200px] w-full bg-slate-50 rounded-xl flex items-center justify-center border border-slate-200">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
         );
     }
 
     return (
-        <div className="h-[300px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
+        <div className="h-[200px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
             <iframe
                 src={publicEmbedUrl}
                 width="100%"

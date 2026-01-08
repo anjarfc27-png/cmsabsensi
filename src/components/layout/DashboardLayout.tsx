@@ -6,6 +6,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,18 +15,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   Clock,
   Calendar,
   FileText,
   Users,
-  Settings,
   LogOut,
-  Menu,
   Home,
-  ClipboardCheck,
-  Timer,
   MapPin,
   BarChart3,
   DollarSign,
@@ -34,12 +30,14 @@ import {
   PanelLeftClose,
   PanelLeft,
   ChevronRight,
-  Megaphone,
   Receipt,
   Navigation,
-  Wallet,
   Smartphone,
-  Briefcase
+  Scan,
+  Timer,
+  Briefcase,
+  ClipboardCheck,
+  Newspaper
 } from 'lucide-react';
 import { AppLogo } from '@/components/AppLogo';
 
@@ -54,12 +52,13 @@ interface NavItem {
   roles?: ('super_admin' | 'admin_hr' | 'manager' | 'employee')[];
 }
 
-// Define Navigation Groups
+// Global Nav Groups for Desktop Sidebar
 const navGroups = [
   {
     title: 'Menu Karyawan',
     items: [
       { title: 'Dashboard', href: '/dashboard', icon: Home },
+      { title: 'Berita & Info', href: '/information', icon: Newspaper },
       { title: 'Absensi', href: '/attendance', icon: Clock },
       { title: 'Cuti / Izin', href: '/leave', icon: Briefcase },
       { title: 'Lembur', href: '/overtime', icon: Timer },
@@ -83,23 +82,14 @@ const navGroups = [
       { title: 'Gaji & Payroll', href: '/payroll', icon: DollarSign, roles: ['admin_hr'] },
       { title: 'Laporan Gaji', href: '/payroll-report', icon: Receipt, roles: ['admin_hr'] },
     ]
-  },
-  {
-    title: 'Coming Soon',
-    roles: ['admin_hr', 'manager'],
-    items: [
-      { title: 'Penilaian KPI', href: '/coming-soon', icon: Check, roles: ['admin_hr', 'manager'] },
-      { title: 'Struktur Org', href: '/coming-soon', icon: BarChart3 },
-      { title: 'Inventaris Alat', href: '/coming-soon', icon: Smartphone, roles: ['admin_hr'] },
-    ]
   }
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const isMobile = useIsMobile();
   const { profile, roles, activeRole, switchRole, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   const handleSignOut = async () => {
@@ -122,279 +112,182 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   };
 
-  const getRoleLabel = (role: 'super_admin' | 'admin_hr' | 'manager' | 'employee') => {
+  const getRoleLabel = (role: string) => {
     switch (role) {
       case 'super_admin': return 'Super Admin';
       case 'admin_hr': return 'Administrator';
       case 'manager': return 'Manajer';
       case 'employee': return 'Karyawan';
+      default: return '';
     }
   };
 
-  const NavContent = ({ isMobile = false }) => (
-    <nav className={cn("flex flex-col gap-1 overflow-y-auto py-4", collapsed && !isMobile ? "items-center" : "")}>
-      {!isMobile && (
-        <div className={cn("flex items-center h-16 border-b border-sidebar-border mb-4 shrink-0", collapsed ? "justify-center px-0" : "px-6")}>
-          {collapsed ? (
-            <div className="h-10 w-10 flex items-center justify-center bg-sidebar-primary rounded-xl shadow-lg shadow-sidebar-primary/20">
-              <span className="font-bold text-sidebar-primary-foreground text-xl">C</span>
-            </div>
-          ) : (
-            <div className="w-full">
-              <AppLogo variant="light" className="h-9 w-auto" />
-            </div>
-          )}
+  // -------------------------------------------------------------------------
+  // RENDER MOBILE LAYOUT (FROZEN FOR MOBILE)
+  // -------------------------------------------------------------------------
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-slate-50/50 flex flex-col">
+        <main className="flex-1 pb-32">
+          {children}
+        </main>
+
+        {/* Fixed Bottom Navigation - Mobile Only */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-t border-slate-100 flex items-center justify-around px-2 pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+          <Link to="/dashboard" className={cn("flex flex-col items-center gap-1 p-2 transition-all min-w-[64px]", location.pathname === '/dashboard' ? "text-blue-600 scale-110" : "text-slate-400 opacity-70")}>
+            <Home className={cn("h-5 w-5", location.pathname === '/dashboard' ? "fill-blue-600/10" : "")} />
+            <span className="text-[10px] font-bold">Home</span>
+          </Link>
+          <Link to="/attendance" className={cn("flex flex-col items-center gap-1 p-2 transition-all min-w-[64px]", location.pathname === '/attendance' ? "text-blue-600 scale-110" : "text-slate-400 opacity-70")}>
+            <Clock className="h-5 w-5" />
+            <span className="text-[10px] font-bold">Absen</span>
+          </Link>
+
+          {/* Floating Scan Button */}
+          <div className="relative -top-8">
+            <button
+              onClick={() => navigate('/quick-attendance')}
+              className="h-16 w-16 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-xl shadow-blue-500/40 flex items-center justify-center transform transition-all active:scale-90 border-[6px] border-white"
+            >
+              <Scan className="h-7 w-7" />
+            </button>
+          </div>
+
+          <Link to="/history" className={cn("flex flex-col items-center gap-1 p-2 transition-all min-w-[64px]", location.pathname === '/history' ? "text-blue-600 scale-110" : "text-slate-400 opacity-70")}>
+            <Calendar className="h-5 w-5" />
+            <span className="text-[10px] font-bold">Riwayat</span>
+          </Link>
+          <Link to="/profile" className={cn("flex flex-col items-center gap-1 p-2 transition-all min-w-[64px]", location.pathname === '/profile' ? "text-blue-600 scale-110" : "text-slate-400 opacity-70")}>
+            <User className="h-5 w-5" />
+            <span className="text-[10px] font-bold">Profil</span>
+          </Link>
         </div>
-      )}
-
-      <div className={cn("flex-1 space-y-6", collapsed ? "px-2" : "px-4")}>
-        {navGroups.map((group, groupIndex) => {
-          // Check if user has access to this group
-          if (group.roles && !group.roles.some(r => roles.includes(r))) return null;
-
-          // Filter items within the group
-          const visibleItems = group.items.filter(
-            (item) => !item.roles || (activeRole && item.roles.includes(activeRole))
-          );
-
-          if (visibleItems.length === 0) return null;
-
-          return (
-            <div key={group.title}>
-              {!collapsed && !isMobile && (
-                <p className="text-[10px] font-bold text-sidebar-foreground/50 uppercase tracking-widest px-2 mb-2">
-                  {group.title}
-                </p>
-              )}
-              <div className="space-y-1">
-                {visibleItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={`${item.href}-${item.title}`}
-                      to={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      title={collapsed && !isMobile ? item.title : undefined}
-                      className={cn(
-                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 group relative',
-                        isActive
-                          ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-sidebar-primary/20 font-medium'
-                          : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent',
-                        collapsed && !isMobile ? 'justify-center px-2 py-3' : ''
-                      )}
-                    >
-                      <Icon className={cn("h-[18px] w-[18px] flex-shrink-0", isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground")} />
-                      {!collapsed || isMobile ? (
-                        <>
-                          <span className="truncate flex-1">{item.title}</span>
-                          {isActive && <ChevronRight className="h-3 w-3 opacity-50" />}
-                        </>
-                      ) : null}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
       </div>
-    </nav>
-  );
+    );
+  }
 
+  // -------------------------------------------------------------------------
+  // RENDER DESKTOP LAYOUT (CAN BE FREELY UPDATED LATER)
+  // -------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* Professional Dark Sidebar */}
+    <div className="min-h-screen bg-slate-50/50">
+      {/* Sidebar for Desktop */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 hidden h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-sm transition-all duration-300 lg:block",
+          "fixed left-0 top-0 z-40 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-sm transition-all duration-300 lg:block hidden",
           collapsed ? "w-[80px]" : "w-[280px]"
         )}
       >
         <div className="flex flex-col h-full">
-          <NavContent />
+          <nav className={cn("flex flex-col gap-1 overflow-y-auto py-4", collapsed ? "items-center" : "")}>
+            <div className={cn("flex items-center h-16 border-b border-sidebar-border mb-4 shrink-0", collapsed ? "justify-center px-0" : "px-6")}>
+              <AppLogo variant="light" className={cn("h-9 w-auto transition-all", collapsed ? "opacity-0 scale-0" : "opacity-100 scale-100")} />
+              {collapsed && <div className="h-10 w-10 bg-sidebar-primary rounded-xl flex items-center justify-center font-bold text-white shadow-lg">A</div>}
+            </div>
+
+            <div className={cn("flex-1 space-y-6", collapsed ? "px-2" : "px-4")}>
+              {navGroups.map((group) => {
+                if (group.roles && !group.roles.some(r => roles.includes(r as any))) return null;
+                const visibleItems = group.items.filter(item => !item.roles || (activeRole && item.roles.includes(activeRole as any)));
+                if (visibleItems.length === 0) return null;
+
+                return (
+                  <div key={group.title}>
+                    {!collapsed && <p className="text-[10px] font-bold text-sidebar-foreground/50 uppercase tracking-widest px-2 mb-2">{group.title}</p>}
+                    <div className="space-y-1">
+                      {visibleItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.href;
+                        return (
+                          <Link
+                            key={item.href}
+                            to={item.href}
+                            className={cn(
+                              'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 group relative',
+                              isActive ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-sidebar-primary/20 font-medium' : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent',
+                              collapsed ? 'justify-center px-2 py-3' : ''
+                            )}
+                          >
+                            <Icon className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground")} />
+                            {!collapsed && <span className="truncate flex-1">{item.title}</span>}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </nav>
 
           <div className="mt-auto p-4 border-t border-sidebar-border bg-sidebar/50">
             {!collapsed ? (
               <div className="flex items-center gap-3">
                 <Avatar className="h-9 w-9 border-2 border-sidebar-border">
                   <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="text-xs bg-sidebar-accent text-sidebar-accent-foreground">
-                    {profile?.full_name ? getInitials(profile.full_name) : 'U'}
-                  </AvatarFallback>
+                  <AvatarFallback>{profile?.full_name ? getInitials(profile.full_name) : 'U'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
                   <p className="text-sm font-medium text-sidebar-foreground truncate">{profile?.full_name}</p>
-                  <p className="text-xs text-sidebar-foreground/70 truncate">{getRoleBadge()}</p>
+                  <p className="text-xs text-sidebar-foreground/70">{getRoleBadge()}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                  onClick={() => setCollapsed(!collapsed)}
-                >
-                  <PanelLeft className="h-4 w-4" />
-                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground/70" onClick={() => setCollapsed(true)}><PanelLeft className="h-4 w-4" /></Button>
               </div>
             ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-full justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                onClick={() => setCollapsed(!collapsed)}
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </Button>
+              <Button variant="ghost" size="icon" className="w-full justify-center text-sidebar-foreground/70" onClick={() => setCollapsed(false)}><PanelLeftClose className="h-4 w-4" /></Button>
             )}
           </div>
         </div>
       </aside>
 
-      {/* Content Area */}
-      <div
-        className={cn(
-          "transition-all duration-300 min-h-screen flex flex-col pb-24 lg:pb-0",
-          collapsed ? "lg:pl-[80px]" : "lg:pl-[280px]"
-        )}
-      >
-        {/* Desktop Header Only - Mobile uses page-specific headers */}
-        <header className="hidden lg:flex sticky top-0 z-30 h-16 items-center gap-4 bg-background/95 backdrop-blur-sm border-b border-border px-6">
+      {/* Desktop Content Area */}
+      <div className={cn("transition-all duration-300 min-h-screen", collapsed ? "lg:pl-[80px]" : "lg:pl-[280px]")}>
+        <header className="sticky top-0 z-30 h-16 items-center gap-4 bg-white/80 backdrop-blur-md border-b border-sidebar-border px-6 flex">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {/* Mobile Logo */}
-            <div className="lg:hidden">
-              <AppLogo className="h-8 w-auto" />
-            </div>
-
-            {/* Desktop Breadcrumbs */}
-            <Home className="h-4 w-4 text-muted-foreground/70" />
-            <span className="text-border">/</span>
-            <span className="font-medium text-foreground">{navGroups.find(g => g.items.some(i => i.href === location.pathname))?.title || 'System'}</span>
+            <Home className="h-4 w-4" />
+            <span>/</span>
+            <span className="font-medium text-foreground capitalize">{location.pathname.split('/')[1] || 'Dashboard'}</span>
           </div>
-
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-4">
             <NotificationBell />
-            <div className="h-6 w-[1px] bg-border" />
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 hover:bg-muted h-10 px-3 rounded-xl border border-transparent hover:border-border transition-all">
-                  <Avatar className="h-8 w-8 border border-border">
+                <Button variant="ghost" className="flex items-center gap-2 px-2 hover:bg-slate-50 rounded-xl">
+                  <Avatar className="h-8 w-8 border border-slate-200">
                     <AvatarImage src={profile?.avatar_url || ''} />
-                    <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                      {profile?.full_name ? getInitials(profile.full_name) : 'U'}
-                    </AvatarFallback>
+                    <AvatarFallback>{profile?.full_name ? getInitials(profile.full_name) : 'U'}</AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col items-start text-xs">
-                    <span className="font-medium text-foreground">{profile?.full_name?.split(' ')[0]}</span>
-                    <span className="text-muted-foreground">{getRoleBadge()}</span>
+                  <div className="text-left hidden lg:block">
+                    <p className="text-xs font-bold text-slate-900 leading-none">{profile?.full_name?.split(' ')[0]}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">{getRoleBadge()}</p>
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 rounded-2xl border-slate-100 shadow-xl">
                 <DropdownMenuLabel>Akun Saya</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/profile')}>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profil</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-
+                <DropdownMenuItem onClick={() => navigate('/profile')}><User className="mr-2 h-4 w-4" /> Profil</DropdownMenuItem>
                 {roles.length > 1 && (
                   <>
+                    <DropdownMenuSeparator />
                     <DropdownMenuLabel>Ganti Role</DropdownMenuLabel>
-                    {roles.map(role => (
-                      <DropdownMenuItem
-                        key={role}
-                        onClick={() => switchRole(role)}
-                        className={role === activeRole ? "bg-muted" : ""}
-                      >
-                        <Users className="mr-2 h-4 w-4" />
-                        <span>{getRoleLabel(role)}</span>
-                        {role === activeRole && <Check className="ml-auto h-4 w-4" />}
+                    {roles.map(r => (
+                      <DropdownMenuItem key={r} onClick={() => switchRole(r as any)} className={r === activeRole ? "bg-slate-50" : ""}>
+                        <Users className="mr-2 h-4 w-4" /> {getRoleLabel(r)}
+                        {r === activeRole && <Check className="ml-auto h-3 w-3" />}
                       </DropdownMenuItem>
                     ))}
-                    <DropdownMenuSeparator />
                   </>
                 )}
-
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Keluar</span>
-                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-700 focus:bg-red-50"><LogOut className="mr-2 h-4 w-4" /> Keluar</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </header>
-
-        {/* Main Content with Mobile Safe Area */}
-        <main className="flex-1 overflow-x-hidden pb-24 lg:pb-8">
+        <main className="p-8">
           {children}
         </main>
-
-        {/* Mobile Navigation Bottom Bar */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t border-border flex items-center justify-around px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-          <Link to="/dashboard" className={cn("flex flex-col items-center gap-1 p-2 rounded-lg transition-colors min-w-[60px]", location.pathname === '/dashboard' ? "text-primary" : "text-muted-foreground")}>
-            <Home className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Home</span>
-          </Link>
-          <Link to="/attendance" className={cn("flex flex-col items-center gap-1 p-2 rounded-lg transition-colors min-w-[60px]", location.pathname === '/attendance' ? "text-primary" : "text-muted-foreground")}>
-            <Clock className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Absen</span>
-          </Link>
-          <div className="relative -top-6">
-            <button
-              onClick={() => navigate('/attendance')}
-              className="h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center transform transition-transform active:scale-95 border-4 border-background"
-            >
-              <Clock className="h-6 w-6" />
-            </button>
-          </div>
-          <Link to="/history" className={cn("flex flex-col items-center gap-1 p-2 rounded-lg transition-colors min-w-[60px]", location.pathname === '/history' ? "text-primary" : "text-muted-foreground")}>
-            <Calendar className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Riwayat</span>
-          </Link>
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <button className={cn("flex flex-col items-center gap-1 p-2 rounded-lg transition-colors min-w-[60px]", mobileOpen ? "text-primary" : "text-muted-foreground")}>
-                <Menu className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Menu</span>
-              </button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] p-0 bg-sidebar text-sidebar-foreground border-sidebar-border">
-              <div className="flex flex-col h-full">
-                <div className="p-6 border-b border-sidebar-border">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Avatar className="h-12 w-12 border-2 border-sidebar-border">
-                      <AvatarImage src={profile?.avatar_url || undefined} />
-                      <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">
-                        {profile?.full_name ? getInitials(profile.full_name) : 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-bold text-lg">{profile?.full_name}</p>
-                      <p className="text-sm text-sidebar-foreground/70">{getRoleBadge()}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  <NavContent isMobile={true} />
-                </div>
-                <div className="p-4 border-t border-sidebar-border">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30"
-                    onClick={handleSignOut}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Keluar Aplikasi
-                  </Button>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
       </div>
     </div>
   );
