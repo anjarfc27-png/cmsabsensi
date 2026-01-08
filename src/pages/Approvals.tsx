@@ -42,7 +42,7 @@ interface LeaveRequest {
         position: string;
         avatar_url: string;
         departments: { name: string } | null;
-    };
+    } | null;
 }
 
 interface OvertimeRequest {
@@ -61,7 +61,7 @@ interface OvertimeRequest {
         position: string;
         avatar_url: string;
         departments: { name: string } | null;
-    };
+    } | null;
 }
 
 type RequestType = 'leave' | 'overtime' | 'correction';

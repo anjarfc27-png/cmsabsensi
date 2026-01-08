@@ -13,7 +13,7 @@ import { useCamera } from '@/hooks/useCamera';
 import { Loader2, Camera, MapPin, CheckCircle2, LogIn, LogOut, RefreshCw, Smartphone, ChevronLeft, Map, AlertOctagon } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Attendance, OfficeLocation, WorkMode } from '@/types';
+import { Attendance, OfficeLocation, WorkMode, EmployeeSchedule } from '@/types';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -39,8 +39,11 @@ function deg2rad(deg: number) {
 }
 
 // Fix Leaflet Icon
+// @ts-ignore
 import iconMarker from 'leaflet/dist/images/marker-icon.png';
+// @ts-ignore
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
+// @ts-ignore
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 const DefaultIcon = L.icon({
