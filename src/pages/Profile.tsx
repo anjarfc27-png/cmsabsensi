@@ -211,12 +211,22 @@ export default function ProfilePage() {
   };
 
   const handleStartEnroll = async () => {
-    if (!isConsentedState) return;
+    // Check consent first, if not consented, save it automatically
+    if (!isConsentedState && consentKey) {
+      localStorage.setItem(consentKey, 'true');
+      setIsConsentedState(true);
+    }
+
     try {
       await startCamera();
       setEnrollStep('camera');
     } catch (e) {
-      toast({ title: 'Gagal membuka kamera', variant: 'destructive' });
+      console.error('Camera error:', e);
+      toast({
+        title: 'Gagal membuka kamera',
+        description: e instanceof Error ? e.message : 'Periksa izin kamera Anda',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -316,9 +326,9 @@ export default function ProfilePage() {
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50 pb-32">
         {/* Header Section (Conserved style) */}
-        <div className="absolute top-0 left-0 w-full h-[100px] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+        <div className="absolute top-0 left-0 w-full h-[120px] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
-        <div className="relative z-10 max-w-4xl mx-auto px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] space-y-6">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] space-y-6">
           <div className="flex items-center gap-3 text-white">
             <Button
               variant="ghost"
@@ -470,14 +480,7 @@ export default function ProfilePage() {
                     </Alert>
                     <Button
                       className="w-full h-12 bg-white text-blue-600 hover:bg-white/90 rounded-2xl font-black shadow-xl"
-                      onClick={() => {
-                        if (!isConsentedState) {
-                          setConsentChecked(false);
-                          // Simple scroll or trigger logic would go here, 
-                          // but we'll show dialog for enrollment
-                        }
-                        handleStartEnroll();
-                      }}
+                      onClick={handleStartEnroll}
                     >
                       Daftarkan Wajah Sekarang
                     </Button>
@@ -625,42 +628,7 @@ export default function ProfilePage() {
           </DialogContent>
         </Dialog>
 
-        {/* Biometric Terms (Invisible trigger, handled in state) */}
-        {!isConsentedState && (
-          <Dialog open={!isConsentedState && enrollStep !== 'idle'} onOpenChange={() => { }}>
-            <DialogContent className="max-w-md rounded-[32px] border-none p-8">
-              <div className="space-y-6">
-                <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
-                  <Shield className="h-8 w-8" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-black text-slate-900">Aktivasi Face ID</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">
-                    Kami memerlukan persetujuan Anda untuk menyimpan data biometrik wajah demi keamanan proses absensi.
-                  </p>
-                </div>
-                <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <Checkbox
-                    id="terms-dialog"
-                    checked={consentChecked}
-                    onCheckedChange={(c) => setConsentChecked(c as boolean)}
-                    className="h-5 w-5 rounded-md border-slate-300 text-blue-600"
-                  />
-                  <Label htmlFor="terms-dialog" className="text-xs font-bold text-slate-600 leading-tight">
-                    Saya menyetujui syarat & ketentuan penggunaan data biometrik wajah.
-                  </Label>
-                </div>
-                <Button
-                  onClick={handleSaveConsent}
-                  disabled={!consentChecked || consentSaving}
-                  className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-lg shadow-blue-100"
-                >
-                  {consentSaving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : 'Setuju & Lanjutkan'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+
 
         {/* --- Avatar Action Dialog (WhatsApp Style) --- */}
         <Dialog open={avatarDialogOpen} onOpenChange={(open) => {

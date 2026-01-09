@@ -158,17 +158,38 @@ export default function NotificationsPage() {
                             </Button>
                             <h1 className="text-xl font-bold">Notifikasi</h1>
                         </div>
-                        {notifications.some(n => !n.read) && (
+                        <div className="flex items-center gap-2">
+                            {notifications.some(n => !n.read) && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={markAllAsRead}
+                                    className="text-white hover:bg-white/20 text-xs font-bold"
+                                >
+                                    <MailOpen className="h-4 w-4 mr-2" />
+                                    Baca Semua
+                                </Button>
+                            )}
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={markAllAsRead}
+                                onClick={() => {
+                                    import('sonner').then(({ toast }) => {
+                                        toast.success('Test Notifikasi', {
+                                            description: 'Notifikasi toast berfungsi dengan baik! 🎉',
+                                            action: {
+                                                label: 'OK',
+                                                onClick: () => console.log('Clicked!')
+                                            }
+                                        });
+                                    });
+                                }}
                                 className="text-white hover:bg-white/20 text-xs font-bold"
                             >
-                                <MailOpen className="h-4 w-4 mr-2" />
-                                Baca Semua
+                                <Bell className="h-4 w-4 mr-2" />
+                                Test
                             </Button>
-                        )}
+                        </div>
                     </div>
 
                     <div className="space-y-4">

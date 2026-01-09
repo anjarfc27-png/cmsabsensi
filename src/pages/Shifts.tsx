@@ -30,6 +30,8 @@ export default function ShiftsPage() {
         code: '',
         start_time: '',
         end_time: '',
+        tolerance_minutes: 15,
+        clock_in_advance_minutes: 30,
         is_night_shift: false
     });
     const [saving, setSaving] = useState(false);
@@ -222,7 +224,7 @@ export default function ShiftsPage() {
             if (error) throw error;
             toast({ title: 'Shift Berhasil Ditambahkan' });
             setDialogOpen(false);
-            setForm({ name: '', code: '', start_time: '', end_time: '', is_night_shift: false });
+            setForm({ name: '', code: '', start_time: '', end_time: '', tolerance_minutes: 15, clock_in_advance_minutes: 30, is_night_shift: false });
             fetchShifts();
         } catch (error) {
             toast({ title: 'Gagal menambah shift', variant: 'destructive' });
@@ -307,6 +309,16 @@ export default function ShiftsPage() {
                                                         <Input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} />
                                                     </div>
                                                 </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="grid gap-2">
+                                                        <Label>Toleransi (Menit)</Label>
+                                                        <Input type="number" value={form.tolerance_minutes} onChange={e => setForm({ ...form, tolerance_minutes: parseInt(e.target.value) || 0 })} />
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label>Bisa Masuk Sebelum (Menit)</Label>
+                                                        <Input type="number" value={form.clock_in_advance_minutes} onChange={e => setForm({ ...form, clock_in_advance_minutes: parseInt(e.target.value) || 0 })} />
+                                                    </div>
+                                                </div>
                                                 <div className="flex items-center gap-2">
                                                     <input
                                                         type="checkbox"
@@ -335,6 +347,8 @@ export default function ShiftsPage() {
                                                         <TableHead>Nama</TableHead>
                                                         <TableHead>Kode</TableHead>
                                                         <TableHead>Jam Kerja</TableHead>
+                                                        <TableHead>Toleransi</TableHead>
+                                                        <TableHead>Batas Awal</TableHead>
                                                         <TableHead>Tipe</TableHead>
                                                         <TableHead className="text-right">Aksi</TableHead>
                                                     </TableRow>
@@ -349,6 +363,8 @@ export default function ShiftsPage() {
                                                             <TableCell className="font-medium">{shift.name}</TableCell>
                                                             <TableCell><span className="font-mono text-[10px] bg-slate-100 px-2 py-0.5 rounded border">{shift.code || '-'}</span></TableCell>
                                                             <TableCell className="text-xs">{shift.start_time?.slice(0, 5)} - {shift.end_time?.slice(0, 5)}</TableCell>
+                                                            <TableCell className="text-xs">{shift.tolerance_minutes}m</TableCell>
+                                                            <TableCell className="text-xs">-{shift.clock_in_advance_minutes}m</TableCell>
                                                             <TableCell>
                                                                 {shift.is_night_shift ?
                                                                     <div className="flex items-center text-purple-600 gap-1 text-[10px] font-bold"><Moon className="h-3 w-3" /> Malam</div> :

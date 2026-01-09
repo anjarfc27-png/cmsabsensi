@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useCamera } from '@/hooks/useCamera';
+import { useGeolocation } from '@/hooks/useGeolocation';
 import {
     Camera,
     Loader2,
@@ -37,53 +38,13 @@ export default function QuickAttendancePage() {
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
-    // Location States
-    const [latitude, setLatitude] = useState<number | null>(null);
-    const [longitude, setLongitude] = useState<number | null>(null);
-    const [accuracy, setAccuracy] = useState<number | null>(null);
-    const [locationChecking, setLocationChecking] = useState(true);
+    // Location Hook
+    const { latitude, longitude, accuracy, isMocked, loading: locationChecking, getLocation } = useGeolocation();
 
-    // Watch Location Real-time
+    // Initial location fetch
     useEffect(() => {
-        let watchId: number;
-
-        const startWatching = () => {
-            setLocationChecking(true);
-            if ('geolocation' in navigator) {
-                watchId = navigator.geolocation.watchPosition(
-                    (position) => {
-                        setLatitude(position.coords.latitude);
-                        setLongitude(position.coords.longitude);
-                        setAccuracy(position.coords.accuracy);
-                        setLocationChecking(false);
-                    },
-                    (error) => {
-                        console.error('Location error:', error);
-                        setLocationChecking(false);
-                        // Don't toast constantly on watch error, UI will show state
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 20000,
-                        maximumAge: 0
-                    }
-                );
-            } else {
-                toast({
-                    title: 'GPS Tidak Didukung',
-                    description: 'Perangkat Anda tidak mendukung fitur lokasi.',
-                    variant: 'destructive',
-                });
-                setLocationChecking(false);
-            }
-        };
-
-        startWatching();
-
-        return () => {
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-        };
-    }, []);
+        getLocation();
+    }, [getLocation]);
 
     const handleStartCamera = async () => {
         try {
@@ -139,6 +100,27 @@ export default function QuickAttendancePage() {
         try {
             const today = format(new Date(), 'yyyy-MM-dd');
 
+            // Fetch Today's Schedule
+            const { data: scheduleData } = await (supabase
+                .from('employee_schedules') as any)
+                .select('*, shift:shifts(*)')
+                .eq('user_id', user.id)
+                .eq('date', today)
+                .maybeSingle();
+
+            const todaySchedule = scheduleData as EmployeeSchedule | null;
+
+            // Barrier: Day Off
+            if (todaySchedule?.is_day_off) {
+                toast({
+                    title: 'Hari Ini Libur',
+                    description: 'Anda tidak memiliki jadwal kerja hari ini.',
+                    variant: 'destructive',
+                });
+                setSubmitting(false);
+                return;
+            }
+
             // Check existing attendance
             const { data: existing } = await supabase
                 .from('attendances')
@@ -162,8 +144,41 @@ export default function QuickAttendancePage() {
                 .getPublicUrl(fileName);
 
             const now = new Date();
+            let isLate = false;
+            let lateMinutes = 0;
 
             if (type === 'clock_in') {
+                let startStr = '08:00:00';
+                let tolerance = 15;
+                let advance = 30;
+
+                if (todaySchedule?.shift) {
+                    startStr = todaySchedule.shift.start_time;
+                    tolerance = todaySchedule.shift.tolerance_minutes ?? 15;
+                    advance = todaySchedule.shift.clock_in_advance_minutes ?? 30;
+                }
+
+                const [h, m, s] = startStr.split(':').map(Number);
+                const shiftStart = new Date(now);
+                shiftStart.setHours(h, m, s, 0);
+
+                const earliest = new Date(shiftStart.getTime() - (advance * 60000));
+                if (now < earliest) {
+                    toast({
+                        title: 'Terlalu Awal!',
+                        description: `Batas awal absen jam ${format(earliest, 'HH:mm')}`,
+                        variant: 'destructive',
+                    });
+                    setSubmitting(false);
+                    return;
+                }
+
+                const threshold = new Date(shiftStart.getTime() + (tolerance * 60000));
+                isLate = now > threshold;
+                if (isLate) {
+                    lateMinutes = Math.floor((now.getTime() - shiftStart.getTime()) / 60000);
+                }
+
                 await supabase.from('attendances').insert({
                     user_id: user.id,
                     date: today,
@@ -172,12 +187,14 @@ export default function QuickAttendancePage() {
                     clock_in_longitude: longitude,
                     clock_in_photo_url: publicUrl,
                     status: 'present',
+                    is_late: isLate,
+                    late_minutes: lateMinutes,
                 });
 
                 toast({
-                    title: 'Absen Masuk Berhasil!',
-                    description: `Tercatat pada ${format(now, 'HH:mm', { locale: id })}`,
-                    className: "bg-green-600 text-white border-none"
+                    title: isLate ? 'Absen Masuk (Terlambat)' : 'Absen Masuk Berhasil!',
+                    description: isLate ? `Terlambat ${lateMinutes} menit.` : `Tercatat pada ${format(now, 'HH:mm', { locale: id })}`,
+                    className: isLate ? "bg-red-600 text-white border-none" : "bg-green-600 text-white border-none"
                 });
             } else {
                 const clockInTime = new Date(existing.clock_in);

@@ -376,6 +376,7 @@ export interface WorkSchedule {
   end_time: string;
   break_minutes: number;
   tolerance_minutes: number;
+  clock_in_advance_minutes: number;
   is_default: boolean;
   created_at: string;
   updated_at: string;
@@ -405,6 +406,8 @@ export interface Shift {
   end_time: string;
   break_start: string | null;
   break_end: string | null;
+  tolerance_minutes: number;
+  clock_in_advance_minutes: number;
   is_night_shift: boolean;
   created_at?: string;
 }

@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useCamera } from '@/hooks/useCamera';
-import { Loader2, Camera, MapPin, CheckCircle2, LogIn, LogOut, RefreshCw, Smartphone, ChevronLeft, Map, AlertOctagon, X } from 'lucide-react';
+import { Loader2, Camera, MapPin, CheckCircle2, LogIn, LogOut, RefreshCw, Smartphone, ChevronLeft, Map, AlertOctagon, X, Clock, Info } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Attendance, OfficeLocation, WorkMode, EmployeeSchedule } from '@/types';
@@ -70,7 +71,7 @@ export default function AttendancePage() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { latitude, longitude, isMocked, getLocation } = useGeolocation();
+  const { latitude, longitude, error: locationError, loading: locationLoading, isMocked, getLocation } = useGeolocation();
   const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
 
   const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null);
@@ -108,7 +109,10 @@ export default function AttendancePage() {
         const dist = getDistanceFromLatLonInM(latitude, longitude, office.latitude, office.longitude);
         if (dist > (office.radius_meters || MAX_RADIUS_M)) {
           setIsLocationValid(false);
-          setLocationErrorMsg(`Anda berada di luar jangkauan kantor (${Math.round(dist)}m). Maksimal ${office.radius_meters || MAX_RADIUS_M}m.`);
+          setLocationErrorMsg(`Berada di luar jangkauan kantor (${Math.round(dist)}m). Maksimal ${office.radius_meters || MAX_RADIUS_M}m.`);
+        } else if (isMocked) {
+          setIsLocationValid(false);
+          setLocationErrorMsg("Fake GPS Terdeteksi! Mohon gunakan lokasi asli.");
         } else {
           setIsLocationValid(true);
           setLocationErrorMsg(null);
@@ -255,16 +259,30 @@ export default function AttendancePage() {
         // Determine Shift Start
         let scheduleStartStr = '08:00:00'; // Default fallback
         let toleranceMinutes = 15; // Default tolerance
+        let advanceMinutes = 30; // Default advance
 
         if (todaySchedule?.shift) {
           scheduleStartStr = todaySchedule.shift.start_time;
-          // toleranceMinutes = todaySchedule.shift.tolerance_minutes || 0; 
+          toleranceMinutes = todaySchedule.shift.tolerance_minutes ?? 15;
+          advanceMinutes = todaySchedule.shift.clock_in_advance_minutes ?? 30;
         }
 
         // Parse Shift Start to Date
         const [h, m, s] = scheduleStartStr.split(':').map(Number);
         const shiftStartDate = new Date(now);
         shiftStartDate.setHours(h, m, s, 0);
+
+        // Check Early Clock-in Barrier
+        const earliestAllowed = new Date(shiftStartDate.getTime() - (advanceMinutes * 60000));
+        if (now < earliestAllowed) {
+          toast({
+            title: 'Terlalu Awal!',
+            description: `Anda baru bisa absen masuk jam ${format(earliestAllowed, 'HH:mm')}.`,
+            variant: 'destructive'
+          });
+          setSubmitting(false);
+          return;
+        }
 
         // Add tolerance
         const lateThreshold = new Date(shiftStartDate.getTime() + (toleranceMinutes * 60000));
@@ -312,7 +330,7 @@ export default function AttendancePage() {
         <div className="absolute top-0 left-0 w-full h-[120px] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
         {/* Floating Content */}
-        <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-0">
+        <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-24 md:px-0">
           <div className="flex items-center gap-3 text-white mb-2">
             <Button
               variant="ghost"
@@ -408,9 +426,20 @@ export default function AttendancePage() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mode & Lokasi</label>
+                    <div className="flex items-center justify-between px-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode & Lokasi</label>
+                      <button
+                        type="button"
+                        onClick={() => getLocation()}
+                        disabled={locationLoading}
+                        className="text-[10px] font-bold text-blue-600 flex items-center gap-1 active:scale-95 transition-transform"
+                      >
+                        {locationLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                        Perbarui GPS
+                      </button>
+                    </div>
                     <Select value={workMode} onValueChange={(v) => setWorkMode(v as WorkMode)}>
-                      <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-slate-50/50"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:ring-2 focus:ring-blue-100"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="wfo">Work From Office</SelectItem>
                         <SelectItem value="wfh">Work From Home</SelectItem>
@@ -467,9 +496,14 @@ export default function AttendancePage() {
                   ) : (
                     <div className="h-44 w-full rounded-[24px] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center text-[10px] text-slate-400 font-bold uppercase tracking-widest gap-2">
                       <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-                        <MapPin className="h-5 w-5 text-blue-500 animate-bounce" />
+                        {locationLoading ? <Loader2 className="h-5 w-5 text-blue-500 animate-spin" /> : <MapPin className="h-5 w-5 text-slate-300" />}
                       </div>
-                      Mencari Posisi...
+                      {locationError || (locationLoading ? 'Mencari Lokasi...' : 'GPS Belum Terkunci')}
+                      {!locationLoading && (
+                        <Button variant="outline" size="sm" onClick={() => getLocation()} className="mt-2 h-7 text-[9px] rounded-full">
+                          Ambil Lokasi
+                        </Button>
+                      )}
                     </div>
                   )}
 

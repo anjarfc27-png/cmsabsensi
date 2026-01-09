@@ -161,9 +161,9 @@ export default function HistoryPage() {
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50">
         {/* Background Gradient */}
-        <div className="absolute top-0 left-0 w-full h-[100px] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[24px] z-0 shadow-lg" />
+        <div className="absolute top-0 left-0 w-full h-[120px] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[24px] z-0 shadow-lg" />
 
-        <div className="relative z-10 space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-8">
+        <div className="relative z-10 space-y-4 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-24 md:px-8">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-white">
             <div className="flex items-start gap-3">

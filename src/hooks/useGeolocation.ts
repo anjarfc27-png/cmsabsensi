@@ -21,35 +21,34 @@ export function useGeolocation() {
     loading: false,
   });
 
-  const getLocation = useCallback(async () => {
+  const getLocation = useCallback(async (retryCount = 0) => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Check for permissions
+      // Check for permissions explicitly
       if (Capacitor.isNativePlatform()) {
         const perm = await Geolocation.checkPermissions();
         if (perm.location !== 'granted') {
           const req = await Geolocation.requestPermissions();
           if (req.location !== 'granted') {
-            throw new Error('Izin lokasi ditolak. Mohon izinkan akses lokasi melalui pengaturan HP Anda.');
+            throw new Error('Akses Lokasi Ditolak. Mohon aktifkan izin lokasi di pengaturan HP Anda.');
           }
         }
       }
 
       // Get Position using Native Capacitor Geolocation
-      // High accuracy is crucial to avoid cached or imprecise mock locations
+      // We increase timeout and use ForceRefresh if we can
       const position = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        timeout: 20000, // Increase to 20s
+        maximumAge: 0   // Force fresh location
       });
 
       const { latitude, longitude, accuracy } = position.coords;
 
-      // On Android, Capacitor can sometimes detect if a location is mocked
-      // In Capacitor 5/6, we check the extra/timestamp/accuracy patterns
-      // Some fake GPS apps return exactly 0 or suspicious static values
-      const isMocked = (position as any).extra?.isMocked || (position as any).mocked || false;
+      // Anti-Fake GPS Logic
+      // @ts-ignore
+      const isMocked = position.coords.isMocked || (position as any).extra?.isMocked || (position as any).mocked || false;
 
       setState({
         latitude,
@@ -60,14 +59,21 @@ export function useGeolocation() {
         loading: false,
       });
 
-      if (isMocked) {
-        console.warn('Fake GPS Detected!');
-      }
-
       return { latitude, longitude, accuracy, isMocked };
     } catch (err: any) {
-      let errorMessage = 'Gagal mendapatkan lokasi';
-      if (err.message) errorMessage = err.message;
+      console.error('GPS Fetch Error:', err);
+
+      // Auto-retry once if it was a timeout
+      if (retryCount < 1) {
+        return getLocation(retryCount + 1);
+      }
+
+      let errorMessage = 'GPS tidak terkunci. Pastikan GPS HP Aktif dan Anda berada di area terbuka.';
+      if (err.code === 1 || err.message?.includes('denied')) {
+        errorMessage = 'Izin lokasi ditolak. Cek pengaturan aplikasi.';
+      } else if (err.code === 3 || err.message?.includes('timeout')) {
+        errorMessage = 'GPS Timeout. Sinyal GPS lemah, coba refresh kembali atau berpindah ke area terbuka.';
+      }
 
       setState((prev) => ({
         ...prev,
