@@ -128,38 +128,38 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-slate-50/50 flex flex-col">
-        <main className="flex-1 pb-32">
+        <main className="flex-1 pb-20">
           {children}
         </main>
 
-        {/* Fixed Bottom Navigation - Mobile Only */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-t border-slate-100 flex items-center justify-around px-2 pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
-          <Link to="/dashboard" className={cn("flex flex-col items-center gap-1 p-2 transition-all min-w-[64px]", location.pathname === '/dashboard' ? "text-blue-600 scale-110" : "text-slate-400 opacity-70")}>
+        {/* Fixed Bottom Navigation - Mobile Only (Compact) */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-center justify-around h-[60px] pb-[env(safe-area-inset-bottom)] px-1 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+          <Link to="/dashboard" className={cn("flex flex-1 flex-col items-center justify-center gap-0.5 h-full transition-all", location.pathname === '/dashboard' ? "text-blue-600" : "text-slate-400 hover:text-slate-600")}>
             <Home className={cn("h-5 w-5", location.pathname === '/dashboard' ? "fill-blue-600/10" : "")} />
-            <span className="text-[10px] font-bold">Home</span>
+            <span className="text-[9px] font-bold">Home</span>
           </Link>
-          <Link to="/attendance" className={cn("flex flex-col items-center gap-1 p-2 transition-all min-w-[64px]", location.pathname === '/attendance' ? "text-blue-600 scale-110" : "text-slate-400 opacity-70")}>
+          <Link to="/attendance" className={cn("flex flex-1 flex-col items-center justify-center gap-0.5 h-full transition-all", location.pathname === '/attendance' ? "text-blue-600" : "text-slate-400 hover:text-slate-600")}>
             <Clock className="h-5 w-5" />
-            <span className="text-[10px] font-bold">Absen</span>
+            <span className="text-[9px] font-bold">Absen</span>
           </Link>
 
-          {/* Floating Scan Button */}
-          <div className="relative -top-8">
+          {/* Floating Scan Button (Compact) */}
+          <div className="relative -top-6">
             <button
               onClick={() => navigate('/quick-attendance')}
-              className="h-16 w-16 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-xl shadow-blue-500/40 flex items-center justify-center transform transition-all active:scale-90 border-[6px] border-white"
+              className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/30 flex items-center justify-center transform transition-all active:scale-90 border-[4px] border-white"
             >
-              <Scan className="h-7 w-7" />
+              <Scan className="h-6 w-6" />
             </button>
           </div>
 
-          <Link to="/history" className={cn("flex flex-col items-center gap-1 p-2 transition-all min-w-[64px]", location.pathname === '/history' ? "text-blue-600 scale-110" : "text-slate-400 opacity-70")}>
+          <Link to="/history" className={cn("flex flex-1 flex-col items-center justify-center gap-0.5 h-full transition-all", location.pathname === '/history' ? "text-blue-600" : "text-slate-400 hover:text-slate-600")}>
             <Calendar className="h-5 w-5" />
-            <span className="text-[10px] font-bold">Riwayat</span>
+            <span className="text-[9px] font-bold">Riwayat</span>
           </Link>
-          <Link to="/profile" className={cn("flex flex-col items-center gap-1 p-2 transition-all min-w-[64px]", location.pathname === '/profile' ? "text-blue-600 scale-110" : "text-slate-400 opacity-70")}>
+          <Link to="/profile" className={cn("flex flex-1 flex-col items-center justify-center gap-0.5 h-full transition-all", location.pathname === '/profile' ? "text-blue-600" : "text-slate-400 hover:text-slate-600")}>
             <User className="h-5 w-5" />
-            <span className="text-[10px] font-bold">Profil</span>
+            <span className="text-[9px] font-bold">Profil</span>
           </Link>
         </div>
       </div>

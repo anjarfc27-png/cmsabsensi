@@ -19,6 +19,8 @@ import {
     Signal,
     RefreshCw
 } from 'lucide-react';
+import { Camera as CapCamera } from '@capacitor/camera';
+import { Geolocation as CapGeolocation } from '@capacitor/geolocation';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { GoogleMapsEmbed } from '@/components/GoogleMapsEmbed';
@@ -85,12 +87,23 @@ export default function QuickAttendancePage() {
 
     const handleStartCamera = async () => {
         try {
+            // Attempt to check/request native permissions
+            try {
+                const cStatus = await CapCamera.checkPermissions();
+                if (cStatus.camera !== 'granted') await CapCamera.requestPermissions();
+
+                const gStatus = await CapGeolocation.checkPermissions();
+                if (gStatus.location !== 'granted') await CapGeolocation.requestPermissions();
+            } catch (e) {
+                console.warn('Native permission check failed (likely browser mode):', e);
+            }
+
             await startCamera();
             setStep('camera');
-        } catch (error) {
+        } catch (error: any) {
             toast({
                 title: 'Gagal Membuka Kamera',
-                description: 'Pastikan Anda memberikan izin kamera.',
+                description: error.message || 'Pastikan Anda memberikan izin kamera.',
                 variant: 'destructive',
             });
         }
@@ -189,11 +202,11 @@ export default function QuickAttendancePage() {
             }
 
             setTimeout(() => navigate('/dashboard'), 1500);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
             toast({
                 title: 'Gagal Menyimpan Absensi',
-                description: 'Terjadi kesalahan sistem.',
+                description: error.message || 'Terjadi kesalahan sistem. Cek koneksi Anda.',
                 variant: 'destructive',
             });
         } finally {

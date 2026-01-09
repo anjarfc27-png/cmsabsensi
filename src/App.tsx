@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -35,6 +36,38 @@ import InformationPage from "./pages/Information";
 
 const queryClient = new QueryClient();
 
+import { App as CapacitorApp } from '@capacitor/app';
+
+// Handle Hardware Back Button
+const BackButtonHandler = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleBackButton = async () => {
+      CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+        const currentPath = location.pathname;
+
+        // Screens where back button should likely exit app or ask confirmation
+        if (currentPath === '/dashboard' || currentPath === '/auth') {
+          CapacitorApp.exitApp();
+        } else {
+          // Go back if possible
+          navigate(-1);
+        }
+      });
+    };
+
+    handleBackButton();
+
+    return () => {
+      CapacitorApp.removeAllListeners();
+    };
+  }, [navigate, location]);
+
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -42,6 +75,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
+          <BackButtonHandler />
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

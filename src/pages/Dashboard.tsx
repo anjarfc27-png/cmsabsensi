@@ -177,31 +177,31 @@ export default function Dashboard() {
       <DashboardLayout>
         <div className="relative">
           {/* Custom Background Header for Mobile Feel */}
-          <div className="absolute -top-4 -left-4 w-[calc(100%+2rem)] h-[180px] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+          <div className="absolute -top-4 -left-4 w-[calc(100%+2rem)] h-[140px] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[30px] z-0 shadow-lg" />
 
-          <div className="relative z-10 space-y-6 max-w-5xl mx-auto pb-24">
+          <div className="relative z-10 space-y-4 max-w-5xl mx-auto pb-24">
             {/* Header Section */}
-            <div className="flex items-center justify-between pt-[calc(3.5rem+env(safe-area-inset-top))] pb-6 px-2 text-white">
+            <div className="flex items-center justify-between pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 px-4 text-white">
               <div className="flex items-center gap-3">
-                <div className="h-14 min-w-[140px] px-4 rounded-2xl bg-white shadow-lg flex items-center justify-center">
-                  <AppLogo className="h-9 w-auto" />
+                <div className="h-10 min-w-[120px] px-3 rounded-xl bg-white/95 shadow-md flex items-center justify-center backdrop-blur-sm">
+                  <AppLogo className="h-6 w-auto" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold tracking-tight text-white drop-shadow-md">Hi, {profile?.full_name?.split(' ')[0]}</h1>
-                  <p className="text-xs text-blue-50 font-medium opacity-90">{getGreeting()}</p>
+                  <h1 className="text-lg font-bold tracking-tight text-white drop-shadow-md leading-none">Hi, {profile?.full_name?.split(' ')[0]}</h1>
+                  <p className="text-[10px] text-blue-50 font-medium opacity-90">{getGreeting()}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <NotificationBell iconClassName="text-white" />
+                <NotificationBell iconClassName="text-white h-5 w-5" />
               </div>
             </div>
 
-            {/* Main Features Grid - JKN Style */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 -mt-2 mx-2">
-              <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                <div className="h-1 w-4 bg-blue-500 rounded-full" /> Menu Karyawan
+            {/* Main Features Grid - Compact Style */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 -mt-2 mx-3 relative z-20">
+              <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                <div className="h-1 w-3 bg-blue-500 rounded-full" /> Menu Karyawan
               </h3>
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-y-6 gap-x-4 text-center">
+              <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
                 <MenuGridItem href="/attendance" icon={Clock} label="Absen" color="text-blue-600" bg="bg-blue-50" />
                 <MenuGridItem href="/history" icon={Calendar} label="Riwayat" color="text-purple-600" bg="bg-purple-50" />
                 <MenuGridItem href="/leave" icon={FileText} label="Cuti" color="text-orange-600" bg="bg-orange-50" />
@@ -215,13 +215,13 @@ export default function Dashboard() {
               {/* Admin Section - Only Visible to HR/Manager */}
               {(profile?.role === 'admin_hr' || profile?.role === 'manager') && (
                 <>
-                  <div className="my-6 border-t border-slate-100" />
-                  <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                    <div className="h-1 w-4 bg-purple-500 rounded-full" /> Menu Admin
+                  <div className="my-4 border-t border-slate-100" />
+                  <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <div className="h-1 w-3 bg-purple-500 rounded-full" /> Menu Admin
                   </h3>
-                  <div className="grid grid-cols-4 md:grid-cols-8 gap-y-6 gap-x-4 text-center">
+                  <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
                     <MenuGridItem href="/team-map" icon={Users} label="Pantau" color="text-cyan-600" bg="bg-cyan-50" />
-                    <MenuGridItem href="/employees" icon={Users} label="Karyawan" color="text-indigo-600" bg="bg-indigo-50" roles={['admin_hr']} />
+                    <MenuGridItem href="/employees" icon={Users} label="Staff" color="text-indigo-600" bg="bg-indigo-50" roles={['admin_hr']} />
                     <MenuGridItem href="/shifts" icon={Clock} label="Shift" color="text-pink-600" bg="bg-pink-50" roles={['admin_hr']} />
                     <MenuGridItem href="/approvals" icon={ClipboardCheck} label="Approval" color="text-amber-600" bg="bg-amber-50" />
                     <MenuGridItem href="/payroll" icon={DollarSign} label="Payroll" color="text-green-600" bg="bg-green-50" roles={['admin_hr']} />
@@ -233,19 +233,19 @@ export default function Dashboard() {
             </div>
 
             {/* Info Banner Carousel / Grid */}
-            <div className="mx-2 md:mx-0">
+            <div className="mx-3 md:mx-0">
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
                 {/* Attendance Summary Slide */}
-                <div className="w-[280px] md:w-full h-[140px] rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 p-4 text-white shadow-lg shadow-blue-900/10 flex flex-col justify-between shrink-0 relative overflow-hidden transition-all hover:scale-[1.02]">
-                  <div className="absolute right-0 top-0 h-24 w-24 bg-white/10 rounded-bl-full -mr-4 -mt-4" />
+                <div className="w-[260px] md:w-full h-[120px] rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-3 text-white shadow-lg shadow-blue-900/10 flex flex-col justify-between shrink-0 relative overflow-hidden transition-all active:scale-95">
+                  <div className="absolute right-0 top-0 h-20 w-20 bg-white/10 rounded-bl-full -mr-4 -mt-4" />
                   <div>
-                    <p className="text-xs font-medium text-blue-100 mb-1">Status Hari Ini</p>
-                    <h3 className="text-xl font-bold">{todayAttendance ? (todayAttendance.clock_out ? 'Sudah Pulang' : 'Sedang Bekerja') : 'Belum Absen'}</h3>
+                    <p className="text-[10px] font-medium text-blue-100 mb-0.5">Status Hari Ini</p>
+                    <h3 className="text-lg font-bold">{todayAttendance ? (todayAttendance.clock_out ? 'Sudah Pulang' : 'Sedang Bekerja') : 'Belum Absen'}</h3>
                   </div>
                   <div className="flex justify-between items-end">
                     <div>
-                      <p className="text-[10px] text-blue-200 uppercase tracking-widest">Masuk</p>
-                      <p className="font-mono text-lg font-bold">{todayAttendance ? format(new Date(todayAttendance.clock_in), 'HH:mm') : '--:--'}</p>
+                      <p className="text-[9px] text-blue-200 uppercase tracking-widest">Waktu</p>
+                      <p className="font-mono text-base font-bold">{todayAttendance ? format(new Date(todayAttendance.clock_in), 'HH:mm') : '--:--'}</p>
                     </div>
                     <Button size="sm" variant="secondary" className="h-8 text-xs bg-white text-blue-700 hover:bg-blue-50 border-0" asChild>
                       <Link to="/attendance">{todayAttendance && !todayAttendance.clock_out ? 'Clock Out' : 'Absen'}</Link>
