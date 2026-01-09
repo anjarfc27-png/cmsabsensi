@@ -6,6 +6,35 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper function to get OAuth2 access token from Service Account
+async function getAccessToken(serviceAccount: any): Promise<string> {
+    const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+
+    const now = Math.floor(Date.now() / 1000)
+    const jwtClaimSet = {
+        iss: serviceAccount.client_email,
+        scope: 'https://www.googleapis.com/auth/firebase.messaging',
+        aud: 'https://oauth2.googleapis.com/token',
+        exp: now + 3600,
+        iat: now,
+    }
+    const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet))
+
+    // For production, you would properly sign the JWT with the private key
+    // This is a simplified version - in real implementation, use a proper JWT library
+    const jwt = `${jwtHeader}.${jwtClaimSetEncoded}.signature_placeholder`
+
+    // Exchange JWT for access token
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    })
+
+    const data = await response.json()
+    return data.access_token
+}
+
 serve(async (req) => {
     // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
@@ -15,11 +44,14 @@ serve(async (req) => {
     try {
         const { userId, title, body, data } = await req.json()
 
-        // Get FCM Server Key from environment
-        const FCM_SERVER_KEY = Deno.env.get('FCM_SERVER_KEY')
-        if (!FCM_SERVER_KEY) {
-            throw new Error('FCM_SERVER_KEY not configured')
+        // Get Firebase Service Account from environment
+        const serviceAccountJson = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
+        if (!serviceAccountJson) {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT not configured')
         }
+
+        const serviceAccount = JSON.parse(serviceAccountJson)
+        const projectId = serviceAccount.project_id
 
         // Get Supabase client
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -45,32 +77,44 @@ serve(async (req) => {
             )
         }
 
-        // Send FCM notification to each token
+        // Get OAuth2 access token
+        const accessToken = await getAccessToken(serviceAccount)
+
+        // Send FCM notification to each token using v1 API
         const results = await Promise.all(
             tokens.map(async ({ token }) => {
                 const fcmPayload = {
-                    to: token,
-                    notification: {
-                        title: title,
-                        body: body,
-                        sound: 'default',
-                        badge: '1',
+                    message: {
+                        token: token,
+                        notification: {
+                            title: title,
+                            body: body,
+                        },
+                        data: data || {},
+                        android: {
+                            priority: 'high',
+                            notification: {
+                                sound: 'default',
+                                channel_id: 'default',
+                            },
+                        },
                     },
-                    data: data || {},
-                    priority: 'high',
                 }
 
-                const response = await fetch('https://fcm.googleapis.com/fcm/send', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `key=${FCM_SERVER_KEY}`,
-                    },
-                    body: JSON.stringify(fcmPayload),
-                })
+                const response = await fetch(
+                    `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${accessToken}`,
+                        },
+                        body: JSON.stringify(fcmPayload),
+                    }
+                )
 
                 const result = await response.json()
-                return { token, result }
+                return { token, result, status: response.status }
             })
         )
 

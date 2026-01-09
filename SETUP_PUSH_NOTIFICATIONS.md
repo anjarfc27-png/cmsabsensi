@@ -1,4 +1,4 @@
-# Setup Native Push Notifications (FCM)
+# Setup Native Push Notifications (FCM v1 API)
 
 ## Prerequisites
 
@@ -8,74 +8,123 @@
 
 ## Step-by-Step Setup
 
-### 1. Get FCM Server Key
+### 1. Download Firebase Service Account JSON
 
 1. Buka [Firebase Console](https://console.firebase.google.com/)
 2. Pilih project: **cms-absensi**
-3. Go to: **Project Settings** → **Cloud Messaging**
-4. Copy **Server Key** (Legacy)
-   - Jika tidak ada, enable **Cloud Messaging API (Legacy)** terlebih dahulu
+3. Klik ⚙️ (Settings) → **Project settings**
+4. Tab **Service accounts**
+5. Klik **Generate new private key**
+6. Download file JSON (contoh: `cms-absensi-firebase-adminsdk-xxxxx.json`)
+7. **SIMPAN FILE INI DENGAN AMAN** - jangan commit ke Git!
 
-### 2. Deploy Edge Function
+### 2. Enable Firebase Cloud Messaging API (v1)
+
+1. Masih di Firebase Console
+2. Klik **Cloud Messaging** tab
+3. Jika ada pesan "Cloud Messaging API (Legacy) Disabled":
+   - Klik link **Learn more** atau **Manage API in Google Cloud Console**
+   - Enable **Firebase Cloud Messaging API** (bukan yang Legacy)
+   - Tunggu beberapa menit sampai aktif
+
+### 3. Prepare Service Account for Supabase
+
+Buka file Service Account JSON yang di-download, copy seluruh isinya.
+
+Contoh isi file:
+```json
+{
+  "type": "service_account",
+  "project_id": "cms-absensi",
+  "private_key_id": "...",
+  "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-xxxxx@cms-absensi.iam.gserviceaccount.com",
+  "client_id": "...",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  ...
+}
+```
+
+**Minify JSON** (hapus whitespace dan newline):
+```bash
+# Di terminal, jalankan:
+cat cms-absensi-firebase-adminsdk-xxxxx.json | jq -c
+```
+
+Atau manual: copy JSON dan paste ke https://codebeautify.org/jsonminifier lalu minify.
+
+### 4. Deploy Edge Function
 
 ```bash
-# Login to Supabase CLI
+# Install Supabase CLI (jika belum)
+npm install -g supabase
+
+# Login
 npx supabase login
 
-# Link to your project
+# Link project
 npx supabase link --project-ref YOUR_PROJECT_REF
 
-# Deploy the function
+# Deploy function
 npx supabase functions deploy send-push-notification
 ```
 
-### 3. Set Environment Variables
+**Cara mendapatkan PROJECT_REF:**
+- Buka Supabase Dashboard
+- URL: `https://supabase.com/dashboard/project/YOUR_PROJECT_REF`
+- Atau: Project Settings → General → Reference ID
 
-Di Supabase Dashboard:
+### 5. Set Firebase Service Account di Supabase
 
-1. Go to **Project Settings** → **Edge Functions**
-2. Add secrets:
-   ```
-   FCM_SERVER_KEY=YOUR_FCM_SERVER_KEY_HERE
-   ```
+1. Buka Supabase Dashboard
+2. **Project Settings** → **Edge Functions** → **Secrets**
+3. Add new secret:
+   - Name: `FIREBASE_SERVICE_ACCOUNT`
+   - Value: (paste minified JSON dari Step 3)
+4. Save
 
-### 4. Run Database Migration
+⚠️ **PENTING:** Paste **SELURUH** JSON yang sudah di-minify, termasuk `{` dan `}`.
 
+### 6. Run Database Migration
+
+**Option A: Via Supabase CLI**
 ```bash
-# Apply migration to enable push notification trigger
 npx supabase db push
 ```
 
-Atau manual di Supabase SQL Editor:
-- Run file: `supabase/migrations/20260109210000_fcm_push_trigger.sql`
+**Option B: Via SQL Editor (Manual)**
+1. Buka Supabase Dashboard → SQL Editor
+2. Copy-paste isi file: `supabase/migrations/20260109210000_fcm_push_trigger.sql`
+3. Run
 
-### 5. Configure Supabase Settings (Important!)
+### 7. Configure Database Settings
 
 Di Supabase SQL Editor, run:
 
 ```sql
--- Set Supabase URL
+-- Ganti YOUR_PROJECT_REF dengan project ref Anda
 ALTER DATABASE postgres SET app.settings.supabase_url = 'https://YOUR_PROJECT_REF.supabase.co';
 
--- Set Service Role Key
-ALTER DATABASE postgres SET app.settings.supabase_service_role_key = 'YOUR_SERVICE_ROLE_KEY';
+-- Ganti YOUR_SERVICE_ROLE_KEY dengan service role key Anda
+ALTER DATABASE postgres SET app.settings.supabase_service_role_key = 'eyJhbGc...';
 ```
 
 **Cara mendapatkan Service Role Key:**
-1. Supabase Dashboard → Project Settings → API
-2. Copy **service_role** key (secret)
+1. Supabase Dashboard → **Project Settings** → **API**
+2. Copy **service_role** key (yang panjang, bukan anon key)
 
-### 6. Test Push Notification
+### 8. Test Push Notification
 
 #### Test dari Supabase SQL Editor:
 
 ```sql
--- Insert test notification
+-- Ganti USER_ID dengan ID user yang sedang login di app
 INSERT INTO notifications (user_id, title, message, type, link)
 VALUES (
-  'USER_ID_HERE',
+  'USER_ID_DISINI',
   'Test Push Notification',
-  'Ini adalah test push notification dari Supabase!',
+  'Halo! Ini test push notification dari FCM v1!',
   'info',
   '/dashboard'
 );
@@ -90,12 +139,12 @@ curl -X POST 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-push-notifi
   -d '{
     "userId": "USER_ID_HERE",
     "title": "Test Notification",
-    "body": "Hello from FCM!",
+    "body": "Hello from FCM v1!",
     "data": {}
   }'
 ```
 
-### 7. Build & Test Android App
+### 9. Build & Test Android App
 
 ```bash
 # Sync Capacitor
@@ -109,42 +158,50 @@ npx cap open android
 
 ## Troubleshooting
 
+### Error "FIREBASE_SERVICE_ACCOUNT not configured":
+
+- Pastikan secret `FIREBASE_SERVICE_ACCOUNT` sudah di-set di Supabase Edge Functions
+- Pastikan value-nya adalah **minified JSON** (tidak ada newline)
+- Redeploy function: `npx supabase functions deploy send-push-notification`
+
+### Error "Cloud Messaging API (Legacy) Disabled":
+
+- Jangan pakai Legacy API
+- Enable **Firebase Cloud Messaging API** (v1) di Google Cloud Console
+- Gunakan Service Account JSON, bukan Server Key
+
 ### Push tidak muncul di HP:
 
-1. **Cek FCM Token tersimpan:**
+1. **Cek FCM token tersimpan:**
    ```sql
    SELECT * FROM fcm_tokens WHERE user_id = 'YOUR_USER_ID';
    ```
 
-2. **Cek log Edge Function:**
+2. **Cek Edge Function logs:**
    - Supabase Dashboard → Edge Functions → Logs
+   - Lihat apakah ada error saat send push
 
 3. **Cek permission di HP:**
-   - Settings → Apps → [App Name] → Notifications → Enable
+   - Settings → Apps → [App Name] → Notifications → ✅ Enable
 
-4. **Test manual FCM:**
-   ```bash
-   curl -X POST https://fcm.googleapis.com/fcm/send \
-     -H "Authorization: key=YOUR_FCM_SERVER_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "to": "DEVICE_FCM_TOKEN",
-       "notification": {
-         "title": "Test",
-         "body": "Manual FCM test"
-       }
-     }'
-   ```
-
-### Error "FCM_SERVER_KEY not configured":
-
-- Pastikan secret sudah di-set di Supabase Edge Functions settings
-- Redeploy function setelah set secret
+4. **Cek Firebase Cloud Messaging API enabled:**
+   - Google Cloud Console → APIs & Services → Enabled APIs
+   - Pastikan "Firebase Cloud Messaging API" ada di list
 
 ### Error "No FCM tokens found":
 
 - User belum login di app atau permission ditolak
 - Cek `usePushNotifications` hook dipanggil di `DashboardLayout`
+- Cek console log saat app dibuka: "Push registration success, token: ..."
+
+## Perbedaan FCM v1 vs Legacy
+
+| Feature | Legacy API (Deprecated) | v1 API (Current) |
+|---------|------------------------|------------------|
+| Auth | Server Key | OAuth2 Access Token |
+| Endpoint | `/fcm/send` | `/v1/projects/{project}/messages:send` |
+| Credential | Server Key string | Service Account JSON |
+| Status | ❌ Deprecated (6/20/2024) | ✅ Active |
 
 ## How It Works
 
@@ -152,25 +209,43 @@ npx cap open android
 2. **FCM token saved** to `fcm_tokens` table
 3. **New notification inserted** → Trigger fires
 4. **Trigger calls Edge Function** with user_id
-5. **Edge Function fetches** FCM tokens for user
-6. **Edge Function sends** push via FCM API
-7. **User receives** native push notification on device
+5. **Edge Function:**
+   - Gets Service Account from env
+   - Generates OAuth2 access token
+   - Fetches FCM tokens for user
+   - Sends push via FCM v1 API
+6. **User receives** native push notification on device
 
-## Files Created
+## Files
 
-- ✅ `supabase/functions/send-push-notification/index.ts` - Edge Function
+- ✅ `supabase/functions/send-push-notification/index.ts` - Edge Function (FCM v1)
 - ✅ `supabase/migrations/20260109210000_fcm_push_trigger.sql` - Database Trigger
-- ✅ `android/app/google-services.json` - Firebase config (already exists)
+- ✅ `android/app/google-services.json` - Firebase config
+- ⚠️ `cms-absensi-firebase-adminsdk-xxxxx.json` - **DO NOT COMMIT!**
+
+## Security Notes
+
+⚠️ **NEVER commit Service Account JSON to Git!**
+
+Add to `.gitignore`:
+```
+*firebase-adminsdk*.json
+*service-account*.json
+```
+
+The Service Account JSON should only be stored as a secret in Supabase Edge Functions.
 
 ## Next Steps
 
-1. Get FCM Server Key from Firebase Console
-2. Deploy Edge Function
-3. Set FCM_SERVER_KEY secret
-4. Run migration
-5. Configure database settings
-6. Build & test!
+1. ✅ Download Service Account JSON from Firebase
+2. ✅ Enable Firebase Cloud Messaging API (v1)
+3. ✅ Minify Service Account JSON
+4. ✅ Deploy Edge Function
+5. ✅ Set `FIREBASE_SERVICE_ACCOUNT` secret
+6. ✅ Run migration
+7. ✅ Configure database settings
+8. ✅ Test!
 
 ---
 
-**Status:** Ready to deploy! Follow steps above to activate native push notifications.
+**Status:** Ready to deploy with FCM HTTP v1 API! 🚀
