@@ -31,3 +31,9 @@ android/app/build/
 android/.gradle/
 ios/App/Pods/
 ios/App/build/
+
+# Firebase Service Account (NEVER COMMIT!)
+*firebase-adminsdk*.json
+*service-account*.json
+firebase-service-account.json
+
