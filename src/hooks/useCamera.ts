@@ -95,10 +95,8 @@ export function useCamera() {
           return;
         }
 
-        // Mirror the image for selfie
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0);
+        // Draw image directly without mirroring
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob(
           (blob) => {

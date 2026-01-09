@@ -353,7 +353,7 @@ export default function AttendancePage() {
         <div className="absolute top-0 left-0 w-full h-[140px] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
         {/* Floating Content */}
-        <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-24 md:px-0">
+        <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-0">
           <div className="flex items-center gap-3 text-white mb-2">
             <Button
               variant="ghost"
