@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MapContainer, TileLayer, Marker, Circle, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Utility to calculate distance between two coordinates in meters (Haversine Formula)
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
