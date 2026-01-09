@@ -326,7 +326,7 @@ export default function ProfilePage() {
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50 pb-32">
         {/* Header Section (Conserved style) */}
-        <div className="absolute top-0 left-0 w-full h-[120px] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+        <div className="absolute top-0 left-0 w-full h-[140px] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] space-y-6">
           <div className="flex items-center gap-3 text-white">
