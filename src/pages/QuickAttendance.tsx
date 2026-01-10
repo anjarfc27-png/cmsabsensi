@@ -57,6 +57,13 @@ export default function QuickAttendancePage() {
         getLocation();
     }, [getLocation]);
 
+    // Fix: Attach stream to video element when stream is available
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream, videoRef]);
+
     // Check face match before allowing attendance
     const checkFaceMatch = async (): Promise<boolean> => {
         if (!videoRef.current || !modelsLoaded) {
@@ -343,7 +350,7 @@ export default function QuickAttendancePage() {
 
     return (
         <DashboardLayout>
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-white flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))]">
+            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-white flex items-center justify-center p-4 pt-[calc(2rem+env(safe-area-inset-top))]">
                 <Card className="w-full max-w-md border-0 shadow-2xl rounded-[32px] overflow-hidden bg-white/80 backdrop-blur-xl ring-1 ring-slate-100">
                     <CardContent className="p-0">
                         {/* Modern Header with Pulse GPS */}
