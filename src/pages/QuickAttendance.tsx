@@ -7,8 +7,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useCamera } from '@/hooks/useCamera';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { takePhoto, dataUrlToBlob } from '@/utils/capacitorCamera';
+import { Capacitor } from '@capacitor/core';
 import {
     Camera,
     Loader2,
@@ -31,7 +32,6 @@ export default function QuickAttendancePage() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
-    const { videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
 
     const [step, setStep] = useState<'idle' | 'camera' | 'processing'>('idle');
     const [capturedPhoto, setCapturedPhoto] = useState<Blob | null>(null);
@@ -48,6 +48,16 @@ export default function QuickAttendancePage() {
 
     const handleStartCamera = async () => {
         try {
+            // Check if running on native platform
+            if (!Capacitor.isNativePlatform()) {
+                toast({
+                    title: 'Kamera Tidak Tersedia',
+                    description: 'Kamera hanya berfungsi di aplikasi mobile native',
+                    variant: 'destructive'
+                });
+                return;
+            }
+
             // Attempt to check/request native permissions
             try {
                 const cStatus = await CapCamera.checkPermissions();
@@ -56,31 +66,25 @@ export default function QuickAttendancePage() {
                 const gStatus = await CapGeolocation.checkPermissions();
                 if (gStatus.location !== 'granted') await CapGeolocation.requestPermissions();
             } catch (e) {
-                console.warn('Native permission check failed (likely browser mode):', e);
+                console.warn('Native permission check failed:', e);
             }
 
-            await startCamera();
-            setStep('camera');
+            // Take photo using Capacitor Camera Plugin
+            const photoDataUrl = await takePhoto();
+            const photoBlob = dataUrlToBlob(photoDataUrl);
+
+            setCapturedPhoto(photoBlob);
+            setPhotoPreview(photoDataUrl);
+            setStep('processing');
+
+            toast({
+                title: 'Foto Berhasil',
+                description: 'Foto berhasil diambil',
+            });
         } catch (error: any) {
             toast({
-                title: 'Gagal Membuka Kamera',
-                description: error.message || 'Pastikan Anda memberikan izin kamera.',
-                variant: 'destructive',
-            });
-        }
-    };
-
-    const handleCapture = async () => {
-        try {
-            const photo = await capturePhoto();
-            setCapturedPhoto(photo);
-            setPhotoPreview(URL.createObjectURL(photo));
-            stopCamera();
-            setStep('processing');
-        } catch (error) {
-            toast({
                 title: 'Gagal Mengambil Foto',
-                description: 'Silakan coba lagi.',
+                description: error.message || 'Pastikan Anda memberikan izin kamera.',
                 variant: 'destructive',
             });
         }
@@ -293,55 +297,6 @@ export default function QuickAttendancePage() {
                                             )}
                                         </Button>
                                         <p className="text-xs text-slate-400 mt-4">Pastikan Anda berada di area kantor untuk presisi terbaik.</p>
-                                    </div>
-                                )}
-
-                                {step === 'camera' && (
-                                    <div className="space-y-4">
-                                        <div className="relative aspect-[3/4] bg-black rounded-3xl overflow-hidden shadow-2xl ring-4 ring-black/5">
-                                            <video
-                                                ref={videoRef}
-                                                autoPlay
-                                                playsInline
-                                                muted
-                                                className="w-full h-full object-cover"
-                                            />
-                                            {/* Focus Frame Overlay */}
-                                            <div className="absolute inset-0 border-[3px] border-white/20 m-6 rounded-2xl pointer-events-none flex flex-col justify-between p-4">
-                                                <div className="w-full flex justify-between">
-                                                    <div className="w-4 h-4 border-t-2 border-l-2 border-white rounded-tl-lg" />
-                                                    <div className="w-4 h-4 border-t-2 border-r-2 border-white rounded-tr-lg" />
-                                                </div>
-                                                <div className="w-full flex justify-between">
-                                                    <div className="w-4 h-4 border-b-2 border-l-2 border-white rounded-bl-lg" />
-                                                    <div className="w-4 h-4 border-b-2 border-r-2 border-white rounded-br-lg" />
-                                                </div>
-                                            </div>
-                                            <div className="absolute bottom-4 left-0 right-0 text-center">
-                                                <span className="bg-black/50 text-white/90 text-[10px] px-3 py-1 rounded-full backdrop-blur-sm">
-                                                    Pastikan wajah terlihat jelas
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => {
-                                                    stopCamera();
-                                                    setStep('idle');
-                                                }}
-                                                className="h-12 rounded-xl border-slate-200 text-slate-600"
-                                            >
-                                                Batal
-                                            </Button>
-                                            <Button
-                                                onClick={handleCapture}
-                                                className="h-12 bg-white text-blue-600 border-2 border-blue-100 hover:bg-blue-50 rounded-xl font-bold"
-                                            >
-                                                Ambil Foto
-                                            </Button>
-                                        </div>
                                     </div>
                                 )}
 
