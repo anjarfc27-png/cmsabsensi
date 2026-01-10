@@ -95,12 +95,6 @@ export default function AttendancePage() {
     fetchData();
   }, [user?.id]);
 
-  useEffect(() => {
-    if (stream && videoRef.current) {
-      videoRef.current.srcObject = stream;
-    }
-  }, [stream, videoRef, cameraOpen]);
-
   // Validate Location Logic
   useEffect(() => {
     // If GPS is not available at all
@@ -195,41 +189,37 @@ export default function AttendancePage() {
 
   const openCamera = async () => {
     try {
-      // First open the dialog to show loading state
-      setCameraOpen(true);
+      // Check if running on native platform
+      if (!Capacitor.isNativePlatform()) {
+        toast({
+          title: 'Kamera Tidak Tersedia',
+          description: 'Kamera hanya berfungsi di aplikasi mobile native',
+          variant: 'destructive'
+        });
+        return;
+      }
 
-      // Refresh location before camera
+      // Refresh location before taking photo
       await getLocation();
 
-      // Request camera permission and start stream
-      await startCamera();
+      // Take photo using Capacitor Camera Plugin
+      const photoDataUrl = await takePhoto();
+      const photoBlob = dataUrlToBlob(photoDataUrl);
 
-    } catch (error) {
-      // Close dialog on error
-      setCameraOpen(false);
-
-      // Show detailed error message
-      const errorMessage = error instanceof Error ? error.message : 'Gagal mengakses kamera';
+      setCapturedPhoto(photoBlob);
+      setPhotoPreview(photoDataUrl);
 
       toast({
-        title: 'Gagal Membuka Kamera',
-        description: errorMessage,
-        variant: 'destructive',
+        title: 'Foto Berhasil',
+        description: 'Foto berhasil diambil',
       });
-
+    } catch (error: any) {
       console.error('Camera error:', error);
-    }
-  };
-
-  const handleCapturePhoto = async () => {
-    try {
-      const photo = await capturePhoto();
-      setCapturedPhoto(photo);
-      setPhotoPreview(URL.createObjectURL(photo));
-      stopCamera();
-      setCameraOpen(false);
-    } catch (error) {
-      toast({ title: 'Gagal', description: 'Gagal mengambil foto', variant: 'destructive' });
+      toast({
+        title: 'Gagal',
+        description: error.message || 'Gagal mengambil foto',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -349,7 +339,7 @@ export default function AttendancePage() {
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50">
         {/* Background Gradient - Matching Dashboard Theme */}
-        <div className="absolute top-0 left-0 w-full h-[140px] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+        <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
         {/* Floating Content */}
         <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-0">
@@ -658,64 +648,6 @@ export default function AttendancePage() {
             Pastikan Anda berada di lokasi yang ditentukan sebelum menekan tombol absensi.
           </div>
         </div>
-
-        {/* Fullscreen Camera Modal - WhatsApp Style */}
-        <Dialog open={cameraOpen} onOpenChange={(open) => {
-          if (!open) {
-            stopCamera();
-            setCameraOpen(false);
-          }
-        }}>
-          <DialogContent className="max-w-md p-0 border-none bg-black text-white gap-0 overflow-hidden rounded-none sm:rounded-[40px]">
-            <div className="relative aspect-[3/4] w-full bg-black">
-              {!stream ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-                  <div className="h-16 w-16 bg-white/10 rounded-full flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-white" />
-                  </div>
-                  <p className="text-sm font-black uppercase tracking-[0.2em] text-white/80">Mengakses Kamera</p>
-                </div>
-              ) : (
-                <>
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                  <div className="absolute top-10 inset-x-0 flex justify-center">
-                    <div className="border-2 border-dashed border-white/30 w-64 h-80 rounded-[60px] flex items-center justify-center">
-                      <span className="bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Selfie Area</span>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div className="absolute bottom-10 inset-x-0 flex justify-center items-center gap-12">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-14 w-14 rounded-full text-white hover:bg-white/20"
-                  onClick={() => {
-                    stopCamera();
-                    setCameraOpen(false);
-                  }}
-                >
-                  <ChevronLeft className="h-8 w-8" />
-                </Button>
-                <button
-                  onClick={async () => {
-                    try {
-                      await handleCapturePhoto();
-                    } catch (e) {
-                      toast({ title: "Gagal", description: "Gagal mengambil foto", variant: "destructive" });
-                    }
-                  }}
-                  disabled={!stream}
-                  className="h-24 w-24 rounded-full border-4 border-white flex items-center justify-center p-1.5 bg-transparent group active:scale-90 transition-transform"
-                >
-                  <div className="h-full w-full rounded-full bg-white group-hover:bg-slate-200" />
-                </button>
-                <div className="w-14" />
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

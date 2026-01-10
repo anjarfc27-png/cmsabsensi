@@ -153,7 +153,7 @@ export default function NotesPage() {
         <DashboardLayout>
             <div className="relative min-h-screen bg-slate-50/50">
                 {/* Background Gradient Header - Consistent with Agenda/Dashboard */}
-                <div className="absolute top-0 left-0 w-full h-[100px] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[32px] z-0 shadow-lg" />
+                <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[32px] z-0 shadow-lg" />
 
                 <div className="relative z-10 space-y-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-8">
                     {/* Header Section */}
