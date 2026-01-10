@@ -9,9 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { takePhoto, dataUrlToBlob } from '@/utils/capacitorCamera';
-import { Capacitor } from '@capacitor/core';
-import { Loader2, Camera, MapPin, CheckCircle2, LogIn, LogOut, RefreshCw, Smartphone, ChevronLeft, Map, AlertOctagon, X, Clock, Info } from 'lucide-react';
+import { useCamera } from '@/hooks/useCamera';
+import { useFaceRecognition } from '@/hooks/useFaceRecognition';
+import { Loader2, Camera, MapPin, CheckCircle2, LogIn, LogOut, RefreshCw, Smartphone, ChevronLeft, Map, AlertOctagon, X, Clock, Info, Scan } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -75,6 +75,12 @@ export default function AttendancePage() {
   const { toast } = useToast();
   const { latitude, longitude, error: locationError, loading: locationLoading, isMocked, getLocation } = useGeolocation();
 
+  // Camera hook
+  const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
+
+  // Face recognition hook
+  const { modelsLoaded, detectFace, getFaceDescriptor, compareFaces } = useFaceRecognition();
+
   const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null);
   const [todaySchedule, setTodaySchedule] = useState<EmployeeSchedule | null>(null);
   const [officeLocations, setOfficeLocations] = useState<OfficeLocation[]>([]);
@@ -87,6 +93,12 @@ export default function AttendancePage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isLocationValid, setIsLocationValid] = useState(true);
   const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
+
+  // Face recognition states
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [faceMatch, setFaceMatch] = useState<number | null>(null);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [checkingFace, setCheckingFace] = useState(false);
 
   // Maximum allowed radius from office in meters
   const MAX_RADIUS_M = 100;
