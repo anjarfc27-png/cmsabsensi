@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { useCamera } from '@/hooks/useCamera';
+import { takePhoto, dataUrlToBlob } from '@/utils/capacitorCamera';
+import { Capacitor } from '@capacitor/core';
 import { Loader2, Camera, MapPin, CheckCircle2, LogIn, LogOut, RefreshCw, Smartphone, ChevronLeft, Map, AlertOctagon, X, Clock, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -73,7 +74,6 @@ export default function AttendancePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { latitude, longitude, error: locationError, loading: locationLoading, isMocked, getLocation } = useGeolocation();
-  const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
 
   const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null);
   const [todaySchedule, setTodaySchedule] = useState<EmployeeSchedule | null>(null);
@@ -85,7 +85,6 @@ export default function AttendancePage() {
   const [submitting, setSubmitting] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [cameraOpen, setCameraOpen] = useState(false);
   const [isLocationValid, setIsLocationValid] = useState(true);
   const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
 

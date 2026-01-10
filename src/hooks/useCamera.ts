@@ -78,42 +78,58 @@ export function useCamera() {
 
       const video = videoRef.current;
 
-      // Ensure video has dimensions
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        reject(new Error('Kamera belum siap (dimensions 0)'));
-        return;
-      }
-
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Gagal membuat canvas context'));
-          return;
-        }
-
-        // Mirror the image for selfie (like front camera)
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
+      // Wait for video to be ready
+      const waitForVideo = () => {
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+          // Video is ready, capture now
+          captureNow();
+        } else {
+          // Wait a bit more
+          setTimeout(() => {
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+              reject(new Error('Kamera belum siap. Tunggu sebentar dan coba lagi.'));
             } else {
-              reject(new Error('Gagal mengkonversi foto'));
+              captureNow();
             }
-          },
-          'image/jpeg',
-          0.8
-        );
-      } catch (err: any) {
-        reject(new Error('Error saat mengambil foto: ' + err.message));
-      }
+          }, 500);
+        }
+      };
+
+      const captureNow = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Gagal membuat canvas context'));
+            return;
+          }
+
+          // Mirror the image for selfie (like front camera)
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Gagal mengkonversi foto'));
+              }
+            },
+            'image/jpeg',
+            0.8
+          );
+        } catch (err: any) {
+          reject(new Error('Error saat mengambil foto: ' + err.message));
+        }
+      };
+
+      // Start waiting for video
+      waitForVideo();
     });
   }, [state.stream]);
 
