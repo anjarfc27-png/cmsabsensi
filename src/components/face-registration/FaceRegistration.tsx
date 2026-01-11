@@ -151,8 +151,11 @@ export function FaceRegistration({ onComplete, employeeId }: FaceRegistrationPro
     if (ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Captured image should be natural (not mirrored)
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Mirror the captured image to match the preview
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.restore();
 
       // Draw detection UI on top of the photo
       const box = detection.detection.box;
@@ -578,23 +581,27 @@ export function FaceRegistration({ onComplete, employeeId }: FaceRegistrationPro
             onClick={submitRegistration}
             disabled={capturedFaces.length === 0 || isSubmitting}
             className="flex-1"
+            size="lg"
           >
             {isSubmitting ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Registering...
+                Menyimpan Data...
               </>
             ) : (
               <>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Register Face
+                {capturedFaces.length > 0 ? `Daftarkan ${capturedFaces.length} Wajah` : 'Daftarkan Wajah'}
               </>
             )}
           </Button>
 
-          <Button variant="outline" onClick={reset}>
-            Reset
-          </Button>
+          {capturedFaces.length > 0 && (
+            <Button variant="outline" onClick={reset} size="lg">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+          )}
         </div>
 
         {/* Instructions */}
