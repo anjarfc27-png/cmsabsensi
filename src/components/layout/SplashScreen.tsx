@@ -7,8 +7,8 @@ export const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onFinish, 1000);
-    }, 4000);
+      setTimeout(onFinish, 800);
+    }, 3200); // Optimized duration for a snappier feel
 
     return () => clearTimeout(timer);
   }, [onFinish]);
@@ -16,141 +16,143 @@ export const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden transition-all duration-1000 ease-in-out",
+        "fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden transition-all duration-700 cubic-bezier(0.23, 1, 0.32, 1)",
         isVisible ? "opacity-100" : "opacity-0 pointer-events-none scale-105"
       )}
     >
       <style>{`
-        @keyframes meshGradient {
+        @keyframes liquidBg {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
 
-        @keyframes blobMotion {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
+        @keyframes entranceLogo {
+          0% { transform: scale(0.8) translateY(20px); opacity: 0; filter: blur(10px); }
+          100% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0); }
         }
 
-        @keyframes drawOuterC {
-          0% { stroke-dashoffset: 600; opacity: 0; }
-          20% { opacity: 1; }
-          100% { stroke-dashoffset: 0; }
+        @keyframes ringPulse {
+          0% { transform: scale(0.8); opacity: 0; }
+          50% { opacity: 0.3; }
+          100% { transform: scale(1.4); opacity: 0; }
         }
 
-        @keyframes revealInnerGreen {
-          0% { transform: scale(0); opacity: 0; filter: blur(10px); }
-          100% { transform: scale(1); opacity: 1; filter: blur(0); }
+        @keyframes shimmerLine {
+          0% { left: -100%; top: -100%; }
+          100% { left: 100%; top: 100%; }
         }
 
-        @keyframes slideInText {
-          0% { transform: translateX(-20px); opacity: 0; letter-spacing: 0.5em; }
-          100% { transform: translateX(0); opacity: 1; letter-spacing: 0em; }
-        }
-
-        @keyframes fadeInSubText {
-          0% { opacity: 0; transform: translateY(10px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-
-        .bg-mesh {
-          background: linear-gradient(-45deg, #f8fafc, #eff6ff, #f0fdf4, #ffffff);
+        .bg-vibrant {
+          background: linear-gradient(-45deg, #ffffff, #f0f9ff, #f0fdf4, #ffffff);
           background-size: 400% 400%;
-          animation: meshGradient 15s ease infinite;
-        }
-
-        .blob {
+          animation: liquidBg 12s ease infinite;
           position: absolute;
-          filter: blur(80px);
-          z-index: -1;
-          opacity: 0.6;
-          animation: blobMotion 10s ease-in-out infinite;
+          inset: 0;
+          z-index: -2;
         }
 
-        .animate-draw-c {
-          stroke-dasharray: 600;
-          stroke-dashoffset: 600;
-          animation: drawOuterC 1.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+        .pulse-ring {
+          position: absolute;
+          border: 1.5px solid rgba(31, 76, 154, 0.15);
+          border-radius: 50%;
+          animation: ringPulse 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
         }
 
-        .animate-reveal-green {
-          animation: revealInnerGreen 1s cubic-bezier(0.34, 1.56, 0.64, 1) 1.2s forwards;
-          opacity: 0;
+        .premium-glass {
+          background: rgba(255, 255, 255, 0.45);
+          backdrop-filter: blur(20px) saturate(160%);
+          -webkit-backdrop-filter: blur(20px) saturate(160%);
+          border: 1px solid rgba(255, 255, 255, 0.8);
+          border-radius: 40px;
+          padding: 40px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.05);
+          position: relative;
+          overflow: hidden;
+          animation: entranceLogo 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
-        .animate-reveal-text {
-          animation: slideInText 1s cubic-bezier(0.22, 1, 0.36, 1) 1.8s forwards;
-          opacity: 0;
+        @media (min-width: 768px) {
+          .premium-glass {
+            border-radius: 70px;
+            padding: 60px 80px;
+          }
         }
 
-        .animate-reveal-subtext {
-          animation: fadeInSubText 0.8s ease-out 2.4s forwards;
-          opacity: 0;
+        .glass-shimmer {
+          position: absolute;
+          width: 200%;
+          height: 200%;
+          background: linear-gradient(
+            45deg, 
+            transparent 45%, 
+            rgba(255,255,255,0.4) 50%, 
+            transparent 55%
+          );
+          animation: shimmerLine 3.5s infinite;
+          pointer-events: none;
         }
 
-        .logo-shadow {
-          filter: drop-shadow(0 20px 30px rgba(43, 78, 145, 0.15));
+        .brand-text {
+          animation: entranceLogo 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards;
         }
       `}</style>
 
-      {/* Premium Background Layers */}
-      <div className="bg-mesh absolute inset-0 -z-20" />
-      <div className="blob w-[500px] h-[500px] bg-blue-100 rounded-full top-[-100px] left-[-100px]" />
-      <div className="blob w-[400px] h-[400px] bg-green-50 rounded-full bottom-[-100px] right-[-100px]" style={{ animationDelay: '-5s' }} />
+      {/* Background Layers */}
+      <div className="bg-vibrant" />
 
-      {/* Main Content Container with Glassmorphism */}
-      <div className="relative flex flex-col items-center justify-center p-12 bg-white/30 backdrop-blur-xl rounded-[60px] border border-white/50 shadow-2xl scale-[1.1]">
+      {/* Main Container */}
+      <div className="relative flex flex-col items-center px-6 w-full max-w-lg">
+        {/* Animated Rings - Responsive Size */}
+        <div className="pulse-ring w-[240px] h-[240px] md:w-[320px] md:h-[320px]" />
+        <div className="pulse-ring w-[320px] h-[320px] md:w-[450px] md:h-[450px]" style={{ animationDelay: '1.5s' }} />
 
-        {/* Accurate SVG Logo Construction */}
-        <div className="relative w-48 h-48 mb-8 logo-shadow">
-          <svg viewBox="0 0 200 200" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* The Blue 'C' Shape - Accurate to Logo Geometry */}
-            <path
-              d="M165,65 C155,50 135,40 110,40 C70,40 40,70 40,110 C40,150 70,180 110,180 C135,180 155,170 165,155 L165,130 C155,145 140,150 115,150 C90,150 70,130 70,105 C70,80 90,60 115,60 C140,60 155,65 165,80 L165,65Z"
-              fill="#2B4E91"
-              className="animate-draw-c"
-              style={{ stroke: '#2B4E91', strokeWidth: '0.5' }}
+        {/* The Glass Box */}
+        <div className="premium-glass flex flex-col items-center w-full">
+          <div className="glass-shimmer" />
+
+          <div className="relative w-40 md:w-52 mb-8 drop-shadow-xl">
+            <img
+              src="/logo.png"
+              alt="CMS Duta Solusi"
+              className="w-full h-auto object-contain mix-blend-multiply"
             />
-
-            {/* The Green Inner Node - Accurate to Bulbous Connection */}
-            <g className="animate-reveal-green">
-              {/* Left Circle */}
-              <circle cx="85" cy="110" r="22" fill="#4FA944" />
-              {/* Connection Neck */}
-              <path
-                d="M100,100 C115,95 130,100 145,110 C130,120 115,125 100,120 Z"
-                fill="#4FA944"
-              />
-              {/* Right Bulb */}
-              <circle cx="140" cy="110" r="16" fill="#4FA944" />
-            </g>
-          </svg>
-        </div>
-
-        {/* Dynamic Text Assembly */}
-        <div className="flex flex-col items-center">
-          <div className="flex items-baseline space-x-1 animate-reveal-text">
-            <span className="text-6xl font-black tracking-tight" style={{ color: '#2B4E91' }}>CMS</span>
           </div>
-          <div className="mt-2 animate-reveal-subtext">
-            <span className="text-lg font-bold tracking-[0.4em] uppercase" style={{ color: '#4FA944' }}>
-              DUTA SOLUSI
+
+          <div className="flex flex-col items-center gap-1 brand-text">
+            <h1 className="text-5xl md:text-6xl font-black text-[#1f4c9a] tracking-[0.3em] ml-3">
+              CMS
+            </h1>
+            <div className="h-[2px] w-10 bg-gradient-to-r from-[#1f4c9a] to-[#3AAA35] rounded-full my-2" />
+            <span className="text-[10px] md:text-xs font-black text-slate-400 tracking-[0.6em] uppercase text-center">
+              Duta Solusi
             </span>
           </div>
         </div>
 
-        {/* Elegant Progress Indicator */}
-        <div className="mt-12 w-48 h-1 bg-slate-100 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-[#2B4E91] to-[#4FA944] animate-[meshGradient_2s_linear_infinite]" style={{ width: '40%', backgroundSize: '200% 100%' }} />
+        {/* Quick Progress Loader */}
+        <div className="mt-12 flex flex-col items-center gap-4">
+          <div className="flex gap-2">
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                className="w-1.5 h-1.5 rounded-full bg-blue-600/30 animate-pulse"
+                style={{ animationDelay: `${i * 0.2}s` }}
+              />
+            ))}
+          </div>
+
+          <span className="text-[9px] font-bold text-[#1f4c9a]/60 tracking-[0.5em] uppercase">
+            Loading System...
+          </span>
         </div>
       </div>
 
-      {/* Footer Branding */}
-      <div className="absolute bottom-12 flex flex-col items-center animate-pulse">
-        <span className="text-[10px] font-black tracking-[0.5em] text-slate-400 uppercase">
-          Corporate Management System
-        </span>
+      {/* Footer Details - Subtle for Mobile */}
+      <div className="absolute bottom-8 flex flex-col items-center">
+        <div className="text-[9px] font-bold text-slate-300 tracking-[0.4em] uppercase">
+          CMS Duta Solusi
+        </div>
       </div>
     </div>
   );
