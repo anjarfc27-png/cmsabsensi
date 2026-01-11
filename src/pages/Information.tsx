@@ -9,7 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Search, Megaphone, Calendar, ChevronRight } from 'lucide-react';
+import { Search, Megaphone, Calendar, ChevronRight, Plus, Loader2, Send } from 'lucide-react';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 
 interface Announcement {
     id: string;
@@ -22,10 +35,91 @@ interface Announcement {
 }
 
 export default function InformationPage() {
-    const { profile } = useAuth();
+    const { profile, user } = useAuth();
+    const { toast } = useToast();
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Create Announcement State
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [newTitle, setNewTitle] = useState('');
+    const [newContent, setNewContent] = useState('');
+    const [sendNotification, setSendNotification] = useState(true);
+
+    const handleCreateAnnouncement = async () => {
+        if (!newTitle.trim() || !newContent.trim()) {
+            toast({
+                title: "Gagal",
+                description: "Judul dan isi pengumuman harus diisi.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+
+            // 1. Call RPC to create announcement and bulk notify
+            const { error } = await supabase
+                .rpc('publish_announcement', {
+                    p_title: newTitle,
+                    p_content: newContent,
+                    p_created_by: user?.id,
+                    p_send_notification: sendNotification
+                });
+
+            if (error) throw error;
+
+
+
+            // 2. Refresh list
+            await fetchAnnouncements();
+
+            // 3. Trigger Notification (if checked)
+            if (sendNotification) {
+                // Try to call backend function for push notification
+                // If not available, at least we have the record in DB
+                // Ideally this should be a Supabase Edge Function or Database Trigger
+                try {
+                    const { error: notifError } = await supabase.functions.invoke('send-push-notification', {
+                        body: {
+                            title: newTitle,
+                            body: newContent,
+                            topic: 'all_employees' // or 'announcements'
+                        }
+                    });
+
+                    if (notifError) {
+                        console.warn('Push notification invoke failed, but announcement saved:', notifError);
+                    }
+                } catch (e) {
+                    console.warn('Failed to invoke notification function:', e);
+                }
+            }
+
+            toast({
+                title: "Berhasil",
+                description: "Pengumuman berhasil dipublikasikan.",
+            });
+
+            // Reset and close
+            setNewTitle('');
+            setNewContent('');
+            setIsCreateOpen(false);
+
+        } catch (error: any) {
+            console.error('Error creating announcement:', error);
+            toast({
+                title: "Gagal",
+                description: error.message || "Gagal membuat pengumuman.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const isAdmin = profile?.role === 'admin_hr' || profile?.email?.includes('admin');
 
@@ -80,6 +174,69 @@ export default function InformationPage() {
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Pusat Informasi</h1>
                         <p className="text-slate-500 mt-1 font-medium">Berita terbaru dan pengumuman perusahaan.</p>
                     </div>
+                    {isAdmin && (
+                        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 rounded-xl">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Buat Pengumuman
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="rounded-2xl sm:max-w-[500px]">
+                                <DialogHeader>
+                                    <DialogTitle>Buat Pengumuman Baru</DialogTitle>
+                                    <DialogDescription>
+                                        Pengumuman akan dikirim ke seluruh karyawan melalui notifikasi.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="title">Judul Pengumuman</Label>
+                                        <Input
+                                            id="title"
+                                            placeholder="Contoh: Perubahan Jam Kerja"
+                                            value={newTitle}
+                                            onChange={(e) => setNewTitle(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="content">Isi Pengumuman</Label>
+                                        <Textarea
+                                            id="content"
+                                            placeholder="Tulis detail pengumuman di sini..."
+                                            className="min-h-[100px]"
+                                            value={newContent}
+                                            onChange={(e) => setNewContent(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id="notify"
+                                            checked={sendNotification}
+                                            onCheckedChange={(checked) => setSendNotification(checked as boolean)}
+                                        />
+                                        <Label htmlFor="notify" className="cursor-pointer">Kirim Notifikasi Push ke Semua Karyawan</Label>
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="rounded-xl">Batal</Button>
+                                    <Button onClick={handleCreateAnnouncement} disabled={isSubmitting} className="rounded-xl bg-blue-600">
+                                        {isSubmitting ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Menyimpan...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send className="mr-2 h-4 w-4" />
+                                                Publikasikan
+                                            </>
+                                        )}
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </div>
 
                 {/* Search Bar */}

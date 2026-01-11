@@ -196,20 +196,36 @@ export default function Dashboard() {
 
     setSubmittingAnnouncement(true);
     try {
-      const { error } = await supabase.from('announcements').insert({
-        title: announcementForm.title.trim(),
-        content: announcementForm.content.trim(),
-        expires_at: announcementForm.expires_at || null,
-        created_by: user?.id
+      // Use RPC to create announcement and notify everyone
+      const { error } = await supabase.rpc('publish_announcement', {
+        p_title: announcementForm.title.trim(),
+        p_content: announcementForm.content.trim(),
+        p_created_by: user?.id,
+        p_send_notification: true, // Always notify from dashboard for now
+        p_expires_at: announcementForm.expires_at || null
       });
 
       if (error) throw error;
 
-      toast({ title: "Berhasil", description: "Pengumuman berhasil dibuat" });
+      // Try push notification (optional, best effort)
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            title: announcementForm.title,
+            body: announcementForm.content,
+            topic: 'all_employees'
+          }
+        });
+      } catch (e) {
+        console.warn('Push notification failed:', e);
+      }
+
+      toast({ title: "Berhasil", description: "Pengumuman dipublikasikan & notifikasi dikirim" });
       setAnnouncementOpen(false);
       setAnnouncementForm({ title: '', content: '', expires_at: '' });
       fetchDashboardData();
     } catch (error) {
+      console.error(error);
       toast({ title: "Error", description: "Gagal membuat pengumuman", variant: "destructive" });
     } finally {
       setSubmittingAnnouncement(false);

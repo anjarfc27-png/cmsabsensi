@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { FaceRegistration } from '@/components/face-registration/FaceRegistration';
+import { SimpleFaceRegistration } from '@/components/face-registration/SimpleFaceRegistration';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -137,7 +137,7 @@ export default function FaceRegistrationPage() {
 
         {/* Face Registration Component */}
         {!hasFaceEnrollment && !registrationComplete && (
-          <FaceRegistration onComplete={handleRegistrationComplete} />
+          <SimpleFaceRegistration onComplete={handleRegistrationComplete} />
         )}
 
         {/* Registration Complete */}

@@ -5,11 +5,20 @@ const config: CapacitorConfig = {
   appName: 'Duta Mruput',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    cleartext: true
   },
   android: {
     allowMixedContent: true,
     webContentsDebuggingEnabled: true
+  },
+  plugins: {
+    Camera: {
+      permissions: ['camera']
+    },
+    CapacitorHttp: {
+      enabled: true
+    }
   }
 };
 
