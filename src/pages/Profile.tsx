@@ -47,6 +47,9 @@ import {
   X
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Camera as CapCamera } from '@capacitor/camera';
+import { Geolocation } from '@capacitor/geolocation';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 const CONSENT_VERSION = 'biometric_v1';
 
@@ -208,31 +211,35 @@ export default function ProfilePage() {
   const checkAllPermissions = async () => {
     setCheckingPermissions(true);
     try {
-      if (navigator.permissions) {
-        try {
-          const camera = await navigator.permissions.query({ name: 'camera' as PermissionName });
-          setCameraPermission(camera.state);
-          camera.onchange = () => setCameraPermission(camera.state);
-        } catch (e) {
-          setCameraPermission('prompt');
+      if (Capacitor.isNativePlatform()) {
+        const camPerm = await CapCamera.checkPermissions();
+        setCameraPermission(camPerm.camera === 'granted' ? 'granted' : 'denied');
+
+        const locPerm = await Geolocation.checkPermissions();
+        setLocationPermission(locPerm.location === 'granted' ? 'granted' : 'denied' as any);
+
+        const notifPerm = await PushNotifications.checkPermissions();
+        setNotificationPermission(notifPerm.receive);
+      } else {
+        if (navigator.permissions) {
+          try {
+            const camera = await navigator.permissions.query({ name: 'camera' as PermissionName });
+            setCameraPermission(camera.state);
+          } catch (e) {
+            setCameraPermission('prompt');
+          }
+
+          try {
+            const location = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+            setLocationPermission(location.state);
+          } catch (e) {
+            setLocationPermission('prompt');
+          }
         }
 
-        try {
-          const location = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-          setLocationPermission(location.state);
-          location.onchange = () => setLocationPermission(location.state);
-        } catch (e) {
-          setLocationPermission('prompt');
+        if ('Notification' in window) {
+          setNotificationPermission(Notification.permission);
         }
-      }
-
-      if ('Notification' in window) {
-        setNotificationPermission(Notification.permission);
-      }
-
-      if (navigator.storage && navigator.storage.persisted) {
-        const isPersisted = await navigator.storage.persisted();
-        setStoragePermission(isPersisted ? 'granted' : 'prompt');
       }
     } catch (error) {
       console.error('Error checking permissions:', error);
@@ -243,15 +250,21 @@ export default function ProfilePage() {
 
   const requestCameraPermission = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach(track => track.stop());
-      setCameraPermission('granted');
-      toast({ title: 'Berhasil', description: 'Izin kamera telah diberikan' });
+      if (Capacitor.isNativePlatform()) {
+        const result = await CapCamera.requestPermissions();
+        setCameraPermission(result.camera === 'granted' ? 'granted' : 'denied');
+        if (result.camera === 'granted') toast({ title: 'Berhasil', description: 'Izin kamera telah diberikan' });
+      } else {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(track => track.stop());
+        setCameraPermission('granted');
+        toast({ title: 'Berhasil', description: 'Izin kamera telah diberikan' });
+      }
     } catch (error) {
       setCameraPermission('denied');
       toast({
         title: 'Izin Ditolak',
-        description: 'Mohon aktifkan izin kamera di pengaturan browser',
+        description: 'Mohon aktifkan izin kamera di pengaturan perangkat',
         variant: 'destructive'
       });
     }
@@ -259,28 +272,39 @@ export default function ProfilePage() {
 
   const requestLocationPermission = async () => {
     try {
-      await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject);
-      });
-      setLocationPermission('granted');
-      toast({ title: 'Berhasil', description: 'Izin lokasi telah diberikan' });
+      if (Capacitor.isNativePlatform()) {
+        const result = await Geolocation.requestPermissions();
+        setLocationPermission(result.location === 'granted' ? 'granted' : 'denied' as any);
+        if (result.location === 'granted') toast({ title: 'Berhasil', description: 'Izin lokasi telah diberikan' });
+      } else {
+        await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+        setLocationPermission('granted');
+        toast({ title: 'Berhasil', description: 'Izin lokasi telah diberikan' });
+      }
     } catch (error) {
       setLocationPermission('denied');
       toast({
         title: 'Izin Ditolak',
-        description: 'Mohon aktifkan izin lokasi di pengaturan browser',
+        description: 'Mohon aktifkan izin lokasi di pengaturan perangkat',
         variant: 'destructive'
       });
     }
   };
 
   const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) return;
     try {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      if (permission === 'granted') {
-        toast({ title: 'Berhasil', description: 'Izin notifikasi telah diberikan' });
+      if (Capacitor.isNativePlatform()) {
+        const result = await PushNotifications.requestPermissions();
+        setNotificationPermission(result.receive);
+        if (result.receive === 'granted') toast({ title: 'Berhasil', description: 'Izin notifikasi telah diberikan' });
+      } else if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+        if (permission === 'granted') {
+          toast({ title: 'Berhasil', description: 'Izin notifikasi telah diberikan' });
+        }
       }
     } catch (error) {
       console.error('Error requesting notification permission:', error);
@@ -359,40 +383,48 @@ export default function ProfilePage() {
         await loadModels();
       }
 
-      const img = await faceapi.fetchImage(URL.createObjectURL(enrollmentBlob));
-      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+      const blobUrl = URL.createObjectURL(enrollmentBlob);
+      try {
+        const img = await faceapi.fetchImage(blobUrl);
+        const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
 
-      if (!detection) {
-        throw new Error('Wajah tidak terdeteksi dengan jelas. Pastikan pencahayaan cukup.');
+        if (!detection) {
+          throw new Error('Wajah tidak terdeteksi dengan jelas. Pastikan pencahayaan cukup dan wajah terlihat utuh.');
+        }
+
+        // 2. Upload Reference Photo
+        const fileName = `${user.id}/face_${Date.now()}.jpg`;
+        const { error: uploadError } = await supabase.storage.from('face-images').upload(fileName, enrollmentBlob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('face-images').getPublicUrl(fileName);
+
+        // 3. Update ONLY face_descriptors table (Separate from Profile)
+        const { error: faceError } = await supabase.from('face_descriptors').upsert({
+          user_id: user.id,
+          descriptor: Array.from(detection.descriptor),
+          image_url: publicUrl,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        });
+
+        if (faceError) throw faceError;
+
+        toast({
+          title: 'Data Wajah Tersimpan',
+          description: 'Data ini akan digunakan untuk absensi & login. Foto profil Anda tetap tidak berubah.'
+        });
+
+        setEnrollStep('idle');
+        await checkFaceRegistration();
+      } finally {
+        URL.revokeObjectURL(blobUrl);
       }
-
-      // 2. Upload Reference Photo to dedicated bucket
-      const fileName = `${user.id}/face_${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage.from('face-images').upload(fileName, enrollmentBlob, { upsert: true });
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from('face-images').getPublicUrl(fileName);
-
-      // 3. Update ONLY face_descriptors table (Separate from Profile)
-      const { error: faceError } = await supabase.from('face_descriptors').upsert({
-        user_id: user.id,
-        descriptor: Array.from(detection.descriptor),
-        image_url: publicUrl,
-        is_active: true,
-        updated_at: new Date().toISOString()
-      });
-
-      if (faceError) throw faceError;
-
-      toast({
-        title: 'Data Wajah Tersimpan',
-        description: 'Data ini akan digunakan untuk absensi & login. Foto profil Anda tetap tidak berubah.'
-      });
-
-      setEnrollStep('idle');
-      await checkFaceRegistration();
     } catch (error) {
       console.error('Enrollment error:', error);
       toast({
@@ -461,9 +493,9 @@ export default function ProfilePage() {
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50 pb-32">
         {/* Header Section (Conserved style) */}
-        <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+        <div className="absolute top-0 left-0 w-full h-[calc(120px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
-        <div className="relative z-10 max-w-4xl mx-auto px-4 pt-[calc(2rem+env(safe-area-inset-top))] space-y-6">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 pt-[calc(1.25rem+env(safe-area-inset-top))] space-y-6">
           <div className="flex items-center gap-3 text-white">
             <Button
               variant="ghost"
@@ -490,7 +522,7 @@ export default function ProfilePage() {
                     className="relative cursor-pointer group"
                     onClick={() => setAvatarDialogOpen(true)}
                   >
-                    <Avatar className="h-32 w-32 border-4 border-white shadow-2xl transition-transform group-active:scale-95">
+                    <Avatar className="h-40 w-40 border-4 border-white shadow-2xl transition-transform group-active:scale-95">
                       <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
                       <AvatarFallback className="text-4xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black">
                         {profile?.full_name?.substring(0, 2).toUpperCase()}
@@ -663,13 +695,13 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant="secondary" className={`h-6 px-3 rounded-full text-[10px] font-bold ${item.status === 'granted' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {item.status === 'granted' ? 'DIIZINKAN' : 'NONAKTIF'}
+                      <Badge variant="secondary" className={`h-6 px-3 rounded-full text-[10px] font-bold ${(item.status as any) === 'granted' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {(item.status as any) === 'granted' ? 'DIIZINKAN' : 'NONAKTIF'}
                       </Badge>
-                      {item.status !== 'granted' && item.action && (
-                        <Switch checked={item.status === 'granted'} onCheckedChange={() => (item.action as any)()} />
+                      {(item.status as any) !== 'granted' && item.action && (
+                        <Switch checked={(item.status as any) === 'granted'} onCheckedChange={() => (item.action as any)()} />
                       )}
-                      {item.status === 'granted' && (
+                      {(item.status as any) === 'granted' && (
                         <div className="h-6 w-11 bg-green-500 rounded-full flex items-center justify-end px-1">
                           <div className="h-4 w-4 bg-white rounded-full shadow-sm" />
                         </div>

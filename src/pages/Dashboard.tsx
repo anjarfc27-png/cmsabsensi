@@ -249,15 +249,15 @@ export default function Dashboard() {
       <DashboardLayout>
         <div className="relative">
           {/* Custom Background Header for Mobile Feel - More compact while keeping Avatar large */}
-          <div className="absolute top-0 left-0 w-full h-[calc(110px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[32px] z-0 shadow-lg" />
+          <div className="absolute top-0 left-0 w-full h-[calc(100px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[32px] z-0 shadow-lg" />
 
           <div className="relative z-10 space-y-3 max-w-5xl mx-auto pb-24">
             {/* Header Section - Compact but Heroic */}
-            <div className="flex items-center justify-between pt-[calc(1.25rem+env(safe-area-inset-top))] pb-2 px-4 text-white">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2 px-4 text-white">
+              <div className="flex items-center gap-4">
                 <div className="relative group shrink-0" onClick={() => navigate('/profile')}>
                   <div className="absolute -inset-1.5 bg-white/20 rounded-full blur-md group-active:bg-white/40 transition-all" />
-                  <Avatar className="h-[72px] w-[72px] border-2 border-white/95 shadow-2xl relative mt-3">
+                  <Avatar className="h-[76px] w-[76px] border-2 border-white/95 shadow-2xl relative mt-1">
                     <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
                     <AvatarFallback className="text-2xl bg-white text-blue-600 font-black">
                       {profile?.full_name?.substring(0, 2).toUpperCase()}

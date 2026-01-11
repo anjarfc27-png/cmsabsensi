@@ -321,8 +321,7 @@ export default function AttendancePage() {
       ]);
 
       // Handle face registration check
-      if (faceCheckResult.status === 'rejected' ||
-        !faceCheckResult.value.data) {
+      if (faceCheckResult.status === 'rejected' || !faceCheckResult.value.data) {
         setCameraOpen(false);
         toast({
           title: 'Registrasi Wajah Diperlukan',
@@ -331,6 +330,26 @@ export default function AttendancePage() {
         });
         setTimeout(() => navigate('/profile'), 1500);
         return;
+      }
+
+      // Handle Camera Error
+      if (cameraResult.status === 'rejected') {
+        setCameraOpen(false);
+        toast({
+          title: 'Kamera Gagal',
+          description: cameraResult.reason.message || 'Gagal mengakses kamera perangkat.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Handle Location Error
+      if (locationResult.status === 'rejected') {
+        toast({
+          title: 'Lokasi Gagal',
+          description: 'Gagal mendapatkan lokasi. Pastikan GPS aktif.',
+          variant: 'destructive'
+        });
       }
 
       // Camera and location are already started/fetched in parallel
@@ -529,10 +548,10 @@ export default function AttendancePage() {
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50">
         {/* Background Gradient - Matching Dashboard Theme */}
-        <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+        <div className="absolute top-0 left-0 w-full h-[calc(110px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
         {/* Floating Content */}
-        <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(2rem+env(safe-area-inset-top))] pb-24 md:px-0">
+        <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-0">
           <div className="flex items-center gap-3 text-white mb-2">
             <Button
               variant="ghost"

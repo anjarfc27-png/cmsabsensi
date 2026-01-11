@@ -24,6 +24,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
 
 interface Notification {
     id: string;
@@ -173,16 +175,36 @@ export default function NotificationsPage() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                    import('sonner').then(({ toast }) => {
-                                        toast.success('Test Notifikasi', {
-                                            description: 'Notifikasi toast berfungsi dengan baik! 🎉',
-                                            action: {
-                                                label: 'OK',
-                                                onClick: () => console.log('Clicked!')
+                                onClick={async () => {
+                                    if (Capacitor.isNativePlatform()) {
+                                        try {
+                                            const perm = await LocalNotifications.checkPermissions();
+                                            if (perm.display !== 'granted') {
+                                                await LocalNotifications.requestPermissions();
                                             }
+                                            await LocalNotifications.schedule({
+                                                notifications: [
+                                                    {
+                                                        title: "ABSENSI CERIA",
+                                                        body: "Notifikasi sistem berfungsi dengan baik! 🎉",
+                                                        id: 1,
+                                                        schedule: { at: new Date(Date.now() + 1000) },
+                                                        sound: undefined,
+                                                        attachments: undefined,
+                                                        extra: null
+                                                    }
+                                                ]
+                                            });
+                                        } catch (e) {
+                                            console.error('Local Notification Error:', e);
+                                        }
+                                    } else {
+                                        import('sonner').then(({ toast }) => {
+                                            toast.success('Test Notifikasi', {
+                                                description: 'Notifikasi browser berfungsi dengan baik! 🎉'
+                                            });
                                         });
-                                    });
+                                    }
                                 }}
                                 className="text-white hover:bg-white/20 text-xs font-bold"
                             >
