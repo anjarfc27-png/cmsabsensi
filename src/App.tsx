@@ -85,53 +85,61 @@ const BackButtonHandler = () => {
   return null;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AuthProvider>
-          <RouteScrollHandler />
-          <BackButtonHandler />
-          <ErrorBoundary>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-              <Route path="/information" element={<ProtectedRoute><InformationPage /></ProtectedRoute>} />
-              <Route path="/reimbursement" element={<ProtectedRoute><Reimbursement /></ProtectedRoute>} />
-              <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-              <Route path="/quick-attendance" element={<ProtectedRoute><QuickAttendancePage /></ProtectedRoute>} />
-              <Route path="/face-registration" element={<ProtectedRoute><FaceRegistrationPage /></ProtectedRoute>} />
-              <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
-              <Route path="/overtime" element={<ProtectedRoute><OvertimePage /></ProtectedRoute>} />
-              <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
-              <Route path="/corrections" element={<ProtectedRoute><Corrections /></ProtectedRoute>} />
-              <Route path="/salary-slips" element={<ProtectedRoute><SalarySlips /></ProtectedRoute>} />
-              <Route path="/employees/:id/salary" element={<ProtectedRoute allowedRoles={['admin_hr']}><EmployeeSalary /></ProtectedRoute>} />
-              <Route path="/team-map" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><TeamMap /></ProtectedRoute>} />
-              <Route path="/locations" element={<ProtectedRoute allowedRoles={['admin_hr']}><Locations /></ProtectedRoute>} />
-              <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><Reports /></ProtectedRoute>} />
-              <Route path="/payroll-report" element={<ProtectedRoute allowedRoles={['admin_hr']}><PayrollReport /></ProtectedRoute>} />
-              <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
-              <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
-              <Route path="/approvals" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><Approvals /></ProtectedRoute>} />
-              <Route path="/payroll/:id" element={<ProtectedRoute allowedRoles={['admin_hr']}><PayrollDetail /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-              <Route path="/shifts" element={<ProtectedRoute allowedRoles={['admin_hr']}><Shifts /></ProtectedRoute>} />
-              <Route path="/agenda" element={<ProtectedRoute><AgendaPage /></ProtectedRoute>} />
-              <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
-              <Route path="/coming-soon" element={<ProtectedRoute><ComingSoon /></ProtectedRoute>} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </ErrorBoundary>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+import { SplashScreen } from "@/components/layout/SplashScreen";
+import { useState } from "react";
+
+const App = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+        <Toaster />
+        <Sonner />
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <AuthProvider>
+            <RouteScrollHandler />
+            <BackButtonHandler />
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+                <Route path="/information" element={<ProtectedRoute><InformationPage /></ProtectedRoute>} />
+                <Route path="/reimbursement" element={<ProtectedRoute><Reimbursement /></ProtectedRoute>} />
+                <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
+                <Route path="/quick-attendance" element={<ProtectedRoute><QuickAttendancePage /></ProtectedRoute>} />
+                <Route path="/face-registration" element={<ProtectedRoute><FaceRegistrationPage /></ProtectedRoute>} />
+                <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
+                <Route path="/overtime" element={<ProtectedRoute><OvertimePage /></ProtectedRoute>} />
+                <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+                <Route path="/corrections" element={<ProtectedRoute><Corrections /></ProtectedRoute>} />
+                <Route path="/salary-slips" element={<ProtectedRoute><SalarySlips /></ProtectedRoute>} />
+                <Route path="/employees/:id/salary" element={<ProtectedRoute allowedRoles={['admin_hr']}><EmployeeSalary /></ProtectedRoute>} />
+                <Route path="/team-map" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><TeamMap /></ProtectedRoute>} />
+                <Route path="/locations" element={<ProtectedRoute allowedRoles={['admin_hr']}><Locations /></ProtectedRoute>} />
+                <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><Reports /></ProtectedRoute>} />
+                <Route path="/payroll-report" element={<ProtectedRoute allowedRoles={['admin_hr']}><PayrollReport /></ProtectedRoute>} />
+                <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
+                <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
+                <Route path="/approvals" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><Approvals /></ProtectedRoute>} />
+                <Route path="/payroll/:id" element={<ProtectedRoute allowedRoles={['admin_hr']}><PayrollDetail /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+                <Route path="/shifts" element={<ProtectedRoute allowedRoles={['admin_hr']}><Shifts /></ProtectedRoute>} />
+                <Route path="/agenda" element={<ProtectedRoute><AgendaPage /></ProtectedRoute>} />
+                <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
+                <Route path="/coming-soon" element={<ProtectedRoute><ComingSoon /></ProtectedRoute>} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </ErrorBoundary>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
