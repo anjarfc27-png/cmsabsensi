@@ -41,6 +41,20 @@ const queryClient = new QueryClient();
 
 import { App as CapacitorApp } from '@capacitor/app';
 
+// Components to handle global route behaviors
+const RouteScrollHandler = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    // Scroll to top on route change
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTo(0, 0);
+    document.body.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
+
 // Handle Hardware Back Button
 const BackButtonHandler = () => {
   const navigate = useNavigate();
@@ -78,6 +92,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
+          <RouteScrollHandler />
           <BackButtonHandler />
           <ErrorBoundary>
             <Routes>
