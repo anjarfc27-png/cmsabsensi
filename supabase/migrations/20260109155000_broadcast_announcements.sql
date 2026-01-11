@@ -9,7 +9,7 @@ BEGIN
     INSERT INTO public.notifications (user_id, title, message, type, link)
     SELECT 
         id as user_id, 
-        '📢 Pengumuman: ' || NEW.title as title, 
+        'CMS | 📢 Pengumuman: ' || NEW.title as title, 
         CASE 
             WHEN length(NEW.content) > 100 THEN substring(NEW.content from 1 for 100) || '...'
             ELSE NEW.content 
