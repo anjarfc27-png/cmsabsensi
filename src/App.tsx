@@ -1,5 +1,3 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
@@ -95,8 +93,6 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
-        <Toaster />
-        <Sonner />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
             <RouteScrollHandler />
