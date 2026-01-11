@@ -14,11 +14,9 @@ export default function FaceRegistrationPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [hasFaceEnrollment, setHasFaceEnrollment] = useState(false);
-  const [faceSettings, setFaceSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const [error, setError] = useState('');
-
   useEffect(() => {
     checkFaceEnrollment();
   }, [user]);
@@ -34,19 +32,6 @@ export default function FaceRegistrationPage() {
         .rpc('has_face_enrollment', { p_user_id: user.id });
 
       setHasFaceEnrollment(data || false);
-
-      // Load face settings
-      const { data: settings } = await supabase
-        .rpc('get_face_settings', { p_user_id: user.id });
-
-      setFaceSettings(settings?.[0] || {
-        is_enabled: true,
-        confidence_threshold: 0.7,
-        max_attempts: 3,
-        lockout_duration_minutes: 5,
-        require_liveness_check: false,
-        fallback_to_pin: true
-      });
 
     } catch (error) {
       console.error('Error checking face enrollment:', error);
@@ -196,21 +181,10 @@ export default function FaceRegistrationPage() {
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Current settings:
+                <div className="space-y-4">
+                  <p className="text-sm text-center text-muted-foreground w-full">
+                    Anda sudah bisa menggunakan fitur absensi wajah.
                   </p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    <Badge variant="outline">
-                      Threshold: {(faceSettings?.confidence_threshold * 100).toFixed(0)}%
-                    </Badge>
-                    <Badge variant="outline">
-                      Max Attempts: {faceSettings?.max_attempts}
-                    </Badge>
-                    <Badge variant="outline">
-                      Fallback: {faceSettings?.fallback_to_pin ? 'PIN' : 'None'}
-                    </Badge>
-                  </div>
                 </div>
 
                 <div className="flex gap-2 justify-center">

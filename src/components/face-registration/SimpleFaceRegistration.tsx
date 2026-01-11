@@ -155,39 +155,45 @@ export function SimpleFaceRegistration({ onComplete, employeeId }: SimpleFaceReg
             {/* Intro Step */}
             {step === 'intro' && (
                 <Card className="border-none shadow-xl">
-                    <CardContent className="pt-6 space-y-6">
-                        <div className="text-center space-y-4">
-                            <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto">
-                                <User className="h-12 w-12 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-2xl font-bold">Daftarkan Wajah Anda</h3>
-                                <p className="text-slate-600 mt-2">
-                                    Ambil foto selfie untuk mengaktifkan face recognition pada sistem absensi
-                                </p>
-                            </div>
+                    <CardContent className="pt-8 space-y-8">
+                        <div className="text-center space-y-2">
+                            <h3 className="text-xl font-bold">Verifikasi Wajah</h3>
+                            <p className="text-slate-500 text-sm">
+                                Untuk keamanan akun, silakan lakukan pendaftaran wajah.
+                            </p>
                         </div>
 
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
-                            <p className="font-semibold text-blue-900 flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4" />
-                                Tips untuk foto terbaik:
-                            </p>
-                            <ul className="text-sm text-blue-800 space-y-1 ml-6 list-disc">
-                                <li>Pastikan wajah Anda terlihat jelas</li>
-                                <li>Cari pencahayaan yang cukup</li>
-                                <li>Lepas kacamata atau masker</li>
-                                <li>Posisikan wajah di tengah kamera</li>
+                        {/* Visual Guide Frame */}
+                        <div className="relative w-48 h-64 mx-auto border-4 border-dashed border-blue-400 rounded-[45%] flex flex-col items-center justify-center bg-blue-50/50 cursor-pointer hover:bg-blue-50 transition-colors group" onClick={handleCaptureSelfie}>
+                            <div className="absolute inset-0 rounded-[45%] border-2 border-white/50 pointer-events-none"></div>
+
+                            <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
+                                <CameraIcon className="h-8 w-8 text-blue-600" />
+                            </div>
+                            <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">Ambil Selfie</p>
+
+                            {/* Corner Markers */}
+                            <div className="absolute top-4 left-8 w-4 h-4 border-t-2 border-l-2 border-blue-600 rounded-tl-lg"></div>
+                            <div className="absolute top-4 right-8 w-4 h-4 border-t-2 border-r-2 border-blue-600 rounded-tr-lg"></div>
+                            <div className="absolute bottom-4 left-8 w-4 h-4 border-b-2 border-l-2 border-blue-600 rounded-bl-lg"></div>
+                            <div className="absolute bottom-4 right-8 w-4 h-4 border-b-2 border-r-2 border-blue-600 rounded-br-lg"></div>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-xl p-4 text-center">
+                            <p className="font-semibold text-slate-800 text-sm mb-2">Instruksi:</p>
+                            <ul className="text-xs text-slate-600 space-y-1">
+                                <li>✨ Pastikan wajah terlihat jelas & terang</li>
+                                <li>👓 Lepas kacamata hitam / masker</li>
+                                <li>📱 Posisikan HP sejajar dengan mata</li>
                             </ul>
                         </div>
 
                         <Button
                             onClick={handleCaptureSelfie}
-                            className="w-full h-12 text-base"
+                            className="w-full h-12 text-base rounded-xl font-bold shadow-lg shadow-blue-200"
                             size="lg"
                         >
-                            <CameraIcon className="mr-2 h-5 w-5" />
-                            Ambil Foto Selfie
+                            Mulai Kamera
                         </Button>
                     </CardContent>
                 </Card>
