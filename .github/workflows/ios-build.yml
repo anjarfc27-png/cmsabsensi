@@ -49,11 +49,11 @@ jobs:
           cd ios/App
           mkdir Payload
           cp -r App.xcarchive/Products/Applications/App.app Payload/
-          zip -r DutaMruput.ipa Payload
+          zip -r CMS-Duta-Solusi.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: duta-mruput-ios-unsigned
-          path: ios/App/DutaMruput.ipa
+          name: cms-duta-solusi-ios-unsigned
+          path: ios/App/CMS-Duta-Solusi.ipa
           retention-days: 30
