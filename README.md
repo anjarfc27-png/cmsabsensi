@@ -1,71 +1,64 @@
 # Absensi + Payroll - CMS Duta Solusi
 
-Sistem HRIS lengkap dengan attendance tracking, leave management, overtime calculation, dan payroll processing terintegrasi. **100% Gratis, No Subscription Fees!**
+Sistem HRIS lengkap dengan pelacakan kehadiran, manajemen cuti, perhitungan lembur, dan pemrosesan penggajian yang terintegrasi. **Gratis, Tanpa Biaya Berlangganan!**
 
 ## Fitur Utama
 
-### Attendance System
-- **Absensi Real-time**: Clock in/out dengan selfie + GPS verification
-- **Multi Work Mode**: WFO, WFH, dan Dinas Luar
-- **History & Analytics**: Riwayat lengkap dengan filtering & statistics
-- **Attendance Corrections**: Koreksi absensi dengan approval workflow
+### Sistem Kehadiran (Attendance System)
+- **Absensi Real-time**: Masuk/Keluar (Clock in/out) dengan swafoto + verifikasi GPS.
+- **Mode Kerja Fleksibel**: Mendukung WFO (Kantor), WFH (Rumah), dan Dinas Luar.
+- **Riwayat & Analitik**: Riwayat lengkap dengan penyaringan & statistik.
+- **Koreksi Absensi**: Pengajuan koreksi absensi dengan alur persetujuan.
 
-### Leave & Overtime Management
-- **Leave Balance Tracking**: Saldo cuti tahunan (12 hari/tahun) dengan auto-deduct
-- **Quota Validation**: Validasi otomatis sebelum submit leave request
-- **Medical Certificate**: Upload surat dokter untuk sick leave > 2 hari
-- **Overtime Calculation**: Auto-calculate upah lembur sesuai UU Ketenagakerjaan
-- **Legal Compliance**: Multiplier sesuai UU No. 13/2003 (weekday vs holiday)
+### Manajemen Cuti & Lembur
+- **Pelacakan Saldo Cuti**: Saldo cuti tahunan (12 hari/tahun) dengan pengurangan otomatis.
+- **Validasi Kuota**: Validasi otomatis sebelum pengajuan cuti.
+- **Surat Dokter**: Unggah surat dokter untuk cuti sakit lebih dari 2 hari.
+- **Perhitungan Lembur**: Perhitungan otomatis upah lembur sesuai UU Ketenagakerjaan.
+- **Kepatuhan Hukum**: Pengali upah lembur sesuai peraturan (hari kerja vs hari libur).
 
-### Payroll Module
-- **Salary Management**: Kelola gaji pokok + tunjangan per karyawan
-- **BPJS Calculation**: Auto-calculate BPJS Kesehatan & Ketenagakerjaan
-- **PPh 21 Calculation**: Progressive tax calculation (5%-35%)
-- **Payroll Processing**: Generate payroll bulanan dengan status tracking
-- **Payroll Report**: Export CSV untuk payroll software integration
-- **Slip Gaji**: Generate slip gaji (coming soon)
+### Modul Penggajian (Payroll)
+- **Manajemen Gaji**: Kelola gaji pokok + tunjangan per karyawan.
+- **Perhitungan BPJS**: Hitung otomatis BPJS Kesehatan & Ketenagakerjaan.
+- **Perhitungan PPh 21**: Perhitungan pajak progresif.
+- **Pemrosesan Penggajian**: Buat penggajian bulanan dengan pelacakan status.
+- **Laporan Penggajian**: Ekspor CSV untuk integrasi perangkat lunak akuntansi.
+- **Slip Gaji**: Pembuatan slip gaji otomatis.
 
-### Admin Features
-- **Multi-role Support**: Employee, Manager, Admin HR dengan role switcher
-- **Employee Management**: CRUD karyawan dengan salary configuration
-- **Location Management**: Kelola lokasi kantor dengan interactive map picker
-- **Approval Workflow**: Approve/reject leave, overtime, corrections
-- **Comprehensive Reports**: Monthly summary, payroll reports, analytics
+### Fitur Admin
+- **Dukungan Multi-peran**: Karyawan, Manajer, Admin HR dengan penukar peran.
+- **Manajemen Karyawan**: Tambah/Ubah/Hapus data karyawan dan konfigurasi gaji.
+- **Manajemen Lokasi**: Kelola lokasi kantor dengan pemilih peta interaktif.
+- **Alur Persetujuan**: Setujui/Tolak cuti, lembur, dan koreksi.
+- **Laporan Komprehensif**: Ringkasan bulanan, laporan penggajian, analitik.
 
-### Fitur Manager
-- **Approval Workflow**: Approve/reject cuti, lembur, dan koreksi absensi
-- **Laporan Tim**: Lihat rekap absensi team dengan export CSV
-- **Dashboard Analytics**: Statistik kehadiran dan pending requests
+### Fitur Manajer
+- **Alur Persetujuan**: Setujui/Tolak permintaan tim.
+- **Laporan Tim**: Lihat rekap absensi tim dengan ekspor CSV.
+- **Dasbor Analitik**: Statistik kehadiran dan permintaan tertunda.
 
-### 🔐 Fitur Admin HR
-- **Manajemen Karyawan**: CRUD employees, assign roles, toggle active status
-- **Manajemen Lokasi**: Setup office locations dengan geofencing + **Map Picker interaktif**
-- **Work Schedule**: Konfigurasi jam kerja, toleransi keterlambatan
-- **Departemen**: Kelola struktur organisasi
-- **Full Reports**: Export data absensi lengkap
+### Fitur Keamanan
+- **Verifikasi Swafoto**: Wajib foto saat clock in/out..
+- **Pelacakan GPS**: Validasi lokasi dengan radius geofencing.
+- **Pendaftaran Wajah**: Penyimpanan foto referensi biometrik.
+- **Log Audit**: Melacak semua perubahan data penting.
+- **Akses Berbasis Peran**: Hak akses spesifik berdasarkan peran pengguna.
 
-### 🛡️ Keamanan & Anti-Fraud
-- **Selfie Verification**: Wajib foto saat clock in/out
-- **GPS Tracking**: Validasi lokasi dengan radius geofencing
-- **Face Enrollment**: Biometric consent & reference photo storage
-- **Audit Logs**: Track semua perubahan data penting
-- **Role-Based Access**: Multi-role support dengan role switcher
-
-## 🛠️ Tech Stack
+## Spesifikasi Teknis (Tech Stack)
 
 - **Frontend**: React 18 + TypeScript + Vite
 - **UI Framework**: shadcn/ui + Tailwind CSS + Radix UI
 - **Backend**: Supabase (Auth, Database, Storage)
-- **Maps**: Leaflet + React Leaflet (interactive map picker)
-- **State Management**: React Context API
-- **Date Handling**: date-fns
-- **Icons**: Lucide React
+- **Peta**: Leaflet + React Leaflet
+- **Manajemen State**: React Context API
+- **Pengolahan Tanggal**: date-fns
+- **Ikon**: Lucide React
 
-## 📦 Setup & Installation
+## Panduan Instalasi & Pengaturan
 
-### Prerequisites
+### Prasyarat
 - Node.js 18+ dan npm
-- Supabase account (gratis)
+- Akun Supabase (Gratis)
 
 ### 1. Clone Repository
 ```bash
@@ -78,132 +71,79 @@ cd absensi-ceria
 npm install
 ```
 
-### 3. Setup Supabase
+### 3. Pengaturan Supabase
 
-#### A. Buat Project Supabase
-1. Buka [Supabase Dashboard](https://supabase.com/dashboard)
-2. Create new project
+#### A. Buat Proyek Supabase
+1. Buka [Dashboard Supabase](https://supabase.com/dashboard)
+2. Buat proyek baru
 3. Catat **Project URL** dan **anon public key**
 
-#### B. Setup Environment Variables
-Buat file `.env.local` di root project:
+#### B. Pengaturan Variabel Lingkungan
+Buat file `.env.local` di root proyek:
 ```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key
+VITE_SUPABASE_URL=https://proyek-anda.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=kunci-anon-anda
 ```
 
-#### C. Run Database Migrations
-Di Supabase SQL Editor, jalankan berurutan:
-1. `supabase/migrations/20260106020904_....sql` (schema + RLS + storage)
-2. `supabase/migrations/20260106020916_....sql` (fix function)
+#### C. Jalankan Migrasi Database
+Di SQL Editor Supabase, jalankan file migrasi yang terdapat di folder `supabase/migrations/` secara berurutan sesuai nomor urut file.
 
-### 4. Run Development Server
+### 4. Jalankan Server Development
 ```bash
 npm run dev
 ```
 
 Akses aplikasi di `http://localhost:5173`
 
-## 👥 User Management
+## Manajemen Pengguna
 
-### Assign Multiple Roles
-Jalankan SQL di Supabase SQL Editor:
-```sql
--- File: supabase/assign-multiple-roles.sql
--- Ganti email sesuai kebutuhan
-```
+### Peran Bawaan (Default Roles)
+- **employee**: Akses dasar (absensi, cuti, lembur).
+- **manager**: Tambahan akses persetujuan dan laporan tim.
+- **admin_hr**: Akses penuh (kelola karyawan, lokasi, pengaturan).
 
-### Default Roles
-- **employee**: Akses dasar (absensi, cuti, lembur)
-- **manager**: + Approval workflow + Laporan tim
-- **admin_hr**: Full access (kelola karyawan, lokasi, settings)
-
-## 📱 Panduan Penggunaan
+## Panduan Penggunaan Singkat
 
 ### Untuk Karyawan
-1. **Login** dengan email & password
-2. **Absensi**: Pilih work mode → Ambil selfie → Clock in/out
-3. **Cuti/Izin**: Buka menu "Cuti & Izin" → Isi form → Submit
-4. **Koreksi**: Jika lupa absen, buka "Koreksi Absensi" → Ajukan koreksi
+1. **Login** dengan email & kata sandi.
+2. **Absensi**: Pilih mode kerja → Ambil swafoto → Masuk/Keluar.
+3. **Cuti/Izin**: Buka menu "Cuti & Izin" → Isi formulir → Kirim.
+4. **Koreksi**: Jika lupa absen, buka "Koreksi Absensi" → Ajukan koreksi.
 
-### Untuk Manager/Admin HR
-1. **Approval**: Buka "Persetujuan" → Pilih tab (Cuti/Lembur/Koreksi) → Approve/Reject
-2. **Laporan**: Buka "Laporan" → Pilih periode → Export CSV
-3. **Kelola Karyawan** (Admin HR): Buka "Karyawan" → Edit data/role/status
+### Untuk Manajer/Admin HR
+1. **Persetujuan**: Buka "Persetujuan" → Pilih tab (Cuti/Lembur/Koreksi) → Setujui/Tolak.
+2. **Laporan**: Buka "Laporan" → Pilih periode → Ekspor CSV.
+3. **Kelola Karyawan** (Admin HR): Buka "Karyawan" → Edit data/peran/status.
 
-### Role Switcher
-Jika punya multiple roles:
-1. Klik **avatar** di header
-2. Pilih role yang diinginkan
-3. Menu otomatis berubah sesuai role aktif
+## Struktur Database
 
-## 🗂️ Struktur Database
+### Tabel Utama
+- `profiles`: Data karyawan.
+- `user_roles`: Penugasan peran.
+- `departments`: Departemen perusahaan.
+- `attendances`: Catatan absensi harian.
+- `leave_requests`: Pengajuan cuti/izin.
+- `overtime_requests`: Pengajuan lembur.
+- `attendance_corrections`: Koreksi absensi.
+- `office_locations`: Lokasi kantor dengan geofencing.
+- `work_schedules`: Jadwal kerja.
+- `audit_logs`: Jejak audit sistem.
 
-### Tables
-- `profiles`: Data karyawan
-- `user_roles`: Role assignment (support multiple roles)
-- `departments`: Departemen perusahaan
-- `attendances`: Record absensi harian
-- `leave_requests`: Pengajuan cuti/izin
-- `overtime_requests`: Pengajuan lembur
-- `attendance_corrections`: Koreksi absensi
-- `office_locations`: Lokasi kantor dengan geofencing
-- `work_schedules`: Jadwal kerja
-- `audit_logs`: Audit trail
+### Penyimpanan (Storage Buckets)
+- `attendance-photos`: Swafoto masuk/keluar & pendaftaran wajah.
 
-### Storage Buckets
-- `attendance-photos`: Selfie clock in/out + face enrollment
+## Pembangunan & Deployment
 
-## 🔒 Security Features
-
-### Row Level Security (RLS)
-- User hanya bisa akses data mereka sendiri
-- Manager bisa lihat data team yang di-assign
-- Admin HR full access
-
-### Authentication
-- Email/password via Supabase Auth
-- Session management dengan auto-refresh token
-
-## 🚀 Build & Deploy
-
-### Build Production
+### Build Produksi
 ```bash
 npm run build
 ```
 
-### Preview Build
+### Pratinjau Build
 ```bash
 npm run preview
 ```
 
-### Deploy
-Deploy ke platform pilihan (Vercel, Netlify, dll):
-1. Connect repository
-2. Set environment variables
-3. Deploy
-
-## 📝 Development
-
-### Lint
-```bash
-npm run lint
-```
-
-### Fix Vulnerabilities
-```bash
-npm audit fix
-```
-
-## 📄 License
+## Lisensi
 
 Proprietary - CMS Duta Solusi
-
-## 🤝 Support
-
-Untuk bantuan teknis, hubungi tim IT CMS Duta Solusi.
-
----
-
-**Version**: 1.0.0  
-**Last Updated**: Januari 2026

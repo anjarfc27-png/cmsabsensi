@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { SimpleFaceRegistration } from '@/components/face-registration/SimpleFaceRegistration';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, User, CheckCircle, AlertCircle, Camera, Settings } from 'lucide-react';
@@ -17,6 +17,7 @@ export default function FaceRegistrationPage() {
   const [loading, setLoading] = useState(true);
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const [error, setError] = useState('');
+
   useEffect(() => {
     checkFaceEnrollment();
   }, [user]);
@@ -35,7 +36,7 @@ export default function FaceRegistrationPage() {
 
     } catch (error) {
       console.error('Error checking face enrollment:', error);
-      setError('Failed to load face enrollment status');
+      setError('Gagal memuat status pendaftaran wajah');
     } finally {
       setLoading(false);
     }
@@ -47,7 +48,7 @@ export default function FaceRegistrationPage() {
       setHasFaceEnrollment(true);
       setError('');
     } else {
-      setError(data?.message || 'Face registration failed');
+      setError(data?.message || 'Registrasi wajah gagal');
     }
   };
 
@@ -65,7 +66,7 @@ export default function FaceRegistrationPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading face registration status...</p>
+            <p className="text-muted-foreground">Memuat status registrasi...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -79,12 +80,12 @@ export default function FaceRegistrationPage() {
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Kembali
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Face Registration</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Registrasi Wajah</h1>
             <p className="text-muted-foreground">
-              Register your face for biometric authentication
+              Daftarkan wajah Anda untuk otentikasi biometrik
             </p>
           </div>
         </div>
@@ -94,7 +95,7 @@ export default function FaceRegistrationPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Face Enrollment Status
+              Status Pendaftaran
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -103,18 +104,18 @@ export default function FaceRegistrationPage() {
                 <div className={`w-3 h-3 rounded-full ${hasFaceEnrollment ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                 <div>
                   <div className="font-medium">
-                    {hasFaceEnrollment ? 'Face Registered' : 'No Face Registration'}
+                    {hasFaceEnrollment ? 'Wajah Terdaftar' : 'Belum Terdaftar'}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {hasFaceEnrollment
-                      ? 'Your face is registered for biometric authentication'
-                      : 'Register your face to enable face recognition authentication'
+                      ? 'Wajah Anda sudah terdaftar untuk otentikasi biometrik.'
+                      : 'Daftarkan wajah Anda untuk mengaktifkan fitur pengenalan wajah.'
                     }
                   </div>
                 </div>
               </div>
               <Badge variant={hasFaceEnrollment ? 'default' : 'secondary'}>
-                {hasFaceEnrollment ? '✅ Complete' : '⏳ Pending'}
+                {hasFaceEnrollment ? '✅ Selesai' : '⏳ Pending'}
               </Badge>
             </div>
           </CardContent>
@@ -134,31 +135,31 @@ export default function FaceRegistrationPage() {
                   <CheckCircle className="h-8 w-8 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-green-800">Face Registration Complete!</h3>
+                  <h3 className="text-xl font-semibold text-green-800">Registrasi Berhasil!</h3>
                   <p className="text-green-600 mt-1">
-                    Your face has been successfully registered for biometric authentication.
+                    Wajah Anda telah berhasil didaftarkan untuk otentikasi.
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    You can now use face recognition for:
+                    Sekarang Anda dapat menggunakan fitur:
                   </p>
                   <div className="flex flex-wrap gap-2 justify-center">
-                    <Badge variant="outline">Clock In</Badge>
-                    <Badge variant="outline">Clock Out</Badge>
-                    <Badge variant="outline">Secure Login</Badge>
-                    <Badge variant="outline">Quick Verification</Badge>
+                    <Badge variant="outline">Absen Masuk</Badge>
+                    <Badge variant="outline">Absen Pulang</Badge>
+                    <Badge variant="outline">Login Aman</Badge>
+                    <Badge variant="outline">Verifikasi Cepat</Badge>
                   </div>
                 </div>
 
                 <div className="flex gap-2 justify-center">
                   <Button onClick={handleGoToSettings}>
                     <Settings className="h-4 w-4 mr-2" />
-                    Face Settings
+                    Pengaturan
                   </Button>
                   <Button variant="outline" onClick={handleGoToDashboard}>
-                    Go to Dashboard
+                    Ke Dashboard
                   </Button>
                 </div>
               </div>
@@ -175,25 +176,25 @@ export default function FaceRegistrationPage() {
                   <Camera className="h-8 w-8 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-blue-800">Face Already Registered</h3>
+                  <h3 className="text-xl font-semibold text-blue-800">Wajah Sudah Terdaftar</h3>
                   <p className="text-blue-600 mt-1">
-                    Your face is already registered for biometric authentication.
+                    Anda sudah melakukan perekaman data wajah sebelumnya.
                   </p>
                 </div>
 
                 <div className="space-y-4">
                   <p className="text-sm text-center text-muted-foreground w-full">
-                    Anda sudah bisa menggunakan fitur absensi wajah.
+                    Anda sudah bisa menggunakan fitur absensi wajah tanpa perlu mendaftar ulang.
                   </p>
                 </div>
 
                 <div className="flex gap-2 justify-center">
                   <Button variant="outline" onClick={handleGoToSettings}>
                     <Settings className="h-4 w-4 mr-2" />
-                    Manage Settings
+                    Pengaturan
                   </Button>
                   <Button onClick={handleGoToDashboard}>
-                    Go to Dashboard
+                    Ke Dashboard
                   </Button>
                 </div>
               </div>
@@ -212,44 +213,44 @@ export default function FaceRegistrationPage() {
         {/* Instructions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Face Recognition Benefits</CardTitle>
+            <CardTitle className="text-lg">Keuntungan Face Recognition</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <h4 className="font-medium flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  Fast & Convenient
+                  Cepat & Praktis
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Clock in/out instantly with just your face
+                  Absen masuk/pulang instan hanya dengan memindai wajah.
                 </p>
               </div>
               <div className="space-y-2">
                 <h4 className="font-medium flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  Highly Secure
+                  Keamanan Tinggi
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Biometric authentication with confidence scoring
+                  Otentikasi biometrik dengan tingkat akurasi tinggi.
                 </p>
               </div>
               <div className="space-y-2">
                 <h4 className="font-medium flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  Fallback Options
+                  Opsi Cadangan
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  PIN and password options if face recognition fails
+                  Tersedia opsi PIN/Password jika pemindaian wajah terkendala.
                 </p>
               </div>
               <div className="space-y-2">
                 <h4 className="font-medium flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  Audit Trail
+                  Jejak Audit
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Complete logging of all authentication attempts
+                  Pencatatan lengkap untuk setiap percobaan otentikasi.
                 </p>
               </div>
             </div>

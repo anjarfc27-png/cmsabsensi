@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
+import { useFaceRecognition } from '@/hooks/useFaceRecognition';
 
 interface FaceRecognitionProps {
   onFaceDetected: (faceDescriptor: Float32Array) => void;
@@ -22,44 +24,16 @@ export function FaceRecognition({
 }: FaceRecognitionProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isModelLoaded, setIsModelLoaded] = useState(false);
+
+  // Use shared hook for models
+  const { modelsLoaded: isModelLoaded, loading: isLoading } = useFaceRecognition();
+
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [detectionStatus, setDetectionStatus] = useState<'idle' | 'scanning' | 'detected' | 'verified' | 'failed'>('idle');
   const [confidence, setConfidence] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [stream, setStream] = useState<MediaStream | null>(null);
-
-  // Load face-api models
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        setIsLoading(true);
-        setErrorMessage('');
-
-        // Load models from public/models directory
-        // In production, you need to download these models and place them in public/models/
-        const MODEL_URL = '/models';
-
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-          faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
-        ]);
-
-        setIsModelLoaded(true);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error loading face-api models:', error);
-        setErrorMessage('Gagal memuat model face recognition. Pastikan file model tersedia.');
-        setIsLoading(false);
-      }
-    };
-
-    loadModels();
-  }, []);
 
   // Start camera
   const startCamera = useCallback(async () => {
@@ -145,7 +119,7 @@ export function FaceRecognition({
 
         // Get face descriptor
         const descriptor = detection.descriptor;
-        onFaceDetected(Array.from(descriptor));
+        onFaceDetected(descriptor);
 
         // Stop scanning after successful detection
         setIsScanning(false);
@@ -183,34 +157,73 @@ export function FaceRecognition({
   // Verify face against stored data
   const verifyFace = async (descriptor: Float32Array) => {
     try {
-      // In a real implementation, you would:
-      // 1. Fetch stored face descriptors from database
-      // 2. Compare using face distance
-      // 3. Return verification result
+      if (!employeeId) {
+        throw new Error('ID Karyawan tidak ditemukan untuk verifikasi');
+      }
 
-      // For demo purposes, we'll simulate verification
-      const isVerified = Math.random() > 0.3; // 70% success rate for demo
+      // 1. Fetch stored face descriptor from database
+      const { data: enrollment, error } = await supabase
+        .from('face_enrollments')
+        .select('face_descriptor')
+        .eq('user_id', employeeId)
+        .eq('is_active', true)
+        .single();
 
-      if (isVerified) {
+      if (error || !enrollment) {
+        setDetectionStatus('failed');
+        onVerificationComplete(false, {
+          reason: 'Data wajah belum terdaftar',
+          error: 'Data enrollment tidak ditemukan'
+        });
+        return;
+      }
+
+      if (!enrollment.face_descriptor) {
+        setDetectionStatus('failed');
+        onVerificationComplete(false, {
+          reason: 'Data biometrik wajah rusak. Harap registrasi ulang.',
+          error: 'Descriptor tidak ditemukan'
+        });
+        return;
+      }
+
+      // 2. Parse stored descriptor (it's stored as JSON/Array)
+      const storedDescriptor = new Float32Array(enrollment.face_descriptor as number[]);
+
+      // 3. Compare using Euclidean Distance
+      // Lower distance = better match. Threshold usually 0.6
+      const distance = faceapi.euclideanDistance(descriptor, storedDescriptor);
+      const threshold = 0.55; // Slightly stricter than 0.6 for attendance
+      const isMatch = distance < threshold;
+
+      // Calculate similarity score (inverse of distance) for UI
+      // distance 0 = 100% confidence
+      // distance 0.6 = ~0% confidence (above threshold)
+      const matchScore = Math.max(0, 100 - (distance * 100)); // Rough visualization
+      setConfidence(matchScore); // update UI with real match score
+
+      if (isMatch) {
         setDetectionStatus('verified');
         onVerificationComplete(true, {
-          confidence: confidence,
+          confidence: matchScore,
+          distance: distance,
           timestamp: new Date().toISOString(),
           employeeId
         });
       } else {
         setDetectionStatus('failed');
         onVerificationComplete(false, {
-          reason: 'Face not recognized',
-          confidence: confidence
+          reason: 'Wajah tidak cocok',
+          confidence: matchScore,
+          error: `Jarak ${distance} > ${threshold}`
         });
       }
     } catch (error) {
       console.error('Error verifying face:', error);
       setDetectionStatus('failed');
       onVerificationComplete(false, {
-        reason: 'Verification failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        reason: 'Gagal memverifikasi',
+        error: error instanceof Error ? error.message : 'Kesalahan tidak diketahui'
       });
     }
   };

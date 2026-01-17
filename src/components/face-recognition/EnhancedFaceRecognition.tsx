@@ -203,70 +203,94 @@ export function EnhancedFaceRecognition({
         faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
       }
 
-      // Calculate confidence
-      const confidenceScore = Math.min(95, detection.detection.score * 100);
-      setConfidence(confidenceScore);
+      // Calculate confidence for detection
+      const detectionScore = Math.min(95, detection.detection.score * 100);
+      setConfidence(detectionScore); // Preliminary confidence
 
-      if (confidenceScore > 70) {
+      if (detectionScore > 70) {
         setDetectionStatus('detected');
 
         // Get face descriptor
-        const descriptor = Array.from(detection.descriptor);
-
-        // Find best match in database
+        const descriptor = detection.descriptor;
         const userId = employeeId || user?.id;
+
         if (userId) {
           try {
-            const { data: matches } = await supabase
-              .rpc('find_best_face_match', {
-                p_user_id: userId,
-                p_descriptor: Array.from(descriptor),
-                p_threshold: faceSettings?.confidence_threshold || 0.7
-              });
+            // 1. Fetch user enrollment
+            const { data: enrollment, error } = await supabase
+              .from('face_enrollments')
+              .select('face_descriptor, face_image_url')
+              .eq('user_id', userId)
+              .eq('is_active', true)
+              .single();
 
-            if (matches && matches.length > 0) {
-              const match = matches[0];
-              setBestMatch({
-                faceId: match.face_id,
-                similarity: match.similarity,
-                imageUrl: match.image_url,
-                qualityScore: match.quality_score,
-                confidence: confidenceScore
-              });
-
-              // Check if similarity is above threshold
-              if (match.similarity >= (faceSettings?.confidence_threshold || 0.7)) {
-                setDetectionStatus('verified');
-
-                // Log successful verification
-                await supabase.rpc('log_face_recognition_attempt', {
-                  p_user_id: userId,
-                  p_attempt_type: mode,
-                  p_confidence: match.similarity,
-                  p_success: true,
-                  p_processing_time_ms: 0 // Calculate actual time in production
-                });
-
-                setTimeout(() => {
-                  onVerificationComplete(true, {
-                    confidence: match.similarity,
-                    faceId: match.face_id,
-                    timestamp: new Date().toISOString(),
-                    employeeId: userId
-                  });
-                }, 1000);
-              } else {
-                setDetectionStatus('failed');
-                handleVerificationFailed('Face not recognized', match.similarity);
-              }
-            } else {
+            if (error || !enrollment || !enrollment.face_descriptor) {
               setDetectionStatus('failed');
-              handleVerificationFailed('No matching face found');
+              handleVerificationFailed('Face data not found');
+              return;
             }
+
+            // 2. Compare faces
+            const storedDescriptor = new Float32Array(enrollment.face_descriptor as number[]);
+            const distance = faceapi.euclideanDistance(descriptor, storedDescriptor);
+
+            // Thresholding (0.55 is strict, 0.6 is loose)
+            const threshold = faceSettings?.confidence_threshold ? (1 - faceSettings.confidence_threshold) : 0.5; // Map similarity back to distance if needed, or just use fixed 0.55
+            // Actually let's stick to distance logic
+            // Standard face-api: distance < 0.6 is a match.
+            const isMatch = distance < 0.55;
+
+            // Convert distance to "Similarity %" for UI
+            const similarity = Math.max(0, 1 - distance);
+
+            if (isMatch) {
+              setBestMatch({
+                faceId: userId,
+                similarity: similarity,
+                imageUrl: enrollment.face_image_url,
+                qualityScore: detection.detection.score,
+                confidence: similarity * 100
+              });
+
+              setDetectionStatus('verified');
+              setConfidence(similarity * 100);
+
+              // Log success
+              await supabase.rpc('log_face_recognition_attempt', {
+                p_user_id: userId,
+                p_attempt_type: mode,
+                p_confidence: similarity,
+                p_success: true,
+                p_processing_time_ms: 0,
+                p_error_message: null
+              }).catch(e => console.log("Log error (ignorable):", e));
+
+              setTimeout(() => {
+                onVerificationComplete(true, {
+                  confidence: similarity,
+                  faceId: userId,
+                  timestamp: new Date().toISOString(),
+                  employeeId: userId
+                });
+              }, 1000);
+
+              // Stop scanning
+              setIsScanning(false);
+            } else {
+              // No match
+              // Don't fail immediately, maybe just keep scanning?
+              // But validation logic expects feedback
+              if (distance > 0.65) {
+                // Definitely not the person
+                handleVerificationFailed('Wajah tidak cocok', similarity);
+              }
+              // If distance is between 0.55 and 0.65, maybe just wait for better frame
+            }
+
           } catch (error) {
             console.error('Error matching face:', error);
-            setDetectionStatus('failed');
-            handleVerificationFailed('Face matching failed');
+            // setDetectionStatus('failed');
+            // handleVerificationFailed('Face matching failed');
           }
         }
       }

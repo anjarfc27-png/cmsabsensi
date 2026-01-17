@@ -80,7 +80,7 @@ serve(async (req) => {
     }
 
     try {
-        const { userId, title, body, data } = await req.json()
+        const { userId, title, body, data, topic } = await req.json()
 
         // Get Firebase Service Account from environment
         const serviceAccountJson = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
@@ -91,6 +91,52 @@ serve(async (req) => {
         const serviceAccount = JSON.parse(serviceAccountJson)
         const projectId = serviceAccount.project_id
 
+        // Get OAuth2 access token
+        const accessToken = await getAccessToken(serviceAccount)
+
+        // 1. Send via TOPIC (Broadcast)
+        if (topic) {
+            console.log('Sending push to TOPIC:', topic);
+
+            const fcmPayload = {
+                message: {
+                    topic: topic,
+                    notification: {
+                        title: title.startsWith('CMS |') ? title : `CMS | ${title}`,
+                        body: body,
+                    },
+                    data: data || {},
+                    android: {
+                        priority: 'high',
+                        notification: {
+                            sound: 'default',
+                            channel_id: 'default',
+                            icon: 'ic_notification'
+                        },
+                    },
+                },
+            }
+
+            const response = await fetch(
+                `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                    body: JSON.stringify(fcmPayload),
+                }
+            )
+
+            const result = await response.json()
+            return new Response(
+                JSON.stringify({ success: true, method: 'topic', result }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
+        // 2. Send via USER TOKENS (Direct)
         // Get Supabase client
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -100,7 +146,7 @@ serve(async (req) => {
         let query = supabase.from('fcm_tokens').select('token');
 
         if (userId === 'all' || userId === 'ALL' || userId === 'broadcast') {
-            console.log('Broadcasting notification to all active users');
+            console.log('Broadcasting notification to all active users via tokens');
             // No filter = all tokens
         } else {
             query = query.eq('user_id', userId);
@@ -121,9 +167,6 @@ serve(async (req) => {
             )
         }
 
-        // Get OAuth2 access token
-        const accessToken = await getAccessToken(serviceAccount)
-
         // Send FCM notification to each token using v1 API
         const results = await Promise.all(
             tokens.map(async ({ token }) => {
@@ -131,7 +174,7 @@ serve(async (req) => {
                     message: {
                         token: token,
                         notification: {
-                            title: title.startsWith('CMS') ? title : `CMS | ${title}`,
+                            title: title.startsWith('CMS |') ? title : `CMS | ${title}`,
                             body: body,
                         },
                         data: data || {},

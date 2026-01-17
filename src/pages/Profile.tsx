@@ -442,11 +442,11 @@ export default function ProfilePage() {
 
         const { data: { publicUrl } } = supabase.storage.from('face-images').getPublicUrl(fileName);
 
-        // 3. Update ONLY face_descriptors table (Separate from Profile)
-        const { error: faceError } = await supabase.from('face_descriptors').upsert({
+        // 3. Update ONLY face_enrollments table
+        const { error: faceError } = await supabase.from('face_enrollments').upsert({
           user_id: user.id,
-          descriptor: Array.from(detection.descriptor),
-          image_url: publicUrl,
+          face_descriptor: Array.from(detection.descriptor),
+          face_image_url: publicUrl,
           is_active: true,
           updated_at: new Date().toISOString()
         });
