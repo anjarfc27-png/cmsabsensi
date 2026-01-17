@@ -34,6 +34,7 @@ export default function Auth() {
   const [showFaceLogin, setShowFaceLogin] = useState(false);
 
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
+  const [hasBiometricHardware, setHasBiometricHardware] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('last_active_user');
@@ -42,6 +43,13 @@ export default function Auth() {
       setLastUser(JSON.parse(saved));
     }
     setFingerprintEnabled(fpEnabled);
+
+    // Cek hardware biometrik (khusus Native)
+    if (Capacitor.isNativePlatform()) {
+      NativeBiometric.isAvailable().then(result => {
+        setHasBiometricHardware(result.isAvailable);
+      }).catch(() => setHasBiometricHardware(false));
+    }
   }, []);
 
   useEffect(() => {
@@ -113,23 +121,27 @@ export default function Auth() {
 
     const isNative = Capacitor.isNativePlatform();
 
-    if (fingerprintEnabled) {
-      if (isNative) {
-        handleNativeBiometric();
-      } else {
-        // Web Simulation for Fingerprint
-        setIsLoading(true);
-        setTimeout(() => {
-          setIsLoading(false);
-          toast({
-            title: 'Simulasi Fingerprint (Web)',
-            description: `Login berhasil! Menggunakan akun: ${lastUser.name}`,
-          });
-          navigate('/dashboard');
-        }, 1000);
-      }
+    // Prioritas 1: Native Biometric (Sidik Jari/FaceID Bawaan)
+    if (isNative && hasBiometricHardware) {
+      handleNativeBiometric();
+      return;
+    }
+
+    // Prioritas 2: Web Authentication (Jika FaceLogin Enabled)
+    // Jika fingerprintEnabled (web simulation) ATAU face_login_enabled true
+    if (fingerprintEnabled && !isNative) {
+      // Web Simulation for Fingerprint
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        toast({
+          title: 'Simulasi Fingerprint (Web)',
+          description: `Login berhasil! Menggunakan akun: ${lastUser.name}`,
+        });
+        navigate('/dashboard');
+      }, 1000);
     } else {
-      // Fallback to Face ID (Web-ready)
+      // Fallback ke Kamera Wajah (App-based Face Recognition)
       setShowFaceLogin(true);
     }
   };
@@ -137,12 +149,6 @@ export default function Auth() {
   const handleNativeBiometric = async () => {
     try {
       setIsLoading(true);
-      const result = await NativeBiometric.isAvailable();
-
-      if (!result.isAvailable) {
-        setShowFaceLogin(true); // Fallback
-        return;
-      }
 
       const verified = await NativeBiometric.verifyIdentity({
         reason: "Masuk ke Akun Anda",
@@ -150,6 +156,7 @@ export default function Auth() {
         subtitle: "Gunakan Sidik Jari atau Wajah untuk masuk",
         description: "Tempelkan jari Anda pada sensor",
         negativeButtonText: "Batal",
+        maxAttempts: 3 // Limit percobaan
       });
 
       if (verified) {
@@ -161,11 +168,24 @@ export default function Auth() {
       }
     } catch (error: any) {
       console.error('Biometric error:', error);
-      // If error is "user canceled", don't show toast
-      if (error.message?.includes('User canceled') || error.code === 'USER_CANCELED') {
+
+      // Handle User Cancelled specificaly
+      if (error.message?.includes('User canceled') || error.code === '10' || error.code === '13') {
+        // User sengaja batal, jangan tampilkan error, dan jangan paksa buka kamera wajah
+        setIsLoading(false);
         return;
       }
-      setShowFaceLogin(true); // Fallback on any error
+
+      // Handle Failed Attempt but user might want to retry
+      toast({
+        title: 'Gagal Verifikasi',
+        description: 'Sidik jari tidak dikenali. Silakan coba lagi atau gunakan password.',
+        variant: 'destructive',
+        duration: 3000
+      });
+
+      // Opsional: Fallback ke Face Login jika sensor rusak/gagal terus
+      // setShowFaceLogin(true); 
     } finally {
       setIsLoading(false);
     }
@@ -383,7 +403,7 @@ export default function Auth() {
                               </div>
                             )}
                             <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-slate-100">
-                              {fingerprintEnabled ? (
+                              {hasBiometricHardware ? (
                                 <Fingerprint className="h-3.5 w-3.5 text-blue-600" />
                               ) : (
                                 <ScanFace className="h-3.5 w-3.5 text-blue-600" />
@@ -395,7 +415,7 @@ export default function Auth() {
                             <p className="text-sm font-black text-slate-800">{lastUser.name}</p>
                           </div>
                           <div className="ml-auto flex items-center gap-2">
-                            {fingerprintEnabled ? (
+                            {hasBiometricHardware ? (
                               <Fingerprint className="h-5 w-5 text-blue-500 group-hover:animate-pulse" />
                             ) : (
                               <ScanFace className="h-5 w-5 text-blue-500 group-hover:animate-pulse" />
