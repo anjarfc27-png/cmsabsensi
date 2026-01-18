@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -26,9 +26,27 @@ import {
     XCircle,
     HelpCircle,
     Video,
-    Search
+    Search,
+    Edit,
+    Trash2,
+    Loader2
 } from 'lucide-react';
-import { useMemo } from 'react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths, getDay, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -44,9 +62,16 @@ export default function AgendaPage() {
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState(new Date());
 
-    // Create Agenda State
+    // CRUD State
     const [createOpen, setCreateOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [currentAgendaId, setCurrentAgendaId] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
+
+    // Delete State
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<{ id: string, title: string } | null>(null);
+
     const [employees, setEmployees] = useState<Profile[]>([]);
     const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
     const [form, setForm] = useState({
@@ -59,9 +84,9 @@ export default function AgendaPage() {
         meetingLink: ''
     });
 
-    const isAdmin = profile?.role === 'admin_hr' || profile?.email?.includes('admin');
-
     const [employeeSearch, setEmployeeSearch] = useState('');
+
+    const canManage = ['admin_hr', 'manager'].includes(profile?.role || '');
 
     const filteredEmployees = useMemo(() => {
         if (!employeeSearch) return employees;
@@ -86,33 +111,40 @@ export default function AgendaPage() {
     }, [selectedMonth]);
 
     useEffect(() => {
-        if (createOpen && isAdmin) {
+        if (createOpen && canManage) {
             fetchEmployees();
         }
-    }, [createOpen, isAdmin]);
+    }, [createOpen, canManage]);
 
     const fetchAgendas = async () => {
         try {
             setLoading(true);
-            const start = format(startOfWeek(startOfMonth(selectedMonth)), 'yyyy-MM-dd');
-            const end = format(endOfWeek(endOfMonth(selectedMonth)), 'yyyy-MM-dd');
+            // Fetch range: 1 week before start of month to 1 week after end of month
+            // This ensures all visible calendar days are covered
+            const startOfView = startOfWeek(startOfMonth(selectedMonth));
+            const endOfView = endOfWeek(endOfMonth(selectedMonth));
+
+            // Add buffer just in case
+            const queryStart = format(subMonths(startOfView, 0), 'yyyy-MM-dd');
+            const queryEnd = format(addMonths(endOfView, 0), 'yyyy-MM-dd');
+
+            console.log('Fetching agendas range:', queryStart, 'to', queryEnd);
 
             const { data, error } = await supabase
                 .from('agendas')
                 .select(`
-          *,
-          participants:agenda_participants(
-            *,
-            profiles!user_id(*)
-          )
-        `)
-                .gte('start_time', start)
-                .lte('start_time', end + 'T23:59:59');
+                  *,
+                  participants:agenda_participants(*)
+                `)
+                .gte('start_time', `${queryStart}T00:00:00`)
+                .lte('start_time', `${queryEnd}T23:59:59`);
 
             if (error) throw error;
+
+            console.log('Fetched Agendas Total:', data?.length, data);
             setAgendas(data || []);
         } catch (error) {
-            console.error(error);
+            console.error('Fetch Error:', error);
             toast({ title: 'Gagal memuat agenda', variant: 'destructive' });
         } finally {
             setLoading(false);
@@ -130,7 +162,55 @@ export default function AgendaPage() {
         setEmployees(data || []);
     };
 
-    const handleCreateAgenda = async () => {
+    const resetForm = () => {
+        setForm({
+            title: '',
+            description: '',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            startTime: '09:00',
+            endTime: '10:00',
+            location: '',
+            meetingLink: ''
+        });
+        setSelectedParticipants([]);
+        setIsEditing(false);
+        setCurrentAgendaId(null);
+    };
+
+    const handleOpenCreate = () => {
+        resetForm();
+        setCreateOpen(true);
+    };
+
+    const handleOpenEdit = (agenda: Agenda) => {
+        const startDate = parseISO(agenda.start_time);
+        const endDate = parseISO(agenda.end_time);
+
+        setForm({
+            title: agenda.title,
+            description: agenda.description || '',
+            date: format(startDate, 'yyyy-MM-dd'),
+            startTime: format(startDate, 'HH:mm'),
+            endTime: format(endDate, 'HH:mm'),
+            location: agenda.location || '',
+            meetingLink: agenda.meeting_link || ''
+        });
+
+        // Load participants
+        const participants = agenda.participants?.map((p: any) => p.user_id) || [];
+        setSelectedParticipants(participants);
+
+        setIsEditing(true);
+        setCurrentAgendaId(agenda.id);
+        setCreateOpen(true);
+    };
+
+    const handleOpenDelete = (agenda: Agenda) => {
+        setItemToDelete({ id: agenda.id, title: agenda.title });
+        setDeleteOpen(true);
+    };
+
+    const handleSaveAgenda = async () => {
         if (!form.title || !form.date || !form.startTime || !form.endTime) {
             toast({ title: 'Mohon isi semua field wajib', variant: 'destructive' });
             return;
@@ -141,55 +221,109 @@ export default function AgendaPage() {
             const start = new Date(`${form.date}T${form.startTime}`).toISOString();
             const end = new Date(`${form.date}T${form.endTime}`).toISOString();
 
-            const { data: agenda, error: agendaError } = await supabase
-                .from('agendas')
-                .insert({
-                    title: form.title,
-                    description: form.description,
-                    start_time: start,
-                    end_time: end,
-                    location: form.location,
-                    meeting_link: form.meetingLink,
-                    created_by: user?.id
-                })
-                .select()
-                .single();
+            let resultAgendaId = currentAgendaId;
 
-            if (agendaError) throw agendaError;
+            if (isEditing && currentAgendaId) {
+                // Update existing agenda
+                const { error } = await supabase
+                    .from('agendas')
+                    .update({
+                        title: form.title,
+                        description: form.description,
+                        start_time: start,
+                        end_time: end,
+                        location: form.location,
+                        meeting_link: form.meetingLink,
+                    })
+                    .eq('id', currentAgendaId);
 
-            if (selectedParticipants.length > 0) {
-                const participantData = selectedParticipants.map(uid => ({
-                    agenda_id: agenda.id,
-                    user_id: uid
-                }));
-                const { error: partError } = await supabase.from('agenda_participants').insert(participantData);
-                if (partError) throw partError;
+                if (error) throw error;
+            } else {
+                // Create new agenda
+                const { data, error } = await supabase
+                    .from('agendas')
+                    .insert({
+                        title: form.title,
+                        description: form.description,
+                        start_time: start,
+                        end_time: end,
+                        location: form.location,
+                        meeting_link: form.meetingLink,
+                        created_by: user?.id
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+                resultAgendaId = data.id;
             }
 
-            toast({ title: 'Agenda berhasil dibuat' });
+            // Sync Participants (Delete all then insert new)
+            // Note: This is a simple approach. For scaling, diffing is better.
+            if (resultAgendaId) {
+                // Remove existing
+                if (isEditing) {
+                    await supabase.from('agenda_participants').delete().eq('agenda_id', resultAgendaId);
+                }
+
+                // Insert selected
+                if (selectedParticipants.length > 0) {
+                    const participantData = selectedParticipants.map(uid => ({
+                        agenda_id: resultAgendaId,
+                        user_id: uid
+                    }));
+                    const { error: partError } = await supabase.from('agenda_participants').insert(participantData);
+                    if (partError) throw partError;
+                }
+            }
+
+            toast({ title: isEditing ? 'Agenda diperbarui' : 'Agenda berhasil dibuat' });
             setCreateOpen(false);
-            setForm({
-                title: '',
-                description: '',
-                date: format(new Date(), 'yyyy-MM-dd'),
-                startTime: '09:00',
-                endTime: '10:00',
-                location: '',
-                meetingLink: ''
-            });
-            setSelectedParticipants([]);
+            resetForm();
             fetchAgendas();
-        } catch (error) {
+
+        } catch (error: any) {
             console.error(error);
-            toast({ title: 'Gagal membuat agenda', variant: 'destructive' });
+            toast({
+                title: 'Gagal menyimpan agenda',
+                description: error.message || 'Terjadi kesalahan sistem',
+                variant: 'destructive'
+            });
         } finally {
             setCreating(false);
         }
     };
 
-    const agendasForSelectedDay = agendas.filter(a =>
-        isSameDay(parseISO(a.start_time), selectedDay)
-    );
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
+        try {
+            const { error } = await supabase
+                .from('agendas')
+                .delete()
+                .eq('id', itemToDelete.id);
+
+            if (error) throw error;
+
+            toast({ title: 'Agenda dihapus' });
+            fetchAgendas();
+        } catch (error: any) {
+            console.error(error);
+            toast({
+                title: 'Gagal menghapus',
+                description: error.message,
+                variant: 'destructive'
+            });
+        } finally {
+            setDeleteOpen(false);
+            setItemToDelete(null);
+        }
+    };
+
+    const agendasForSelectedDay = agendas.filter(a => {
+        const dateA = new Date(a.start_time);
+        return dateA.toDateString() === selectedDay.toDateString();
+    });
 
     return (
         <DashboardLayout>
@@ -215,154 +349,167 @@ export default function AgendaPage() {
                             </div>
                         </div>
 
-                        {isAdmin && (
-                            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                                <DialogTrigger asChild>
-                                    <Button className="bg-white hover:bg-white/90 text-blue-700 border-none shadow-lg font-bold transition-all active:scale-95 text-xs gap-2 rounded-xl">
-                                        <Plus className="h-4 w-4" />
-                                        Buat Agenda Baru
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-[500px] rounded-3xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Buat Agenda Baru</DialogTitle>
-                                        <DialogDescription>Tambahkan jadwal rapat atau kegiatan tim baru.</DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-1">
+                        {canManage && (
+                            <Button
+                                onClick={handleOpenCreate}
+                                className="bg-white hover:bg-white/90 text-blue-700 border-none shadow-lg font-bold transition-all active:scale-95 text-xs gap-2 rounded-xl"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Buat Agenda
+                            </Button>
+                        )}
+
+                        {/* Dialog Create/Edit */}
+                        <Dialog open={createOpen} onOpenChange={(open) => {
+                            if (!open) resetForm();
+                            setCreateOpen(open);
+                        }}>
+                            <DialogContent className="sm:max-w-[500px] rounded-3xl">
+                                <DialogHeader>
+                                    <DialogTitle>{isEditing ? 'Edit Agenda' : 'Buat Agenda Baru'}</DialogTitle>
+                                    <DialogDescription>{isEditing ? 'Perbarui detail kegiatan.' : 'Tambahkan jadwal rapat atau kegiatan tim baru.'}</DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-1">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Judul Kegiatan *</Label>
+                                        <Input placeholder="Misal: Rapat Koordinasi Mingguan" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="rounded-xl" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Judul Kegiatan *</Label>
-                                            <Input placeholder="Misal: Rapat Koordinasi Mingguan" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="rounded-xl" />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Tanggal *</Label>
-                                                <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="rounded-xl" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Mulai *</Label>
-                                                <Input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="rounded-xl" />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Selesai *</Label>
-                                                <Input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="rounded-xl" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Lokasi (Opsional)</Label>
-                                                <Input placeholder="Misal: Ruang Rapat 1" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="rounded-xl" />
-                                            </div>
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Tanggal *</Label>
+                                            <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="rounded-xl" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Link Meeting (Opsional)</Label>
-                                            <Input placeholder="https://zoom.us/..." value={form.meetingLink} onChange={e => setForm({ ...form, meetingLink: e.target.value })} className="rounded-xl" />
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Mulai *</Label>
+                                            <Input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="rounded-xl" />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Selesai *</Label>
+                                            <Input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="rounded-xl" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Deskripsi</Label>
-                                            <Textarea placeholder="Detail kegiatan..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="rounded-xl min-h-[80px]" />
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Lokasi (Opsional)</Label>
+                                            <Input placeholder="Misal: Ruang Rapat 1" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="rounded-xl" />
                                         </div>
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Peserta</Label>
-                                                <div className="text-[10px] text-slate-400 font-medium">
-                                                    {selectedParticipants.length} orang terpilih
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Link Meeting (Opsional)</Label>
+                                        <Input placeholder="https://zoom.us/..." value={form.meetingLink} onChange={e => setForm({ ...form, meetingLink: e.target.value })} className="rounded-xl" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Deskripsi</Label>
+                                        <Textarea placeholder="Detail kegiatan..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="rounded-xl min-h-[80px]" />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Peserta</Label>
+                                            <div className="text-[10px] text-slate-400 font-medium">
+                                                {selectedParticipants.length} orang terpilih
+                                            </div>
+                                        </div>
+
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                            <Input
+                                                placeholder="Cari nama karyawan..."
+                                                value={employeeSearch}
+                                                onChange={e => setEmployeeSearch(e.target.value)}
+                                                className="pl-9 h-9 text-xs rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                                            />
+                                        </div>
+
+                                        <div className="border rounded-2xl overflow-hidden bg-white border-slate-200 max-h-[200px] overflow-y-auto custom-scrollbar">
+                                            {Object.keys(groupedEmployees).length === 0 ? (
+                                                <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
+                                                    <Users className="h-8 w-8 mb-2 opacity-50" />
+                                                    <span className="text-xs">Tidak ada karyawan ditemukan</span>
                                                 </div>
-                                            </div>
-
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                                                <Input
-                                                    placeholder="Cari nama karyawan..."
-                                                    value={employeeSearch}
-                                                    onChange={e => setEmployeeSearch(e.target.value)}
-                                                    className="pl-9 h-9 text-xs rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
-                                                />
-                                            </div>
-
-                                            <div className="border rounded-2xl overflow-hidden bg-white border-slate-200 max-h-[200px] overflow-y-auto custom-scrollbar">
-                                                {Object.keys(groupedEmployees).length === 0 ? (
-                                                    <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
-                                                        <Users className="h-8 w-8 mb-2 opacity-50" />
-                                                        <span className="text-xs">Tidak ada karyawan ditemukan</span>
-                                                    </div>
-                                                ) : (
-                                                    Object.entries(groupedEmployees).map(([dept, emps]) => (
-                                                        <div key={dept}>
-                                                            <div className="bg-slate-50/80 backdrop-blur-sm px-3 py-2 border-y border-slate-100 flex items-center justify-between sticky top-0 z-10">
-                                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                                                    {dept}
-                                                                </span>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-5 text-[10px] px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold"
+                                            ) : (
+                                                Object.entries(groupedEmployees).map(([dept, emps]) => (
+                                                    <div key={dept}>
+                                                        <div className="bg-slate-50/80 backdrop-blur-sm px-3 py-2 border-y border-slate-100 flex items-center justify-between sticky top-0 z-10">
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                                                                {dept}
+                                                            </span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-5 text-[10px] px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold"
+                                                                onClick={() => {
+                                                                    const ids = emps.map(e => e.id);
+                                                                    const allSelected = ids.every(id => selectedParticipants.includes(id));
+                                                                    if (allSelected) {
+                                                                        setSelectedParticipants(prev => prev.filter(id => !ids.includes(id)));
+                                                                    } else {
+                                                                        setSelectedParticipants(prev => [...new Set([...prev, ...ids])]);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {emps.every(e => selectedParticipants.includes(e.id)) ? 'Batal' : 'Pilih Semua'}
+                                                            </Button>
+                                                        </div>
+                                                        <div>
+                                                            {emps.map(emp => (
+                                                                <div
+                                                                    key={emp.id}
+                                                                    className={cn(
+                                                                        "flex items-center gap-3 p-2.5 hover:bg-blue-50/50 transition-all border-b border-slate-50 last:border-0 cursor-pointer group",
+                                                                        selectedParticipants.includes(emp.id) ? "bg-blue-50/30" : ""
+                                                                    )}
                                                                     onClick={() => {
-                                                                        const ids = emps.map(e => e.id);
-                                                                        const allSelected = ids.every(id => selectedParticipants.includes(id));
-                                                                        if (allSelected) {
-                                                                            setSelectedParticipants(prev => prev.filter(id => !ids.includes(id)));
+                                                                        if (selectedParticipants.includes(emp.id)) {
+                                                                            setSelectedParticipants(prev => prev.filter(id => id !== emp.id));
                                                                         } else {
-                                                                            setSelectedParticipants(prev => [...new Set([...prev, ...ids])]);
+                                                                            setSelectedParticipants(prev => [...prev, emp.id]);
                                                                         }
                                                                     }}
                                                                 >
-                                                                    {emps.every(e => selectedParticipants.includes(e.id)) ? 'Batal' : 'Pilih Semua'}
-                                                                </Button>
-                                                            </div>
-                                                            <div>
-                                                                {emps.map(emp => (
-                                                                    <div
-                                                                        key={emp.id}
-                                                                        className={cn(
-                                                                            "flex items-center gap-3 p-2.5 hover:bg-blue-50/50 transition-all border-b border-slate-50 last:border-0 cursor-pointer group",
-                                                                            selectedParticipants.includes(emp.id) ? "bg-blue-50/30" : ""
-                                                                        )}
-                                                                        onClick={() => {
-                                                                            if (selectedParticipants.includes(emp.id)) {
-                                                                                setSelectedParticipants(prev => prev.filter(id => id !== emp.id));
-                                                                            } else {
-                                                                                setSelectedParticipants(prev => [...prev, emp.id]);
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        <div className={cn(
-                                                                            "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
-                                                                            selectedParticipants.includes(emp.id) ? "bg-blue-600 border-blue-600" : "border-slate-300 bg-white group-hover:border-blue-400"
-                                                                        )}>
-                                                                            {selectedParticipants.includes(emp.id) && <CheckCircle2 className="h-3 w-3 text-white" />}
-                                                                        </div>
-
-                                                                        <Avatar className="h-8 w-8 border border-slate-100 shadow-sm">
-                                                                            <AvatarImage src={emp.avatar_url || ''} />
-                                                                            <AvatarFallback className="text-[10px] bg-sky-100 text-sky-700 font-bold">{emp.full_name[0]}</AvatarFallback>
-                                                                        </Avatar>
-
-                                                                        <div className="flex-1 overflow-hidden">
-                                                                            <p className={cn("text-xs font-bold truncate transition-colors", selectedParticipants.includes(emp.id) ? "text-blue-700" : "text-slate-700")}>{emp.full_name}</p>
-                                                                            <p className="text-[10px] text-slate-400 truncate">{(emp as any).job_position?.title || 'Staff'}</p>
-                                                                        </div>
+                                                                    <div className={cn(
+                                                                        "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
+                                                                        selectedParticipants.includes(emp.id) ? "bg-blue-600 border-blue-600" : "border-slate-300 bg-white group-hover:border-blue-400"
+                                                                    )}>
+                                                                        {selectedParticipants.includes(emp.id) && <CheckCircle2 className="h-3 w-3 text-white" />}
                                                                     </div>
-                                                                ))}
-                                                            </div>
+
+                                                                    <Avatar className="h-8 w-8 border border-slate-100 shadow-sm">
+                                                                        <AvatarImage src={emp.avatar_url || ''} />
+                                                                        <AvatarFallback className="text-[10px] bg-sky-100 text-sky-700 font-bold">{emp.full_name[0]}</AvatarFallback>
+                                                                    </Avatar>
+
+                                                                    <div className="flex-1 overflow-hidden">
+                                                                        <p className={cn("text-xs font-bold truncate transition-colors", selectedParticipants.includes(emp.id) ? "text-blue-700" : "text-slate-700")}>{emp.full_name}</p>
+                                                                        <p className="text-[10px] text-slate-400 truncate">{(emp as any).job_position?.title || 'Staff'}</p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
-                                                    ))
-                                                )}
-                                            </div>
+                                                    </div>
+                                                ))
+                                            )}
                                         </div>
                                     </div>
-                                    <DialogFooter className="gap-2 sm:gap-0">
-                                        <Button variant="ghost" onClick={() => setCreateOpen(false)} className="rounded-xl font-bold">Batal</Button>
-                                        <Button onClick={handleCreateAgenda} disabled={creating} className="rounded-xl bg-blue-600 hover:bg-blue-700 font-bold px-8 shadow-lg shadow-blue-500/20">
-                                            {creating ? 'Menyimpan...' : 'Simpan Agenda'}
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                        )}
+                                </div>
+                                <DialogFooter className="gap-2 sm:gap-0">
+                                    <Button variant="ghost" onClick={() => setCreateOpen(false)} className="rounded-xl font-bold">Batal</Button>
+                                    <Button onClick={handleSaveAgenda} disabled={creating} className="rounded-xl bg-blue-600 hover:bg-blue-700 font-bold px-8 shadow-lg shadow-blue-500/20">
+                                        {creating ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Menyimpan...
+                                            </>
+                                        ) : (
+                                            'Simpan Agenda'
+                                        )}
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div className="grid grid-cols-1 lg:col-span-12 gap-6">
                         {/* Calendar Side */}
                         <div className="lg:col-span-8">
                             <Card className="border-none shadow-xl shadow-slate-200/50 overflow-hidden bg-white rounded-3xl">
@@ -469,56 +616,87 @@ export default function AgendaPage() {
                                         </div>
                                     ) : (
                                         agendasForSelectedDay.map((agenda) => (
-                                            <div key={agenda.id} className="group p-4 rounded-[24px] border border-slate-100 bg-white hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-500 border-l-4 border-l-blue-600 relative overflow-hidden">
-                                                {/* Glass Overlay Effect */}
-                                                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/30 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700" />
+                                            <div key={agenda.id} className="group px-3 py-2.5 rounded-xl border border-slate-100 bg-white hover:border-blue-200 hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                                                {/* Left Accent Bar */}
+                                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-md" />
 
-                                                <div className="flex justify-between items-start mb-3 relative z-10">
-                                                    <h4 className="font-black text-slate-800 text-sm line-clamp-2 leading-tight pr-4">{agenda.title}</h4>
-                                                    <div className="bg-blue-50 text-blue-700 p-1.5 rounded-xl border border-blue-100">
-                                                        <span className="text-[10px] font-black tracking-tighter shrink-0">
-                                                            {format(parseISO(agenda.start_time), 'HH:mm')}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                <div className="pl-2.5 flex flex-col gap-1.5 relative z-10 text-left">
+                                                    {/* Row 1: Title & Time & Menu */}
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <h4 className="font-bold text-slate-800 text-sm leading-tight line-clamp-1 flex-1 pt-0.5">{agenda.title}</h4>
 
-                                                <div className="space-y-2 mt-4 relative z-10">
-                                                    {agenda.location && (
-                                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
-                                                            <div className="bg-slate-100 p-1.5 rounded-lg">
-                                                                <MapPin className="h-3 w-3 shrink-0 text-slate-500" />
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <div className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-100">
+                                                                {format(parseISO(agenda.start_time), 'HH:mm')}
                                                             </div>
-                                                            <span className="line-clamp-1">{agenda.location}</span>
+                                                            {canManage && (
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full text-slate-300 hover:text-slate-600">
+                                                                            <MoreVertical className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent align="end" className="rounded-xl shadow-xl">
+                                                                        <DropdownMenuItem onClick={() => handleOpenEdit(agenda)} className="text-xs font-bold"><Edit className="mr-2 h-3.5 w-3.5" />Edit</DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => handleOpenDelete(agenda)} className="text-xs font-bold text-red-500"><Trash2 className="mr-2 h-3.5 w-3.5" />Hapus</DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                    {agenda.meeting_link && (
-                                                        <div className="flex items-center gap-2 text-[10px] text-blue-600 font-bold">
-                                                            <div className="bg-blue-50 p-1.5 rounded-lg">
-                                                                <Video className="h-3 w-3 shrink-0 text-blue-600" />
-                                                            </div>
-                                                            <a href={agenda.meeting_link} target="_blank" rel="noopener noreferrer" className="hover:underline line-clamp-1 truncate flex-1">Bergabung Meeting</a>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold pt-1">
-                                                        <div className="bg-slate-100 p-1.5 rounded-lg">
-                                                            <Users className="h-3 w-3 shrink-0 text-slate-400" />
-                                                        </div>
-                                                        <span>{agenda.participants?.length || 0} Orang Terdaftar</span>
                                                     </div>
-                                                </div>
 
-                                                <div className="flex -space-x-2 mt-5 overflow-hidden ring-offset-4 ring-offset-white relative z-10">
-                                                    {agenda.participants?.slice(0, 4).map((p: any, i) => (
-                                                        <Avatar key={i} className="h-7 w-7 border-2 border-white shadow-sm">
-                                                            <AvatarImage src={p.profiles?.avatar_url || ''} />
-                                                            <AvatarFallback className="text-[8px] bg-slate-200 font-bold">{p.profiles?.full_name ? p.profiles.full_name[0] : 'U'}</AvatarFallback>
-                                                        </Avatar>
-                                                    ))}
-                                                    {(agenda.participants?.length || 0) > 4 && (
-                                                        <div className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-slate-500 shadow-sm">
-                                                            +{(agenda.participants?.length || 0) - 4}
-                                                        </div>
-                                                    )}
+                                                    {/* Row 2: Details Inline (Location • Link • Participants) */}
+                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500 font-medium leading-none">
+                                                        {agenda.location && (
+                                                            <div className="flex items-center gap-1.5 min-w-0 max-w-[120px]">
+                                                                <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+                                                                <span className="truncate">{agenda.location}</span>
+                                                            </div>
+                                                        )}
+
+                                                        {agenda.meeting_link && (
+                                                            <div className="flex items-center gap-1.5 min-w-0 max-w-[100px]">
+                                                                <Video className="h-3 w-3 shrink-0 text-blue-500" />
+                                                                <a href={agenda.meeting_link} target="_blank" rel="noopener noreferrer" className="hover:underline truncate text-blue-600">Meeting</a>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Participants Dropdown Trigger */}
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <button className="flex items-center gap-1.5 hover:bg-slate-50 px-1 py-0.5 -ml-1 rounded transition-colors group/btn outline-none">
+                                                                    <Users className="h-3 w-3 shrink-0 text-slate-400 group-hover/btn:text-blue-500" />
+                                                                    <span className="group-hover/btn:text-blue-700">{agenda.participants?.length || 0} Org</span>
+                                                                </button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="start" className="w-56 rounded-xl p-2 max-h-60 overflow-y-auto z-50 bg-white shadow-xl border-slate-100">
+                                                                <div className="px-2 py-1.5 text-xs font-bold text-slate-500 border-b border-slate-100 mb-1">
+                                                                    Daftar Peserta
+                                                                </div>
+                                                                {agenda.participants?.length === 0 ? (
+                                                                    <div className="text-[10px] p-2 text-slate-400 text-center">Belum ada peserta</div>
+                                                                ) : (
+                                                                    agenda.participants?.map((p: any, idx: number) => {
+                                                                        // AMAN: Lookup manual ke state employees
+                                                                        const emp = employees.find(e => e.id === p.user_id);
+                                                                        const name = emp ? emp.full_name : 'User Tidak Dikenal';
+                                                                        const avatar = emp ? emp.avatar_url : null;
+                                                                        const initial = name ? name[0] : '?';
+
+                                                                        return (
+                                                                            <div key={idx} className="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded-lg">
+                                                                                <Avatar className="h-5 w-5 border border-slate-100">
+                                                                                    <AvatarImage src={avatar || ''} />
+                                                                                    <AvatarFallback className="text-[8px] bg-blue-50 text-blue-600 font-bold">{initial}</AvatarFallback>
+                                                                                </Avatar>
+                                                                                <span className="text-xs text-slate-700 truncate font-medium">{name}</span>
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                )}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))
@@ -528,6 +706,24 @@ export default function AgendaPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Delete Confirmation Alert */}
+                <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                    <AlertDialogContent className="rounded-2xl">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus Agenda?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Anda yakin ingin menghapus agenda <b>"{itemToDelete?.title}"</b>? Tindakan ini tidak dapat dibatalkan.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-xl font-bold">Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={confirmDelete} className="rounded-xl bg-red-500 hover:bg-red-600 font-bold text-white">
+                                Ya, Hapus
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </DashboardLayout>
     );

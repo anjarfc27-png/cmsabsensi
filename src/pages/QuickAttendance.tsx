@@ -87,11 +87,10 @@ export default function QuickAttendancePage() {
 
             setFaceDetected(true);
             const { data: faceData, error } = await supabase
-                .from('face_descriptors')
-                .select('descriptor')
+                .from('face_enrollments')
+                .select('face_descriptor')
                 .eq('user_id', user?.id)
-                .order('quality_score', { ascending: false })
-                .limit(1)
+                .eq('is_active', true)
                 .maybeSingle();
 
             if (error || !faceData) {
@@ -99,7 +98,7 @@ export default function QuickAttendancePage() {
                 return false;
             }
 
-            const registeredDescriptor = new Float32Array(faceData.descriptor as any);
+            const registeredDescriptor = new Float32Array(faceData.face_descriptor as any);
             const similarity = compareFaces(currentDescriptor, registeredDescriptor);
             setFaceMatch(similarity);
 
@@ -139,9 +138,10 @@ export default function QuickAttendancePage() {
             const [faceCheckResult, locationResult, cameraResult] = await Promise.allSettled([
                 // Check face registration
                 supabase
-                    .from('face_descriptors')
+                    .from('face_enrollments')
                     .select('id')
                     .eq('user_id', user.id)
+                    .eq('is_active', true)
                     .limit(1)
                     .maybeSingle(),
                 // Get location
@@ -172,14 +172,13 @@ export default function QuickAttendancePage() {
 
                     if (descriptor && user) {
                         const { data: faceData } = await supabase
-                            .from('face_descriptors')
-                            .select('descriptor')
+                            .from('face_enrollments')
+                            .select('face_descriptor')
                             .eq('user_id', user.id)
-                            .order('quality_score', { ascending: false })
-                            .limit(1)
+                            .eq('is_active', true)
                             .maybeSingle();
                         if (faceData) {
-                            const similarity = compareFaces(descriptor, new Float32Array(faceData.descriptor as any));
+                            const similarity = compareFaces(descriptor, new Float32Array(faceData.face_descriptor as any));
                             setFaceMatch(similarity);
                         }
                     }
