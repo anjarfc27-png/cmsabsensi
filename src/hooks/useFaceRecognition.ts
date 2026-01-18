@@ -34,7 +34,6 @@ export function useFaceRecognition() {
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
                 ]);
                 globalModelsLoaded = true;
                 setState({ modelsLoaded: true, loading: false, error: null });

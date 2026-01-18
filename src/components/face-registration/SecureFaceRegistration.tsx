@@ -39,7 +39,20 @@ export function SecureFaceRegistration({ onComplete, employeeId }: SecureFaceReg
     const startCamera = async () => {
         try {
             setStep('loading');
-            await loadModels();
+
+            // Add a safety timeout for model loading
+            const loadPromise = loadModels();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Pemuatan model biometrik timeout. Periksa koneksi internet Anda.')), 15000)
+            );
+
+            const success = await Promise.race([loadPromise, timeoutPromise]) as boolean;
+
+            if (!success) {
+                setErrorMessage('Gagal memuat model biometrik. Pastikan file model tersedia di folder public/models.');
+                setStep('error');
+                return;
+            }
 
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
