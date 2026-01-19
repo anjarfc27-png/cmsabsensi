@@ -257,6 +257,14 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
         };
     }, [step, isReady, showMesh, requiredBlinks, detectFace]);
 
+    // Fix: Re-attach stream when step changes (because video element is re-mounted)
+    useEffect(() => {
+        if (streamRef.current && videoRef.current) {
+            videoRef.current.srcObject = streamRef.current;
+            videoRef.current.play().catch(console.error);
+        }
+    }, [step]);
+
     // Save Enrollment
     const saveEnrollment = async () => {
         if (!faceImage || !faceDescriptor || !targetUserId) {
