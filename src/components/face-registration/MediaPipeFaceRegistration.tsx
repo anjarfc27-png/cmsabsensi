@@ -175,47 +175,13 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
                 blinkDetectorRef.current.reset();
                 setBlinkCount(0);
 
+                // Go to blink challenge - useEffect will start detection automatically
                 setStep('blink-challenge');
-                startBlinkDetection();
             }
         } catch (error) {
             console.error('Capture error:', error);
             toast({ title: 'Gagal mengambil foto', variant: 'destructive' });
         }
-    };
-
-    // Start blink detection loop
-    const startBlinkDetection = () => {
-        const detectBlinks = async () => {
-            if (step !== 'blink-challenge' || !videoRef.current || !isReady) {
-                return;
-            }
-
-            const result = await detectFace(videoRef.current);
-
-            if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
-                setDetectedFace(true);
-
-                blinkDetectorRef.current.processFrame(result);
-                const currentBlinks = blinkDetectorRef.current.getBlinkCount();
-                setBlinkCount(currentBlinks);
-
-                if (showMesh) {
-                    drawFaceMesh(result);
-                }
-
-                if (currentBlinks >= requiredBlinks) {
-                    await saveEnrollment();
-                    return;
-                }
-            } else {
-                setDetectedFace(false);
-            }
-
-            animationFrameRef.current = requestAnimationFrame(detectBlinks);
-        };
-
-        detectBlinks();
     };
 
     // Render loop for capture step
@@ -244,6 +210,52 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
             }
         };
     }, [step, showMesh, isReady, detectFace]);
+
+    // Blink detection loop for blink-challenge step
+    useEffect(() => {
+        if (step === 'blink-challenge' && isReady && videoRef.current) {
+            const detectBlinks = async () => {
+                if (step !== 'blink-challenge' || !videoRef.current || !isReady) {
+                    return;
+                }
+
+                const result = await detectFace(videoRef.current);
+
+                if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
+                    setDetectedFace(true);
+
+                    blinkDetectorRef.current.processFrame(result);
+                    const currentBlinks = blinkDetectorRef.current.getBlinkCount();
+                    setBlinkCount(currentBlinks);
+
+                    if (showMesh) {
+                        drawFaceMesh(result);
+                    }
+
+                    // Check if enough blinks and auto-save
+                    if (currentBlinks >= requiredBlinks) {
+                        await saveEnrollment();
+                        return;
+                    }
+                } else {
+                    setDetectedFace(false);
+                }
+
+                // Continue loop
+                if (step === 'blink-challenge') {
+                    animationFrameRef.current = requestAnimationFrame(detectBlinks);
+                }
+            };
+
+            detectBlinks();
+        }
+
+        return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+        };
+    }, [step, isReady, showMesh, requiredBlinks, detectFace]);
 
     // Save Enrollment
     const saveEnrollment = async () => {
