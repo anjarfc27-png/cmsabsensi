@@ -21,7 +21,7 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
     const { user } = useAuth();
     const { toast } = useToast();
     const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = ref<HTMLCanvasElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const blinkDetectorRef = useRef(new MediaPipeBlinkDetector());
     const animationFrameRef = useRef<number>();
@@ -498,4 +498,5 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
         </div>
     );
 }
+
 
