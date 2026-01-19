@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { SecureFaceRegistration } from '@/components/face-registration/SecureFaceRegistration';
+import { MediaPipeFaceRegistration } from '@/components/face-registration/MediaPipeFaceRegistration';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -122,7 +122,7 @@ export default function FaceRegistrationPage() {
             {/* Registration Form / Component */}
             {(!hasFaceEnrollment || isEditMode) && !registrationComplete && (
               <div className="animate-in slide-in-from-bottom-4 duration-500">
-                <SecureFaceRegistration onComplete={handleRegistrationComplete} />
+                <MediaPipeFaceRegistration onComplete={handleRegistrationComplete} />
               </div>
             )}
 
@@ -183,3 +183,4 @@ export default function FaceRegistrationPage() {
     </DashboardLayout>
   );
 }
+
