@@ -305,198 +305,206 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
     }, []);
 
     return (
-        <div className="max-w-md mx-auto p-4">
-            <Card className="border-none shadow-2xl rounded-[32px] overflow-hidden bg-white">
-                <CardContent className="p-6 space-y-6">
+        <div
+            className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-cyan-50/30"
+            style={{
+                paddingTop: 'max(1rem, env(safe-area-inset-top))',
+                paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
+                paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+                paddingRight: 'max(1rem, env(safe-area-inset-right))',
+            }}
+        >
+            <div className="w-full max-w-md px-4">
+                <Card className="border-none shadow-2xl rounded-[32px] overflow-hidden bg-white">
+                    <CardContent className="p-6 space-y-6">
 
-                    {/* Intro */}
-                    {step === 'intro' && (
-                        <div className="text-center space-y-6 py-8">
-                            <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-                                <Sparkles className="h-10 w-10 text-white" />
+                        {/* Intro */}
+                        {step === 'intro' && (
+                            <div className="text-center space-y-6 py-8">
+                                <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+                                    <Sparkles className="h-10 w-10 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-slate-800">Registrasi Wajah AI</h2>
+                                    <p className="text-sm text-slate-500 mt-2">Teknologi MediaPipe Face Mesh</p>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-2xl p-4 text-left space-y-2">
+                                    <p className="text-xs font-bold text-blue-900">⚡ Fitur Premium:</p>
+                                    <ul className="text-xs text-blue-700 space-y-1.5 ml-4 list-disc">
+                                        <li>Face Mesh 478 titik (seperti Face ID)</li>
+                                        <li>Blink detection anti-foto</li>
+                                        <li>100% offline & cepat</li>
+                                        <li>Google MediaPipe Technology</li>
+                                    </ul>
+                                </div>
+
+                                <Button
+                                    onClick={startCamera}
+                                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-xl font-bold text-base shadow-lg"
+                                >
+                                    <CameraIcon className="mr-2 h-5 w-5" />
+                                    Mulai Registrasi
+                                </Button>
                             </div>
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-800">Registrasi Wajah AI</h2>
-                                <p className="text-sm text-slate-500 mt-2">Teknologi MediaPipe Face Mesh</p>
-                            </div>
+                        )}
 
-                            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-2xl p-4 text-left space-y-2">
-                                <p className="text-xs font-bold text-blue-900">⚡ Fitur Premium:</p>
-                                <ul className="text-xs text-blue-700 space-y-1.5 ml-4 list-disc">
-                                    <li>Face Mesh 478 titik (seperti Face ID)</li>
-                                    <li>Blink detection anti-foto</li>
-                                    <li>100% offline & cepat</li>
-                                    <li>Google MediaPipe Technology</li>
-                                </ul>
-                            </div>
+                        {/* Capture Step */}
+                        {step === 'capture' && (
+                            <div className="space-y-4">
+                                <div className="relative aspect-[3/4] bg-slate-100 rounded-2xl overflow-hidden">
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        style={{ transform: 'scaleX(-1)' }}
+                                        className="w-full h-full object-cover"
+                                    />
 
-                            <Button
-                                onClick={startCamera}
-                                className="w-full h-12 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-xl font-bold text-base shadow-lg"
-                            >
-                                <CameraIcon className="mr-2 h-5 w-5" />
-                                Mulai Registrasi
-                            </Button>
-                        </div>
-                    )}
+                                    <canvas
+                                        ref={canvasRef}
+                                        style={{ transform: 'scaleX(-1)' }}
+                                        className="absolute inset-0 w-full h-full pointer-events-none"
+                                    />
 
-                    {/* Capture Step */}
-                    {step === 'capture' && (
-                        <div className="space-y-4">
-                            <div className="relative aspect-[3/4] bg-slate-100 rounded-2xl overflow-hidden">
-                                <video
-                                    ref={videoRef}
-                                    autoPlay
-                                    playsInline
-                                    muted
-                                    style={{ transform: 'scaleX(-1)' }}
-                                    className="w-full h-full object-cover"
-                                />
-
-                                <canvas
-                                    ref={canvasRef}
-                                    style={{ transform: 'scaleX(-1)' }}
-                                    className="absolute inset-0 w-full h-full pointer-events-none"
-                                />
-
-                                <div className="absolute top-4 left-0 right-0 text-center space-y-2">
-                                    {!isReady && (
-                                        <Badge className="bg-amber-600 text-white backdrop-blur-sm px-4 py-2 text-xs font-bold">
-                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                            {loadingStatus}
-                                        </Badge>
-                                    )}
-
-                                    {isReady && (
-                                        <>
-                                            <Badge className={`${detectedFace ? 'bg-green-600' : 'bg-amber-600'} text-white backdrop-blur-sm px-4 py-2 text-xs font-bold`}>
-                                                {detectedFace ? '✓ Wajah Terdeteksi' : '⚠️ Cari Wajah...'}
+                                    <div className="absolute top-4 left-0 right-0 text-center space-y-2 px-4">
+                                        {!isReady && (
+                                            <Badge className="bg-amber-600 text-white backdrop-blur-sm px-4 py-2 text-xs font-bold shadow-lg">
+                                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                {loadingStatus}
                                             </Badge>
+                                        )}
 
-                                            {detectedFace && (
-                                                <Badge className="bg-cyan-600/90 text-white backdrop-blur-sm px-3 py-1 text-xs font-bold">
-                                                    <Sparkles className="h-3 w-3 mr-1" />
-                                                    Face Mesh Active
+                                        {isReady && (
+                                            <>
+                                                <Badge className={`${detectedFace ? 'bg-green-600' : 'bg-amber-600'} text-white backdrop-blur-sm px-4 py-2 text-xs font-bold shadow-lg`}>
+                                                    {detectedFace ? '✓ Wajah Terdeteksi' : '⚠️ Cari Wajah...'}
                                                 </Badge>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            </div>
 
-                            <Button
-                                onClick={captureFace}
-                                disabled={!detectedFace || !isReady}
-                                className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl font-bold shadow-lg disabled:opacity-50"
-                            >
-                                <CheckCircle className="mr-2 h-5 w-5" />
-                                {isReady ? 'Ambil Foto' : 'Tunggu sebentar...'}
-                            </Button>
-
-                            <Button
-                                onClick={() => { stopCamera(); setStep('intro'); }}
-                                variant="ghost"
-                                className="w-full"
-                            >
-                                Batal
-                            </Button>
-                        </div>
-                    )}
-
-                    {/* Blink Challenge */}
-                    {step === 'blink-challenge' && (
-                        <div className="space-y-4">
-                            <div className="relative aspect-[3/4] bg-slate-100 rounded-2xl overflow-hidden">
-                                <video
-                                    ref={videoRef}
-                                    autoPlay
-                                    playsInline
-                                    muted
-                                    style={{ transform: 'scaleX(-1)' }}
-                                    className="w-full h-full object-cover"
-                                />
-
-                                <canvas
-                                    ref={canvasRef}
-                                    style={{ transform: 'scaleX(-1)' }}
-                                    className="absolute inset-0 w-full h-full pointer-events-none"
-                                />
-
-                                <div className="absolute top-4 left-0 right-0 flex flex-col items-center gap-2">
-                                    <Badge className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white backdrop-blur-sm px-4 py-2 text-sm font-black">
-                                        {detectedFace ? '👁️ Wajah Terkunci' : '⚠️ Mencari Wajah...'}
-                                    </Badge>
-
-                                    <div className="text-center bg-white/95 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-lg border-2 border-cyan-200">
-                                        <p className="text-xs font-bold text-cyan-600 uppercase tracking-wider mb-1">Kedipkan Mata</p>
-                                        <p className="text-3xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{blinkCount} / {requiredBlinks}</p>
+                                                {detectedFace && (
+                                                    <Badge className="bg-cyan-600/90 text-white backdrop-blur-sm px-3 py-1 text-xs font-bold shadow-md">
+                                                        <Sparkles className="h-3 w-3 mr-1" />
+                                                        Face Mesh Active
+                                                    </Badge>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
-                                <div className="absolute bottom-16 left-0 right-0 flex justify-center">
-                                    <div className="bg-white/90 backdrop-blur-sm p-4 rounded-full shadow-lg border-2 border-cyan-200">
-                                        <Eye className="h-8 w-8 text-cyan-600 animate-pulse" />
+                                <Button
+                                    onClick={captureFace}
+                                    disabled={!detectedFace || !isReady}
+                                    className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl font-bold shadow-lg disabled:opacity-50"
+                                >
+                                    <CheckCircle className="mr-2 h-5 w-5" />
+                                    {isReady ? 'Ambil Foto' : 'Tunggu sebentar...'}
+                                </Button>
+
+                                <Button
+                                    onClick={() => { stopCamera(); setStep('intro'); }}
+                                    variant="ghost"
+                                    className="w-full"
+                                >
+                                    Batal
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* Blink Challenge */}
+                        {step === 'blink-challenge' && (
+                            <div className="space-y-4">
+                                <div className="relative aspect-[3/4] bg-slate-100 rounded-2xl overflow-hidden">
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        style={{ transform: 'scaleX(-1)' }}
+                                        className="w-full h-full object-cover"
+                                    />
+
+                                    <canvas
+                                        ref={canvasRef}
+                                        style={{ transform: 'scaleX(-1)' }}
+                                        className="absolute inset-0 w-full h-full pointer-events-none"
+                                    />
+
+                                    <div className="absolute top-4 left-0 right-0 flex flex-col items-center gap-2 px-4">
+                                        <Badge className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white backdrop-blur-sm px-4 py-2 text-sm font-black shadow-lg">
+                                            {detectedFace ? '👁️ Wajah Terkunci' : '⚠️ Mencari Wajah...'}
+                                        </Badge>
+
+                                        <div className="text-center bg-white/95 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-lg border-2 border-cyan-200">
+                                            <p className="text-xs font-bold text-cyan-600 uppercase tracking-wider mb-1">Kedipkan Mata</p>
+                                            <p className="text-3xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{blinkCount} / {requiredBlinks}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="absolute bottom-16 left-0 right-0 flex justify-center">
+                                        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-full shadow-lg border-2 border-cyan-200">
+                                            <Eye className="h-8 w-8 text-cyan-600 animate-pulse" />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-100 rounded-xl p-3 text-center">
-                                <p className="text-xs font-bold text-cyan-800">
-                                    💡 Kedipkan mata Anda secara natural untuk melanjutkan
-                                </p>
+                                <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-100 rounded-xl p-3 text-center">
+                                    <p className="text-xs font-bold text-cyan-800">
+                                        💡 Kedipkan mata Anda secara natural untuk melanjutkan
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Processing */}
-                    {step === 'processing' && (
-                        <div className="text-center py-12 space-y-4">
-                            <Loader2 className="h-12 w-12 animate-spin text-cyan-600 mx-auto" />
-                            <div>
-                                <p className="font-bold text-slate-800">Menyimpan data biometrik...</p>
-                                <p className="text-xs text-slate-500 mt-1">Mohon tunggu sebentar</p>
+                        {/* Processing */}
+                        {step === 'processing' && (
+                            <div className="text-center py-12 space-y-4">
+                                <Loader2 className="h-12 w-12 animate-spin text-cyan-600 mx-auto" />
+                                <div>
+                                    <p className="font-bold text-slate-800">Menyimpan data biometrik...</p>
+                                    <p className="text-xs text-slate-500 mt-1">Mohon tunggu sebentar</p>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Success */}
-                    {step === 'success' && (
-                        <div className="text-center py-12 space-y-6">
-                            <div className="mx-auto w-20 h-20 rounded-full bg-green-100 flex items-center justify-center shadow-lg">
-                                <CheckCircle className="h-10 w-10 text-green-600" />
+                        {/* Success */}
+                        {step === 'success' && (
+                            <div className="text-center py-12 space-y-6">
+                                <div className="mx-auto w-20 h-20 rounded-full bg-green-100 flex items-center justify-center shadow-lg">
+                                    <CheckCircle className="h-10 w-10 text-green-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-slate-800">Berhasil!</h2>
+                                    <p className="text-sm text-slate-500 mt-2">Wajah Anda telah terdaftar dengan aman</p>
+                                </div>
                             </div>
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-800">Berhasil!</h2>
-                                <p className="text-sm text-slate-500 mt-2">Wajah Anda telah terdaftar dengan aman</p>
-                            </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Error */}
-                    {step === 'error' && (
-                        <div className="text-center py-8 space-y-6">
-                            <div className="mx-auto w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
-                                <XCircle className="h-10 w-10 text-red-600" />
+                        {/* Error */}
+                        {step === 'error' && (
+                            <div className="text-center py-8 space-y-6">
+                                <div className="mx-auto w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
+                                    <XCircle className="h-10 w-10 text-red-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-800">Terjadi Kesalahan</h2>
+                                    <p className="text-sm text-slate-500 mt-2">{errorMessage}</p>
+                                </div>
+                                <Button
+                                    onClick={() => { stopCamera(); setStep('intro'); }}
+                                    variant="outline"
+                                    className="w-full"
+                                >
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Coba Lagi
+                                </Button>
                             </div>
-                            <div>
-                                <h2 className="text-xl font-black text-slate-800">Terjadi Kesalahan</h2>
-                                <p className="text-sm text-slate-500 mt-2">{errorMessage}</p>
-                            </div>
-                            <Button
-                                onClick={() => { stopCamera(); setStep('intro'); }}
-                                variant="outline"
-                                className="w-full"
-                            >
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Coba Lagi
-                            </Button>
-                        </div>
-                    )}
+                        )}
 
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
-
-
