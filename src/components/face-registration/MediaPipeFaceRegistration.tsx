@@ -345,38 +345,216 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
         >
             <div className="w-full max-w-md px-4">
                 <Card className="border-none shadow-2xl rounded-[32px] overflow-hidden bg-white">
-                    <CardContent className="p-6 space-y-6">
+                    <CardContent className="p-0">
 
-                        {/* Intro */}
+                        {/* STEP 1: INTRO */}
                         {step === 'intro' && (
-                            <div className="text-center space-y-6 py-8">
-                                <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-                                    <Sparkles className="h-10 w-10 text-white" />
+                            <div className="text-center space-y-6 p-8">
+                                <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-xl shadow-blue-200">
+                                    <Sparkles className="h-10 w-10 text-white animate-pulse" />
                                 </div>
-                                <div>
-                                    <h2 className="text-2xl font-black text-slate-800">Registrasi Wajah AI</h2>
-                                    <p className="text-sm text-slate-500 mt-2">Teknologi MediaPipe Face Mesh</p>
+                                <div className="space-y-2">
+                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Biometric Registration</h2>
+                                    <p className="text-sm text-slate-500 font-medium">Amankan akun Anda dengan teknologi pengenalan wajah terbaru.</p>
                                 </div>
 
-                                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-2xl p-4 text-left space-y-2">
-                                    <p className="text-xs font-bold text-blue-900">⚡ Fitur Premium:</p>
-                                    <ul className="text-xs text-blue-700 space-y-1.5 ml-4 list-disc">
-                                        <li>Face Mesh 478 titik (seperti Face ID)</li>
-                                        <li>Blink detection anti-foto</li>
-                                        <li>100% offline & cepat</li>
-                                        <li>Google MediaPipe Technology</li>
-                                    </ul>
+                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 text-left space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">1</div>
+                                        <span className="text-xs font-bold text-slate-600">Posisikan wajah di tengah</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">2</div>
+                                        <span className="text-xs font-bold text-slate-600">Pastikan pencahayaan cukup</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">3</div>
+                                        <span className="text-xs font-bold text-slate-600">Ikuti instruksi kedipan mata</span>
+                                    </div>
                                 </div>
 
                                 <Button
                                     onClick={startCamera}
-                                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-xl font-bold text-base shadow-lg"
+                                    className="w-full h-14 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-2xl font-bold text-base shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-95"
                                 >
                                     <CameraIcon className="mr-2 h-5 w-5" />
                                     Mulai Registrasi
                                 </Button>
                             </div>
+                        )}
+
+                        {/* STEP 2 & 3: CAPTURE & BLINK */}
+                        {(step === 'capture' || step === 'blink-challenge') && (
+                            <div className="relative aspect-[3/4] bg-black">
+                                <video
+                                    ref={videoRef}
+                                    autoPlay
+                                    playsInline
+                                    muted
+                                    style={{ transform: 'scaleX(-1)' }}
+                                    className="w-full h-full object-cover"
+                                />
+
+                                {showMesh && (
+                                    <canvas
+                                        ref={canvasRef}
+                                        style={{ transform: 'scaleX(-1)' }}
+                                        className="absolute inset-0 w-full h-full pointer-events-none opacity-60"
+                                    />
+                                )}
+
+                                {/* Top Status Bar */}
+                                <div className="absolute top-0 left-0 right-0 p-4 pt-6 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-10">
+                                    <div className="flex flex-col">
+                                        <Badge className="bg-white/20 backdrop-blur-md text-white border-0 font-bold px-3 py-1.5 self-start">
+                                            {loadingStatus || (step === 'blink-challenge' ? 'Liveness Check' : 'Face Detection')}
+                                        </Badge>
+                                        {!isReady ? (
+                                            <p className="text-[10px] text-white/70 mt-1 pl-1"><Loader2 className="inline h-3 w-3 animate-spin" /> Memuat Model AI...</p>
+                                        ) : (
+                                            <p className="text-[10px] text-green-400 mt-1 pl-1 font-bold">● AI Active</p>
+                                        )}
+                                    </div>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => { stopCamera(); setStep('intro'); }}
+                                        className="rounded-full bg-black/20 text-white hover:bg-black/40 backdrop-blur-md h-10 w-10"
+                                    >
+                                        <XCircle className="h-6 w-6" />
+                                    </Button>
+                                </div>
+
+                                {/* Center Frame Guide - Changes color on detection */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                    <div className={`w-64 h-80 border-[3px] rounded-[48px] transition-all duration-300 ${detectedFace ? 'border-green-400 shadow-[0_0_50px_rgba(74,222,128,0.3)]' : 'border-white/30 border-dashed'
+                                        }`}>
+                                        {/* Corner Accents */}
+                                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white/80 rounded-tl-[44px] -mt-[3px] -ml-[3px]" />
+                                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white/80 rounded-tr-[44px] -mt-[3px] -mr-[3px]" />
+                                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white/80 rounded-bl-[44px] -mb-[3px] -ml-[3px]" />
+                                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white/80 rounded-br-[44px] -mb-[3px] -mr-[3px]" />
+                                    </div>
+                                </div>
+
+                                {/* Bottom Controls Area */}
+                                <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-24 flex flex-col items-center z-10">
+                                    {step === 'capture' && (
+                                        <div className="w-full text-center space-y-4">
+                                            <p className="text-white/90 text-sm font-medium drop-shadow-md">
+                                                {detectedFace ? "Wajah terdeteksi. Siap ambil foto." : "Posisikan wajah Anda di dalam bingkai"}
+                                            </p>
+
+                                            <div className="flex justify-center">
+                                                <button
+                                                    onClick={captureFace}
+                                                    disabled={!isReady || !detectedFace}
+                                                    className={`h-20 w-20 rounded-full border-4 p-1.5 transition-all duration-300 ${detectedFace ? 'border-white cursor-pointer active:scale-90 hover:scale-105' : 'border-white/30 cursor-not-allowed opacity-50'
+                                                        }`}
+                                                >
+                                                    <div className={`w-full h-full rounded-full transition-colors duration-300 ${detectedFace ? 'bg-white' : 'bg-white/30'
+                                                        }`} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {step === 'blink-challenge' && (
+                                        <div className="w-full max-w-[280px] bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 text-center animate-in slide-in-from-bottom-8">
+                                            <div className="flex items-center justify-center gap-2 mb-3">
+                                                <Eye className="h-5 w-5 text-cyan-400 animate-pulse" />
+                                                <span className="font-bold text-white tracking-wide">KEDIPKAN MATA</span>
+                                            </div>
+
+                                            <div className="flex justify-center gap-2 mb-2">
+                                                {[...Array(requiredBlinks)].map((_, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className={`h-2.5 flex-1 rounded-full transition-all duration-500 ${i < blinkCount
+                                                            ? 'bg-gradient-to-r from-green-400 to-emerald-500 shadow-[0_0_10px_rgba(74,222,128,0.5)]'
+                                                            : 'bg-white/20'
+                                                            }`}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <p className="text-[10px] text-white/60 font-medium uppercase tracking-widest mt-2">
+                                                Liveness Check {blinkCount}/{requiredBlinks}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* STEP 4: PROCESSING */}
+                        {step === 'processing' && (
+                            <div className="p-12 pb-16 text-center space-y-8">
+                                <div className="relative mx-auto w-32 h-32">
+                                    <div className="absolute inset-0 rounded-full border-[6px] border-slate-100" />
+                                    <div className="absolute inset-0 rounded-full border-[6px] border-blue-600 border-t-transparent animate-spin" />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="h-16 w-16 bg-blue-50 rounded-full flex items-center justify-center animate-pulse">
+                                            <Sparkles className="h-8 w-8 text-blue-600" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="text-xl font-black text-slate-800">Memproses Data</h3>
+                                    <p className="text-slate-500 text-sm">Mengenkripsi dan menyimpan profil biometrik...</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* STEP 5: SUCCESS */}
+                        {step === 'success' && (
+                            <div className="p-12 pb-16 text-center space-y-8 bg-gradient-to-b from-green-50/50 to-transparent">
+                                <div className="mx-auto w-24 h-24 rounded-full bg-green-100 flex items-center justify-center shadow-xl shadow-green-100 ring-4 ring-white">
+                                    <CheckCircle className="h-12 w-12 text-green-600" />
+                                </div>
+                                <div className="space-y-2">
+                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Registrasi Berhasil!</h2>
+                                    <p className="text-slate-500 text-sm max-w-[200px] mx-auto">Wajah Anda kini terdaftar. Anda dapat menggunakan fitur Login & Absensi Wajah.</p>
+                                </div>
+                                <Button onClick={() => window.location.href = '/profile'} className="w-full h-12 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800">
+                                    Kembali ke Profil
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* STEP 6: ERROR */}
+                        {step === 'error' && (
+                            <div className="p-10 text-center space-y-6">
+                                <div className="mx-auto w-20 h-20 rounded-full bg-red-100 flex items-center justify-center shadow-lg shadow-red-100">
+                                    <XCircle className="h-10 w-10 text-red-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800">Terjadi Kesalahan</h3>
+                                    <p className="text-sm text-red-500 mt-2 font-medium bg-red-50 p-3 rounded-xl border border-red-100">
+                                        {errorMessage}
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-1 gap-3">
+                                    <Button
+                                        onClick={() => { setStep('intro'); setErrorMessage(''); }}
+                                        className="h-12 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800"
+                                    >
+                                        <RefreshCw className="mr-2 h-4 w-4" /> Coba Lagi
+                                    </Button>
+                                    <Button onClick={() => window.location.reload()} variant="ghost" className="text-slate-500 hover:text-slate-700">
+                                        Muat Ulang Halaman
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                    </CardContent>
                 </Card>
+
+                {/* Secure Badge Footer */}
+                <div className="mt-8 flex items-center justify-center gap-2 opacity-50">
+                    <div className="h-3 w-3 bg-slate-300 rounded-full" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">End-to-End Encrypted</span>
+                </div>
             </div>
         </div>
     );

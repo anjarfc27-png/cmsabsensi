@@ -40,11 +40,17 @@ export function useGeolocation() {
       // We increase timeout and use ForceRefresh if we can
       const position = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 20000, // Increase to 20s
+        timeout: 10000, // Faster timeout to retry faster
         maximumAge: 0   // Force fresh location
       });
 
-      const { latitude, longitude, accuracy } = position.coords;
+      let { latitude, longitude, accuracy } = position.coords;
+
+      // If accuracy is poor (> 50m) and it's the first try, try again
+      if (accuracy > 50 && retryCount < 2) {
+        console.warn(`GPS accuracy poor (${accuracy}m), retrying...`);
+        return getLocation(retryCount + 1);
+      }
 
       // Anti-Fake GPS Logic
       // @ts-ignore

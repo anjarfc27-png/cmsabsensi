@@ -43,6 +43,38 @@ export default function QuickAttendancePage() {
     const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
     const { isReady, initialize, detectFace, getFaceDescriptor, compareFaces } = useMediaPipeFace();
 
+    // State for office validation
+    const [officeLocations, setOfficeLocations] = useState<any[]>([]);
+
+    // ... existing states ...
+
+    // Helper functions for distance
+    function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
+        var R = 6371; // Radius of the earth in km
+        var dLat = deg2rad(lat2 - lat1);
+        var dLon = deg2rad(lon2 - lon1);
+        var a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        var d = R * c; // Distance in km
+        return d * 1000; // Distance in meters
+    }
+
+    function deg2rad(deg: number) {
+        return deg * (Math.PI / 180);
+    }
+
+    // Fetch Office Locations
+    useEffect(() => {
+        const fetchOffices = async () => {
+            const { data } = await supabase.from('office_locations').select('*').eq('is_active', true);
+            setOfficeLocations(data || []);
+        };
+        fetchOffices();
+    }, []);
+
     // Face Recognition States
     const [cameraOpen, setCameraOpen] = useState(false);
     const [faceMatch, setFaceMatch] = useState<number | null>(null);
@@ -255,8 +287,46 @@ export default function QuickAttendancePage() {
                 description: 'Pastikan foto dan lokasi tersedia.',
                 variant: 'destructive',
             });
+            if (latitude === null) getLocation();
             return;
         }
+
+        // --- DISTANCE VALIDATION ---
+        const MAX_RADIUS = 100; // 100 meters
+        let isLocationValid = false;
+        let distanceMsg = "";
+
+        if (officeLocations.length > 0) {
+            let minDistance = Infinity;
+            for (const office of officeLocations) {
+                const dist = getDistanceFromLatLonInM(latitude, longitude, office.latitude, office.longitude);
+                if (dist < minDistance) minDistance = dist;
+            }
+
+            if (minDistance <= MAX_RADIUS) {
+                isLocationValid = true;
+            } else {
+                distanceMsg = `Jarak Anda: ${Math.round(minDistance)}m (Max: ${MAX_RADIUS}m)`;
+            }
+        } else {
+            // No office defined -> Skip validation (or strict deny depending on policy)
+            isLocationValid = true;
+        }
+
+        if (isMocked) {
+            toast({ title: "Lokasi Tidak Valid", description: "Terdeteksi menggunakan Fake GPS.", variant: "destructive" });
+            return;
+        }
+
+        if (!isLocationValid) {
+            toast({
+                title: "Di Luar Jangkauan Kantor",
+                description: `Anda harus berada di kantor. ${distanceMsg}`,
+                variant: "destructive"
+            });
+            return;
+        }
+        // ---------------------------
 
         setSubmitting(true);
         try {

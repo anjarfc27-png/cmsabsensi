@@ -100,6 +100,7 @@ export default function ShiftsPage() {
     // State for Schedule Dialog
     const [assignDialogOpen, setAssignDialogOpen] = useState(false);
     const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+    const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
 
     // State for individual assignment
     const [clickedEmployeeId, setClickedEmployeeId] = useState<string | null>(null);
