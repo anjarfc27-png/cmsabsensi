@@ -8,7 +8,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { EnhancedFaceRecognition } from '@/components/face-recognition/EnhancedFaceRecognition';
+import { FaceLogin } from '@/components/auth/FaceLogin';
 import { Loader2, Lock, Mail, User, ArrowRight, Sparkles, Fingerprint, ScanFace } from 'lucide-react';
 import { z } from 'zod';
 import { AppLogo } from '@/components/AppLogo';
@@ -544,10 +544,9 @@ export default function Auth() {
       {/* Face Login Dialog */}
       <Dialog open={showFaceLogin} onOpenChange={setShowFaceLogin}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none rounded-[32px] bg-transparent">
-          <EnhancedFaceRecognition
+          <FaceLogin
             onVerificationComplete={onFaceVerified}
             employeeId={lastUser?.id}
-            mode="verification"
           />
         </DialogContent>
       </Dialog>

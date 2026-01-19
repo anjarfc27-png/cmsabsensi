@@ -44,11 +44,12 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { getDailyArticles } from '@/lib/articles';
 import { AppLogo } from '@/components/AppLogo';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DashboardTour } from '@/components/DashboardTour';
 
 type Announcement = {
   id: string;
@@ -264,6 +265,7 @@ export default function Dashboard() {
   if (isMobile) {
     return (
       <DashboardLayout>
+        <DashboardTour />
         <div className="relative">
           {/* Custom Background Header for Mobile Feel - More compact while keeping Avatar large */}
           <div className="absolute top-0 left-0 w-full h-[calc(100px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[32px] z-0 shadow-lg" />
@@ -308,16 +310,16 @@ export default function Dashboard() {
                 <div className="h-1 w-3 bg-blue-500 rounded-full" /> Menu Karyawan
               </h3>
               <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
-                <MenuGridItem href="/attendance" icon={Clock} label="Absen" color="text-blue-600" bg="bg-blue-50" />
-                <MenuGridItem href="/history" icon={Calendar} label="Riwayat" color="text-purple-600" bg="bg-purple-50" />
+                <div data-tour="quick-action"><MenuGridItem href="/attendance" icon={Clock} label="Absen" color="text-blue-600" bg="bg-blue-50" /></div>
+                <div data-tour="nav-history"><MenuGridItem href="/history" icon={Calendar} label="Riwayat" color="text-purple-600" bg="bg-purple-50" /></div>
                 <MenuGridItem href="/leave" icon={FileText} label="Cuti" color="text-orange-600" bg="bg-orange-50" />
                 <MenuGridItem href="/overtime" icon={Clock} label="Lembur" color="text-red-500" bg="bg-red-50" />
-                <MenuGridItem href="/agenda" icon={Calendar} label="Agenda" color="text-indigo-600" bg="bg-indigo-50" />
+                <div data-tour="nav-schedule"><MenuGridItem href="/agenda" icon={Calendar} label="Agenda" color="text-indigo-600" bg="bg-indigo-50" /></div>
                 <MenuGridItem href="/notes" icon={StickyNote} label="Catatan" color="text-yellow-600" bg="bg-yellow-100/50" />
 
                 <MenuGridItem href="/reimbursement" icon={Receipt} label="Klaim" color="text-emerald-600" bg="bg-emerald-50" isComingSoon />
                 <MenuGridItem href="/salary-slips" icon={Wallet} label="Gaji" color="text-teal-600" bg="bg-teal-50" isComingSoon />
-                <MenuGridItem href="/profile" icon={SettingsIcon} label="Profil" color="text-slate-600" bg="bg-slate-50" />
+                <div data-tour="nav-profile"><MenuGridItem href="/profile" icon={SettingsIcon} label="Profil" color="text-slate-600" bg="bg-slate-50" /></div>
               </div>
 
               {/* Upcoming Activities Section (NEW) */}
@@ -387,7 +389,7 @@ export default function Dashboard() {
             <div className="mx-3 md:mx-0">
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
                 {/* Attendance Summary Slide */}
-                <div className="w-[85vw] md:w-full h-[120px] rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-3 text-white shadow-lg shadow-blue-900/10 flex flex-col justify-between shrink-0 relative overflow-hidden transition-all active:scale-95">
+                <div data-tour="attendance-card" className="w-[85vw] md:w-full h-[120px] rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-3 text-white shadow-lg shadow-blue-900/10 flex flex-col justify-between shrink-0 relative overflow-hidden transition-all active:scale-95">
                   <div className="absolute right-0 top-0 h-20 w-20 bg-white/10 rounded-bl-full -mr-4 -mt-4" />
                   <div>
                     <p className="text-[10px] font-medium text-blue-100 mb-0.5">Status Hari Ini</p>
@@ -597,6 +599,7 @@ export default function Dashboard() {
   // -------------------------------------------------------------------------
   return (
     <DashboardLayout>
+      <DashboardTour />
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Desktop Welcome Section */}
         <div className="flex items-center justify-between">

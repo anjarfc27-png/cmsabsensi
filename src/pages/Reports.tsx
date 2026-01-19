@@ -33,6 +33,8 @@ type ProfileRow = {
   id: string;
   full_name: string;
   employee_id: string | null;
+  department: string | null;
+  role: string | null;
 };
 
 export default function ReportsPage() {
@@ -44,8 +46,13 @@ export default function ReportsPage() {
   const [attendances, setAttendances] = useState<AttendanceRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
 
+  // Filters State
   const [startDate, setStartDate] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [selectedDept, setSelectedDept] = useState("all");
+  const [selectedRole, setSelectedRole] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [uniqueDepts, setUniqueDepts] = useState<string[]>([]);
 
   useEffect(() => {
     fetchReport();
@@ -63,15 +70,24 @@ export default function ReportsPage() {
           .order('date', { ascending: false }),
         supabase
           .from('profiles')
-          .select('id, full_name, employee_id')
+          .select('id, full_name, employee_id, department, role')
           .order('full_name', { ascending: true }),
       ]);
 
       if (attRes.error) throw attRes.error;
       if (profRes.error) throw profRes.error;
 
-      setAttendances((attRes.data as AttendanceRow[]) || []);
-      setProfiles((profRes.data as ProfileRow[]) || []);
+      const attData = (attRes.data as AttendanceRow[]) || [];
+      const profData = (profRes.data as ProfileRow[]) || [];
+
+      setAttendances(attData);
+      setProfiles(profData);
+
+      // Extract Unique Departments
+      const depts = new Set<string>();
+      profData.forEach(p => { if (p.department) depts.add(p.department); });
+      setUniqueDepts(Array.from(depts));
+
     } catch (e) {
       toast({ title: 'Error', description: 'Gagal memuat laporan', variant: 'destructive' });
     } finally {
@@ -79,25 +95,50 @@ export default function ReportsPage() {
     }
   };
 
-  const nameById = useMemo(() => {
-    const map = new Map<string, string>();
-    profiles.forEach((p) => map.set(p.id, p.full_name));
+  const profileMap = useMemo(() => {
+    const map = new Map<string, ProfileRow>();
+    profiles.forEach((p) => map.set(p.id, p));
     return map;
   }, [profiles]);
 
+  // Filter Logic
+  const filteredAttendances = useMemo(() => {
+    return attendances.filter(a => {
+      const userProfile = profileMap.get(a.user_id);
+      if (!userProfile) return false;
+
+      // Search Filter
+      if (searchQuery && !userProfile.full_name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+
+      // Department Filter
+      if (selectedDept !== 'all' && userProfile.department !== selectedDept) {
+        return false;
+      }
+
+      // Role Filter
+      if (selectedRole !== 'all' && userProfile.role !== selectedRole) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [attendances, profileMap, searchQuery, selectedDept, selectedRole]);
+
   const stats = useMemo(() => {
-    if (attendances.length === 0) return null;
-    const totalLate = attendances.filter(a => a.is_late).length;
-    const latePercent = Math.round((totalLate / attendances.length) * 100);
-    const avgWorkMinutes = Math.round(attendances.reduce((acc, a) => acc + (a.work_hours_minutes || 0), 0) / attendances.length);
+    if (filteredAttendances.length === 0) return null;
+    const totalLate = filteredAttendances.filter(a => a.is_late).length;
+    const latePercent = Math.round((totalLate / filteredAttendances.length) * 100);
+    const avgWorkMinutes = Math.round(filteredAttendances.reduce((acc, a) => acc + (a.work_hours_minutes || 0), 0) / filteredAttendances.length);
 
     return {
-      total: attendances.length,
+      total: filteredAttendances.length,
       late: totalLate,
       latePercent,
       avgHours: (avgWorkMinutes / 60).toFixed(1)
     };
-  }, [attendances]);
+  }, [filteredAttendances]);
 
   const quickFilter = (type: 'this_month' | 'last_month' | 'year') => {
     let start = new Date();
@@ -119,17 +160,22 @@ export default function ReportsPage() {
   };
 
   const exportCsv = () => {
-    const headers = ['Tanggal', 'Nama', 'Clock In', 'Clock Out', 'Mode', 'Terlambat', 'Menit Terlambat', 'Status'];
-    const rows = attendances.map((a) => [
-      a.date,
-      nameById.get(a.user_id) || '-',
-      a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '-',
-      a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '-',
-      a.work_mode.toUpperCase(),
-      a.is_late ? 'YA' : 'TIDAK',
-      String(a.late_minutes ?? 0),
-      a.status.toUpperCase(),
-    ]);
+    const headers = ['Tanggal', 'Nama', 'Departemen', 'Jabatan', 'Clock In', 'Clock Out', 'Mode', 'Terlambat', 'Menit Terlambat', 'Status'];
+    const rows = filteredAttendances.map((a) => {
+      const p = profileMap.get(a.user_id);
+      return [
+        a.date,
+        p?.full_name || '-',
+        p?.department || '-',
+        p?.role || '-',
+        a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '-',
+        a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '-',
+        a.work_mode.toUpperCase(),
+        a.is_late ? 'YA' : 'TIDAK',
+        String(a.late_minutes ?? 0),
+        a.status.toUpperCase(),
+      ];
+    });
 
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -174,7 +220,7 @@ export default function ReportsPage() {
               </h1>
               <p className="text-xs text-blue-50 font-medium opacity-90 mt-0.5">Pantau produktivitas karyawan</p>
             </div>
-            <Button variant="secondary" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg text-xs h-8 px-3" onClick={exportCsv} disabled={attendances.length === 0}>
+            <Button variant="secondary" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg text-xs h-8 px-3" onClick={exportCsv} disabled={filteredAttendances.length === 0}>
               <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
             </Button>
           </div>
@@ -182,22 +228,66 @@ export default function ReportsPage() {
           {/* Quick Filters */}
           <Card className="border-none shadow-xl bg-white/95 backdrop-blur-md">
             <CardContent className="p-4 md:p-6">
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="space-y-2 w-full md:w-auto">
-                  <Label className="text-xs font-bold uppercase text-slate-500">Mulai</Label>
-                  <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-10" />
-                </div>
-                <div className="space-y-2 w-full md:w-auto">
-                  <Label className="text-xs font-bold uppercase text-slate-500">Selesai</Label>
-                  <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-10" />
-                </div>
-                <div className="flex gap-2 flex-1 md:flex-none">
-                  <Button onClick={fetchReport} className="bg-blue-600 hover:bg-blue-700 h-10 px-6">Filter</Button>
-                  <div className="flex bg-slate-100 p-1 rounded-lg">
-                    <Button variant="ghost" size="sm" onClick={() => quickFilter('this_month')} className="text-[10px] h-8 px-3">Bulan Ini</Button>
-                    <Button variant="ghost" size="sm" onClick={() => quickFilter('last_month')} className="text-[10px] h-8 px-3">Bulan Lalu</Button>
-                    <Button variant="ghost" size="sm" onClick={() => quickFilter('year')} className="text-[10px] h-8 px-3">Tahun Ini</Button>
+              <div className="flex flex-col gap-4">
+                {/* Row 1: Date & Presets */}
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="space-y-2 w-full md:w-auto">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Mulai</Label>
+                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-10" />
                   </div>
+                  <div className="space-y-2 w-full md:w-auto">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Selesai</Label>
+                    <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-10" />
+                  </div>
+                  <div className="flex gap-2 flex-1 md:flex-none">
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <Button variant="ghost" size="sm" onClick={() => quickFilter('this_month')} className="text-[10px] h-8 px-3">Bulan Ini</Button>
+                      <Button variant="ghost" size="sm" onClick={() => quickFilter('last_month')} className="text-[10px] h-8 px-3">Bulan Lalu</Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Advanced Filters (Dept, Role, Search) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Departemen</Label>
+                    <select
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      value={selectedDept}
+                      onChange={(e) => setSelectedDept(e.target.value)}
+                    >
+                      <option value="all">Semua Departemen</option>
+                      {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Role / Jabatan</Label>
+                    <select
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      value={selectedRole}
+                      onChange={(e) => setSelectedRole(e.target.value)}
+                    >
+                      <option value="all">Semua Role</option>
+                      <option value="staff">Staff</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin_hr">Admin HR</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Cari Nama</Label>
+                    <Input
+                      placeholder="Ketik nama karyawan..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button onClick={fetchReport} className="bg-blue-600 hover:bg-blue-700 h-10 px-8 w-full md:w-auto shadow-lg shadow-blue-200">
+                    <Filter className="mr-2 h-4 w-4" /> Terapkan Filter
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -248,8 +338,8 @@ export default function ReportsPage() {
             <CardContent className="p-0">
               {loading ? (
                 <div className="p-4"><TableSkeleton rows={10} columns={7} /></div>
-              ) : attendances.length === 0 ? (
-                <EmptyState icon={BarChart3} title="Data tidak ditemukan" description="Tidak ada data absensi untuk periode yang Anda pilih." />
+              ) : filteredAttendances.length === 0 ? (
+                <EmptyState icon={BarChart3} title="Data tidak ditemukan" description="Tidak ada data absensi untuk filter yang Anda pilih." />
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -265,38 +355,44 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {attendances.map((a) => (
-                        <TableRow key={a.id} className="hover:bg-slate-50 transition-colors">
-                          <TableCell className="font-medium text-xs">
-                            {format(new Date(a.date), 'dd MMM yyyy', { locale: id })}
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-semibold text-xs text-slate-800">{nameById.get(a.user_id) || '-'}</span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-[9px] h-5 uppercase">{a.work_mode}</Badge>
-                          </TableCell>
-                          <TableCell className="text-xs font-mono">
-                            {a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '--:--'}
-                          </TableCell>
-                          <TableCell className="text-xs font-mono">
-                            {a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '--:--'}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {a.work_hours_minutes ? `${Math.floor(a.work_hours_minutes / 60)}j ${a.work_hours_minutes % 60}m` : '-'}
-                          </TableCell>
-                          <TableCell>
-                            {a.is_late ? (
+                      {filteredAttendances.map((a) => {
+                        const profile = profileMap.get(a.user_id);
+                        return (
+                          <TableRow key={a.id} className="hover:bg-slate-50 transition-colors">
+                            <TableCell className="font-medium text-xs">
+                              {format(new Date(a.date), 'dd MMM yyyy', { locale: id })}
+                            </TableCell>
+                            <TableCell>
                               <div className="flex flex-col">
-                                <Badge variant="destructive" className="text-[9px] h-5 w-fit">Terlambat</Badge>
-                                <span className="text-[10px] text-red-500 mt-0.5">{a.late_minutes}m</span>
+                                <span className="font-semibold text-xs text-slate-800">{profile?.full_name || '-'}</span>
+                                <span className="text-[10px] text-slate-500">{profile?.department || 'Umum'}</span>
                               </div>
-                            ) : (
-                              <Badge variant="outline" className="text-[9px] h-5 text-green-600 bg-green-50 border-green-200">Tepat Waktu</Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[9px] h-5 uppercase">{a.work_mode}</Badge>
+                            </TableCell>
+                            <TableCell className="text-xs font-mono">
+                              {a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '--:--'}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono">
+                              {a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '--:--'}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {a.work_hours_minutes ? `${Math.floor(a.work_hours_minutes / 60)}j ${a.work_hours_minutes % 60}m` : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {a.is_late ? (
+                                <div className="flex flex-col">
+                                  <Badge variant="destructive" className="text-[9px] h-5 w-fit">Terlambat</Badge>
+                                  <span className="text-[10px] text-red-500 mt-0.5">{a.late_minutes}m</span>
+                                </div>
+                              ) : (
+                                <Badge variant="outline" className="text-[9px] h-5 text-green-600 bg-green-50 border-green-200">Tepat Waktu</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>

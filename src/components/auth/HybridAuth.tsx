@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import { EnhancedFaceRecognition } from '@/components/face-recognition/EnhancedFaceRecognition';
+import { FaceLogin } from '@/components/auth/FaceLogin';
 import { supabase } from '@/integrations/supabase/client';
 
 interface HybridAuthProps {
@@ -29,8 +29,8 @@ interface AuthMethod {
   component: React.ReactNode;
 }
 
-export function HybridAuth({ 
-  onAuthSuccess, 
+export function HybridAuth({
+  onAuthSuccess,
   onAuthError,
   mode = 'login',
   showFaceRecognition = true,
@@ -49,13 +49,13 @@ export function HybridAuth({
   useEffect(() => {
     const checkFaceEnrollment = async () => {
       if (!user) return;
-      
+
       try {
         const { data } = await supabase
           .rpc('has_face_enrollment', { p_user_id: user.id });
 
         setHasFaceEnrollment(data || false);
-        
+
         // Update available auth methods
         updateAuthMethods(data || false);
       } catch (error) {
@@ -76,10 +76,9 @@ export function HybridAuth({
         icon: <Camera className="h-4 w-4" />,
         description: 'Use your face to authenticate',
         available: hasFaceEnrollment && showFaceRecognition,
-        component: <EnhancedFaceRecognition 
-          onVerificationComplete={handleFaceAuthComplete} 
-          mode={mode === 'login' ? 'verification' : 'attendance'}
-          requirePinFallback={showPin}
+        component: <FaceLogin
+          onVerificationComplete={handleFaceAuthComplete}
+          employeeId={user?.id}
         />
       },
       {
@@ -102,12 +101,12 @@ export function HybridAuth({
 
     // Filter available methods
     const availableMethods = methods.filter(method => method.available);
-    
+
     // Set default tab to first available method
     if (availableMethods.length > 0 && !availableMethods.find(m => m.id === activeTab)) {
       setActiveTab(availableMethods[0].id);
     }
-    
+
     setAuthMethods(methods);
   };
 
@@ -166,7 +165,7 @@ export function HybridAuth({
             <AlertDescription>{successMessage}</AlertDescription>
           </Alert>
         )}
-        
+
         {errorMessage && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -194,8 +193,8 @@ export function HybridAuth({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               {authMethods.map((method) => (
-                <TabsTrigger 
-                  key={method.id} 
+                <TabsTrigger
+                  key={method.id}
                   value={method.id}
                   disabled={!method.available}
                   className="data-[state=active]:bg-primary text-primary-foreground"
@@ -207,7 +206,7 @@ export function HybridAuth({
                 </TabsTrigger>
               ))}
             </TabsList>
-            
+
             <TabsContent className="mt-4">
               {authMethods.map((method) => (
                 <TabsContent key={method.id} value={method.id}>
@@ -266,7 +265,7 @@ function PinAuth({ onAuthComplete }: { onAuthComplete: (success: boolean, data?:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (pinCode.length !== 4) {
       setError('PIN must be exactly 4 digits');
       return;
@@ -279,7 +278,7 @@ function PinAuth({ onAuthComplete }: { onAuthComplete: (success: boolean, data?:
       // Simulate PIN verification
       // In production, verify against user's stored PIN
       const isValidPin = pinCode.length === 4; // Simple validation
-      
+
       if (isValidPin) {
         onAuthComplete(true, { pin: pinCode });
         setPinCode('');
@@ -307,14 +306,14 @@ function PinAuth({ onAuthComplete }: { onAuthComplete: (success: boolean, data?:
           className="text-center text-lg tracking-widest"
         />
       </div>
-      
+
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       <Button type="submit" disabled={isLoading || pinCode.length !== 4} className="w-full">
         {isLoading ? (
           <>
@@ -341,7 +340,7 @@ function PasswordAuth({ onAuthComplete }: { onAuthComplete: (success: boolean, d
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       setError('Please enter email and password');
       return;
@@ -355,7 +354,7 @@ function PasswordAuth({ onAuthComplete }: { onAuthComplete: (success: boolean, d
       // In production, verify against user's credentials
       const isValidEmail = email.includes('@');
       const isValidPassword = password.length >= 6;
-      
+
       if (isValidEmail && isValidPassword) {
         onAuthComplete(true, { email, password });
         setEmail('');
@@ -383,7 +382,7 @@ function PasswordAuth({ onAuthComplete }: { onAuthComplete: (success: boolean, d
           required
         />
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <Input
@@ -395,14 +394,14 @@ function PasswordAuth({ onAuthComplete }: { onAuthComplete: (success: boolean, d
           required
         />
       </div>
-      
+
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       <Button type="submit" disabled={isLoading || !email || !password} className="w-full">
         {isLoading ? (
           <>
