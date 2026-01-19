@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useCamera } from '@/hooks/useCamera';
-import { useFaceRecognition } from '@/hooks/useFaceRecognition';
+import { useMediaPipeFace } from '@/hooks/useMediaPipeFace';
 import {
     Camera,
     Loader2,
@@ -41,7 +41,7 @@ export default function QuickAttendancePage() {
 
     // Camera hooks
     const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
-    const { modelsLoaded, detectFace, getFaceDescriptor, compareFaces } = useFaceRecognition();
+    const { isReady, initialize, detectFace, getFaceDescriptor, compareFaces } = useMediaPipeFace();
 
     // Face Recognition States
     const [cameraOpen, setCameraOpen] = useState(false);
@@ -66,7 +66,7 @@ export default function QuickAttendancePage() {
 
     // Check face match before allowing attendance
     const checkFaceMatch = async (): Promise<boolean> => {
-        if (!videoRef.current || !modelsLoaded) {
+        if (!videoRef.current || !isReady) {
             toast({
                 title: 'Sistem Belum Siap',
                 description: 'Memuat biometrik...',
@@ -78,14 +78,23 @@ export default function QuickAttendancePage() {
         setCheckingFace(true);
 
         try {
-            const currentDescriptor = await getFaceDescriptor(videoRef.current);
-            if (!currentDescriptor) {
+            // Detect face first dengan MediaPipe
+            const result = await detectFace(videoRef.current);
+            if (!result || !result.faceLandmarks || result.faceLandmarks.length === 0) {
                 setFaceDetected(false);
                 toast({ title: 'Wajah Tidak Terdeteksi', variant: 'destructive' });
                 return false;
             }
 
             setFaceDetected(true);
+
+            // Get descriptor dari hasil deteksi
+            const currentDescriptor = getFaceDescriptor(result);
+            if (!currentDescriptor) {
+                toast({ title: 'Gagal memproses wajah', variant: 'destructive' });
+                return false;
+            }
+
             const { data: faceData, error } = await supabase
                 .from('face_enrollments')
                 .select('face_descriptor')
@@ -135,7 +144,7 @@ export default function QuickAttendancePage() {
             setCameraOpen(true);
 
             // Run checks and initialization in parallel for speed
-            const [faceCheckResult, locationResult, cameraResult] = await Promise.allSettled([
+            const [faceCheckResult, locationResult, cameraResult, initResult] = await Promise.allSettled([
                 // Check face registration
                 supabase
                     .from('face_enrollments')
@@ -147,7 +156,9 @@ export default function QuickAttendancePage() {
                 // Get location
                 getLocation(),
                 // Start camera
-                startCamera()
+                startCamera(),
+                // Initialize MediaPipe
+                initialize()
             ]);
 
             // Handle face registration check
@@ -166,7 +177,7 @@ export default function QuickAttendancePage() {
             // Camera and location are already started/fetched in parallel
 
             const interval = setInterval(async () => {
-                if (videoRef.current && modelsLoaded && !checkingFace) {
+                if (videoRef.current && isReady && !checkingFace) {
                     const descriptor = await getFaceDescriptor(videoRef.current);
                     setFaceDetected(descriptor !== null);
 
@@ -649,3 +660,4 @@ export default function QuickAttendancePage() {
         </DashboardLayout>
     );
 }
+
