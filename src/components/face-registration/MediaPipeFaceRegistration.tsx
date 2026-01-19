@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMediaPipeFace } from '@/hooks/useMediaPipeFace';
 import { MediaPipeBlinkDetector } from '@/utils/mediaPipeBlinkDetection';
 import { FaceLandmarkerResult } from '@mediapipe/tasks-vision';
+import { useFaceSystem } from '@/hooks/useFaceSystem';
 
 interface MediaPipeFaceRegistrationProps {
     onComplete?: (success: boolean, data?: any) => void;
@@ -37,7 +38,8 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
     const [loadingStatus, setLoadingStatus] = useState('');
 
     const targetUserId = employeeId || user?.id;
-    const { initialize, isReady, isLoading, error: mpError, detectFace, getFaceDescriptor } = useMediaPipeFace();
+    const { initialize, isReady, isLoading, error: mpError, detectFace } = useMediaPipeFace();
+    const { getDeepDescriptor, loadModels: loadDeepModels } = useFaceSystem();
 
     // Start Camera - PARALLEL dengan init MediaPipe
     const startCamera = async () => {
@@ -71,8 +73,10 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
             if (!isReady) {
                 setLoadingStatus('Memuat AI Face Mesh...');
                 await initialize();
-                setLoadingStatus('AI siap');
             }
+            // Load Deep Learning Models
+            loadDeepModels();
+            setLoadingStatus('AI Siap');
 
         } catch (error) {
             console.error('Camera access error:', error);
@@ -151,9 +155,11 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
                 return;
             }
 
-            const descriptor = getFaceDescriptor(result);
+            // 1. Get Deep Learning Descriptor (Secure)
+            // We do this BEFORE the blink challenge to ensure we have a valid face "ID"
+            const descriptor = await getDeepDescriptor(videoRef.current);
             if (!descriptor) {
-                toast({ title: 'Gagal memproses wajah', variant: 'destructive' });
+                toast({ title: 'Gagal memproses ID wajah', description: 'Pastikan wajah jelas & pencahayaan cukup', variant: 'destructive' });
                 return;
             }
 

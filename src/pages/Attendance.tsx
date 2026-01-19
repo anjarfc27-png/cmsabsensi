@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useCamera } from '@/hooks/useCamera';
-import { useMediaPipeFace } from '@/hooks/useMediaPipeFace'; // Added Import
+import { useMediaPipeFace } from '@/hooks/useMediaPipeFace';
+import { useFaceSystem } from '@/hooks/useFaceSystem'; // Added Import
 import { Loader2, Camera, MapPin, CheckCircle2, LogIn, LogOut, RefreshCw, Smartphone, ChevronLeft, Map, AlertOctagon, X, Clock, Info, Scan } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -78,7 +79,9 @@ export default function AttendancePage() {
   // Camera hook
   const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
   // MediaPipe Hook
-  const { isReady, initialize, detectFace, getFaceDescriptor, compareFaces } = useMediaPipeFace();
+  // MediaPipe for UI/Liveness, FaceSystem for Secure Recognition
+  const { isReady, initialize, detectFace } = useMediaPipeFace();
+  const { getDeepDescriptor, computeMatch } = useFaceSystem();
 
   // Fix: Attach stream to video element when stream is available
   useEffect(() => {
@@ -260,10 +263,10 @@ export default function AttendancePage() {
 
       setFaceDetected(true);
 
-      // 2. Get Descriptor
-      const currentDescriptor = getFaceDescriptor(detectionResult);
+      // 2. Get Deep Learning Descriptor (ResNet-34)
+      const currentDescriptor = await getDeepDescriptor(videoRef.current);
       if (!currentDescriptor) {
-        toast({ title: 'Gagal memproses wajah', variant: 'destructive' });
+        toast({ title: 'Gagal memproses detail wajah', variant: 'destructive' });
         return false;
       }
 
@@ -287,30 +290,18 @@ export default function AttendancePage() {
 
       // 4. Compare faces
       const registeredDescriptor = new Float32Array(faceData.face_descriptor as any);
-      const similarity = compareFaces(currentDescriptor, registeredDescriptor);
 
+      // Compute Similarity (0 to 1) using FaceAPI Logic
+      const similarity = computeMatch(currentDescriptor, registeredDescriptor);
       setFaceMatch(similarity);
 
-      // THRESHOLD ADJUSTMENT: Euclidean Distance Logic
-      // Usually smaller distance = better match.
-      // Assuming compareFaces returns similarity score (0 to 1, where 1 is identical).
-      // If using Euclidean Distance: < 0.6 is good.
-      // If using Cosine Similarity: > 0.6 is good.
-      // Based on previous code `similarity < 0.6` failed, it implies it returns distance? 
-      // User complaint: "wajah beda masih berhasil".
-      // Fix: TIGHTEN THRESHOLD. If it is distance, use 0.45. If similarity, use 0.85.
-      // Assuming logical consistency with previous code (similarity < 0.6 was rejecting?), 
-      // Wait, line 294 previously said `if (similarity < 0.6) { toast fail }`.
-      // So HIGH score is GOOD.
-      // If user says "different face still success", then 0.6 is TOO LOW.
-      // Increase it to 0.8 (80% match required).
-
-      const THRESHOLD = 0.85; // Increased to 0.85 for stricter security with normalized descriptors
+      // Strict Threshold for Security (equivalent to < 0.45 distance)
+      const THRESHOLD = 0.55;
 
       if (similarity < THRESHOLD) {
         toast({
-          title: 'Wajah Tidak Cocok / Format Lama',
-          description: `Kemiripan: ${(similarity * 100).toFixed(0)}% (Min: ${(THRESHOLD * 100).toFixed(0)}%). Jika gagal terus, mohon daftar ulang wajah di menu Profil.`,
+          title: 'Wajah Tidak Cocok',
+          description: `Kemiripan: ${(similarity * 100).toFixed(0)}%. Mohon daftar ulang wajah Anda agar kompatibel dengan sistem keamanan baru.`,
           variant: 'destructive',
           duration: 5000
         });

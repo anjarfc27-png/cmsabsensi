@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { XCircle, RefreshCw, Loader2, UserCheck, ShieldCheck, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useMediaPipeFace } from '@/hooks/useMediaPipeFace';
+import { useFaceSystem } from '@/hooks/useFaceSystem';
 import { FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
 interface FaceLoginProps {
@@ -24,7 +25,8 @@ export function FaceLogin({ onVerificationComplete, employeeId }: FaceLoginProps
     const [enrolledDescriptor, setEnrolledDescriptor] = useState<Float32Array | null>(null);
     const [similarityScore, setSimilarityScore] = useState(0);
 
-    const { initialize, isReady, detectFace, getFaceDescriptor, compareFaces } = useMediaPipeFace();
+    const { initialize, isReady, detectFace } = useMediaPipeFace();
+    const { getDeepDescriptor, computeMatch } = useFaceSystem();
 
     // 1. Fetch Enrolled Face Data
     useEffect(() => {
@@ -130,14 +132,15 @@ export function FaceLogin({ onVerificationComplete, employeeId }: FaceLoginProps
             drawMesh(result);
 
             if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
-                const currentDescriptor = getFaceDescriptor(result);
+                // 1. Get Deep Descriptor (ResNet-34)
+                const currentDescriptor = await getDeepDescriptor(videoRef.current);
 
                 if (currentDescriptor) {
-                    const score = compareFaces(currentDescriptor, enrolledDescriptor);
+                    const score = computeMatch(currentDescriptor, enrolledDescriptor);
                     setSimilarityScore(score);
 
-                    // Threshold Check (e.g. 0.85 for stricter security with normalized descriptors)
-                    if (score > 0.85) {
+                    // Threshold: > 0.55 (Equivalent to < 0.45 Euclidean Distance)
+                    if (score > 0.55) {
                         handleSuccess();
                         return; // Stop checking
                     }

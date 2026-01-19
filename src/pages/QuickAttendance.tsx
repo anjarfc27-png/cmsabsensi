@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useCamera } from '@/hooks/useCamera';
 import { useMediaPipeFace } from '@/hooks/useMediaPipeFace';
+import { useFaceSystem } from '@/hooks/useFaceSystem';
 import {
     Camera,
     Loader2,
@@ -41,7 +42,8 @@ export default function QuickAttendancePage() {
 
     // Camera hooks
     const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
-    const { isReady, initialize, detectFace, getFaceDescriptor, compareFaces } = useMediaPipeFace();
+    const { isReady, initialize, detectFace } = useMediaPipeFace();
+    const { getDeepDescriptor, computeMatch } = useFaceSystem();
 
     // State for office validation
     const [officeLocations, setOfficeLocations] = useState<any[]>([]);
@@ -120,15 +122,15 @@ export default function QuickAttendancePage() {
 
             setFaceDetected(true);
 
-            // Get descriptor dari hasil deteksi
-            const currentDescriptor = getFaceDescriptor(result);
+            // Get Deep Descriptor (ResNet-34)
+            const currentDescriptor = await getDeepDescriptor(videoRef.current);
             if (!currentDescriptor) {
-                toast({ title: 'Gagal memproses wajah', variant: 'destructive' });
+                toast({ title: 'Gagal memproses ID wajah', variant: 'destructive' });
                 return false;
             }
 
-            const { data: faceData, error } = await supabase
-                .from('face_enrollments')
+            const { data: faceData, error } = await (supabase
+                .from('face_enrollments') as any)
                 .select('face_descriptor')
                 .eq('user_id', user?.id)
                 .eq('is_active', true)
@@ -140,13 +142,14 @@ export default function QuickAttendancePage() {
             }
 
             const registeredDescriptor = new Float32Array(faceData.face_descriptor as any);
-            const similarity = compareFaces(currentDescriptor, registeredDescriptor);
+            const similarity = computeMatch(currentDescriptor, registeredDescriptor);
             setFaceMatch(similarity);
 
-            if (similarity < 0.85) {
+            const THRESHOLD = 0.55;
+            if (similarity < THRESHOLD) {
                 toast({
-                    title: 'Wajah Tidak Cocok / Format Lama',
-                    description: `Kemiripan: ${(similarity * 100).toFixed(0)}% (Min: 85%). Jika gagal terus, mohon daftar ulang wajah di menu Profil.`,
+                    title: 'Wajah Tidak Cocok',
+                    description: `Kemiripan: ${(similarity * 100).toFixed(0)}%. Mohon daftar ulang wajah.`,
                     variant: 'destructive',
                     duration: 5000
                 });
@@ -218,23 +221,26 @@ export default function QuickAttendancePage() {
 
                         if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
                             setFaceDetected(true);
-                            const descriptor = getFaceDescriptor(result);
+                            // Only run deep check occasionally or if we need instant feedback
+                            // Optimization: Check deep descriptor
+                            const descriptor = await getDeepDescriptor(video);
 
                             if (descriptor && user) {
-                                const { data: faceData } = await supabase
-                                    .from('face_enrollments')
+                                const { data: faceData } = await (supabase
+                                    .from('face_enrollments') as any)
                                     .select('face_descriptor')
                                     .eq('user_id', user.id)
                                     .eq('is_active', true)
                                     .maybeSingle();
 
                                 if (faceData) {
-                                    const similarity = compareFaces(descriptor, new Float32Array(faceData.face_descriptor as any));
+                                    const similarity = computeMatch(descriptor, new Float32Array(faceData.face_descriptor as any));
                                     setFaceMatch(similarity);
                                 }
                             }
                         } else {
                             setFaceDetected(false);
+                            setFaceMatch(0);
                         }
                     } catch (err) {
                         console.error("QuickFace auto check error", err);
@@ -697,10 +703,10 @@ export default function QuickAttendancePage() {
                                         <Badge
                                             className={cn(
                                                 "px-3 py-1.5 font-black border-none shadow-lg backdrop-blur-md",
-                                                faceMatch >= 0.85 ? "bg-blue-600/90" : "bg-red-600/90"
+                                                (faceMatch || 0) >= 0.55 ? "bg-blue-600/90" : "bg-red-600/90"
                                             )}
                                         >
-                                            Match: {(faceMatch * 100).toFixed(0)}%
+                                            Match: {((faceMatch || 0) * 100).toFixed(0)}%
                                         </Badge>
                                     </div>
                                 </div>
@@ -752,17 +758,17 @@ export default function QuickAttendancePage() {
 
                             <button
                                 onClick={handleCapture}
-                                disabled={!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.85)}
+                                disabled={!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.55)}
                                 className={cn(
                                     "h-24 w-24 rounded-full border-4 border-white flex items-center justify-center p-1.5 transition-all duration-300",
-                                    (!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.85))
+                                    (!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.55))
                                         ? "opacity-20 grayscale scale-90"
                                         : "active:scale-95 hover:scale-105"
                                 )}
                             >
                                 <div className={cn(
                                     "h-full w-full rounded-full transition-colors duration-500",
-                                    faceMatch !== null && faceMatch >= 0.85 ? "bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" : "bg-white"
+                                    faceMatch !== null && faceMatch >= 0.55 ? "bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" : "bg-white"
                                 )} />
                             </button>
 
