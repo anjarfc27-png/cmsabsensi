@@ -32,7 +32,7 @@ export const usePushNotifications = () => {
 
             // On success, we get a token
             await PushNotifications.addListener('registration', async (token) => {
-                console.log('Push registration success, token: ' + token.value);
+                console.log('Push registration success');
 
                 // Save token to Supabase
                 const { error } = await supabase

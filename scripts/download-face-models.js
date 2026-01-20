@@ -1,16 +1,26 @@
 #!/usr/bin/env node
 
-const https = require('https');
-const fs = require('fs');
-const path = require('path');
+import https from 'node:https';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const MODELS_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const MODELS_DIR = path.join(__dirname, '..', 'public', 'models');
 
 const MODELS = [
     // Tiny Face Detector (lightweight, fast)
     'tiny_face_detector_model-weights_manifest.json',
     'tiny_face_detector_model-shard1',
+
+    // SSD Mobilenet v1 (used by useFaceSystem)
+    'ssd_mobilenetv1_model-weights_manifest.json',
+    'ssd_mobilenetv1_model-shard1',
+    'ssd_mobilenetv1_model-shard2',
 
     // Face Landmarks
     'face_landmark_68_model-weights_manifest.json',

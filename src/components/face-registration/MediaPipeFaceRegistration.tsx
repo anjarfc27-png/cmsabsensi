@@ -72,7 +72,22 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
             setLoadingStatus('AI Siap');
         } catch (error) {
             console.error('Camera access error:', error);
-            setErrorMessage('Gagal mengakses kamera. Pastikan izin diberikan.');
+            let msg = 'Gagal mengakses kamera. Pastikan izin diberikan.';
+            if (error instanceof Error) {
+                // DOMException from getUserMedia typically has a name
+                const anyErr = error as any;
+                const name = anyErr?.name;
+                if (name === 'NotAllowedError') {
+                    msg = 'Izin kamera ditolak. Silakan aktifkan izin kamera di pengaturan aplikasi.';
+                } else if (name === 'NotFoundError') {
+                    msg = 'Kamera tidak ditemukan di perangkat ini.';
+                } else if (name === 'NotReadableError') {
+                    msg = 'Kamera sedang digunakan aplikasi lain. Tutup aplikasi lain lalu coba lagi.';
+                } else if (error.message) {
+                    msg = error.message;
+                }
+            }
+            setErrorMessage(msg);
             setStep('error');
         }
     };
