@@ -35,8 +35,8 @@ export function useFaceSystem(): FaceRecognitionSystem {
             try {
                 console.log('🧠 Loading Deep Learning Models (ResNet-34)...');
                 // Load only essential models
-                // 1. TinyFaceDetector (Lightweight detection to find the face crop)
-                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                // 1. SsdMobilenetv1 (More robust detection than TinyFace)
+                await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
                 // 2. FaceLandmark68Net (Required for alignment)
                 await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
                 // 3. FaceRecognitionNet (The Heavy Hitter - ResNet-34 for 128D Embeddings)
@@ -60,9 +60,9 @@ export function useFaceSystem(): FaceRecognitionSystem {
         if (!modelsLoaded) await loadModels();
 
         try {
-            // Use TinyFace for fast locating, then ResNet for recognition
+            // Use SSD Mobilenet for robust locating, then ResNet for recognition
             const detection = await faceapi
-                .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: SCORE_THRESHOLD }))
+                .detectSingleFace(input, new faceapi.SsdMobilenetv1Options({ minConfidence: SCORE_THRESHOLD }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 

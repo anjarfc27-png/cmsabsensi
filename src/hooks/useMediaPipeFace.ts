@@ -58,9 +58,9 @@ export function useMediaPipeFace() {
                     },
                     runningMode: 'VIDEO',
                     numFaces: 1,
-                    minFaceDetectionConfidence: 0.5,
-                    minFacePresenceConfidence: 0.5,
-                    minTrackingConfidence: 0.5,
+                    minFaceDetectionConfidence: 0.3,
+                    minFacePresenceConfidence: 0.3,
+                    minTrackingConfidence: 0.3,
                     outputFaceBlendshapes: true,
                     outputFacialTransformationMatrixes: false
                 });

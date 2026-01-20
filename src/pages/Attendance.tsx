@@ -1115,17 +1115,17 @@ export default function AttendancePage() {
 
                 <button
                   onClick={handleCapturePhoto}
-                  disabled={!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.75)}
+                  disabled={!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.4)}
                   className={cn(
                     "h-24 w-24 rounded-full border-4 border-white flex items-center justify-center p-1.5 transition-all duration-300",
-                    (!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.75))
+                    (!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.4))
                       ? "opacity-20 grayscale scale-90"
                       : "active:scale-95 hover:scale-105"
                   )}
                 >
                   <div className={cn(
                     "h-full w-full rounded-full transition-colors duration-500",
-                    faceMatch !== null && faceMatch >= 0.75 ? "bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" : "bg-white"
+                    faceMatch !== null && faceMatch >= 0.4 ? "bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" : "bg-white"
                   )} />
                 </button>
 
