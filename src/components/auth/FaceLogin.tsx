@@ -19,6 +19,7 @@ export function FaceLogin({ onVerificationComplete, employeeId }: FaceLoginProps
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animationFrameRef = useRef<number>();
+    const frameCounterRef = useRef(0);
 
     const [status, setStatus] = useState<'loading' | 'scanning' | 'verifying' | 'success' | 'error'>('loading');
     const [errorMessage, setErrorMessage] = useState('');
@@ -143,17 +144,21 @@ export function FaceLogin({ onVerificationComplete, employeeId }: FaceLoginProps
                 drawMesh(result);
 
                 if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
-                    // 1. Get Deep Descriptor (ResNet-34)
-                    const currentDescriptor = await getDeepDescriptor(videoRef.current);
+                    // Optimized: Throttled deep check every 5 frames
+                    frameCounterRef.current++;
+                    if (frameCounterRef.current % 5 === 0) {
+                        // 1. Get Deep Descriptor (ResNet-34)
+                        const currentDescriptor = await getDeepDescriptor(videoRef.current);
 
-                    if (currentDescriptor) {
-                        const score = computeMatch(currentDescriptor, enrolledDescriptor);
-                        setSimilarityScore(score);
+                        if (currentDescriptor) {
+                            const score = computeMatch(currentDescriptor, enrolledDescriptor);
+                            setSimilarityScore(score);
 
-                        // Threshold: > 0.55 (Equivalent to < 0.45 Euclidean Distance)
-                        if (score > 0.55) {
-                            handleSuccess();
-                            return; // Stop checking
+                            // Threshold: > 0.40 (Standard for distance 0.60)
+                            if (score > 0.40) {
+                                handleSuccess();
+                                return; // Stop checking
+                            }
                         }
                     }
                 }

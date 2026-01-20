@@ -41,14 +41,13 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
     const { initialize, isReady, isLoading, error: mpError, detectFace } = useMediaPipeFace();
     const { getDeepDescriptor, loadModels: loadDeepModels } = useFaceSystem();
 
-    // Start Camera - PARALLEL dengan init MediaPipe
+    // Start Camera
     const startCamera = async () => {
         try {
             setStep('capture');
             setLoadingStatus('Mengaktifkan kamera...');
 
-            // Parallel: Kamera + MediaPipe
-            const cameraPromise = navigator.mediaDevices.getUserMedia({
+            const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 1280 },
                     height: { ideal: 720 },
@@ -56,28 +55,21 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
                 },
                 audio: false
             });
-
-            // Start camera immediately
-            const stream = await cameraPromise;
             streamRef.current = stream;
 
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current?.play();
-                    setLoadingStatus('Kamera aktif');
-                };
+                await videoRef.current.play();
             }
 
-            // Initialize MediaPipe in background
+            // Ensure models are ready
             if (!isReady) {
-                setLoadingStatus('Memuat AI Face Mesh...');
+                setLoadingStatus('Memuat AI...');
                 await initialize();
             }
-            // Load Deep Learning Models
-            loadDeepModels();
-            setLoadingStatus('AI Siap');
+            await loadDeepModels();
 
+            setLoadingStatus('AI Siap');
         } catch (error) {
             console.error('Camera access error:', error);
             setErrorMessage('Gagal mengakses kamera. Pastikan izin diberikan.');
@@ -334,8 +326,18 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
         }
     };
 
-    // Cleanup
+    // Auto-load models on mount
     useEffect(() => {
+        const preLoad = async () => {
+            try {
+                if (!isReady) await initialize();
+                await loadDeepModels();
+            } catch (e) {
+                console.warn('Pre-load failed', e);
+            }
+        };
+        preLoad();
+
         return () => stopCamera();
     }, []);
 

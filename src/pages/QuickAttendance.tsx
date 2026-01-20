@@ -37,7 +37,7 @@ export default function QuickAttendancePage() {
     // 1. Hooks - Call all hooks first at the top
     const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
     const { isReady, initialize, detectFace } = useMediaPipeFace();
-    const { getDeepDescriptor, computeMatch } = useFaceSystem();
+    const { getDeepDescriptor, computeMatch, isLoaded: faceSystemLoaded } = useFaceSystem();
     const { latitude, longitude, accuracy, isMocked, loading: locationChecking, getLocation } = useGeolocation();
 
     // 2. States
@@ -57,6 +57,8 @@ export default function QuickAttendancePage() {
     const [faceMatch, setFaceMatch] = useState<number | null>(null);
     const [faceDetected, setFaceDetected] = useState(false);
     const [checkingFace, setCheckingFace] = useState(false);
+    const [registeredDescriptor, setRegisteredDescriptor] = useState<Float32Array | null>(null);
+    const frameCounterRef = useRef(0);
 
     // Initial location fetch
     useEffect(() => {
@@ -162,7 +164,7 @@ export default function QuickAttendancePage() {
             const similarity = computeMatch(currentDescriptor, registeredDescriptor);
             setFaceMatch(similarity);
 
-            const THRESHOLD = 0.55;
+            const THRESHOLD = 0.40;
             if (similarity < THRESHOLD) {
                 toast({
                     title: 'Wajah Tidak Cocok',
@@ -228,6 +230,12 @@ export default function QuickAttendancePage() {
                 return;
             }
 
+            // Cache descriptor
+            const faceData = faceCheckResult.value.data;
+            if (faceData && (faceData as any).face_descriptor) {
+                setRegisteredDescriptor(new Float32Array((faceData as any).face_descriptor as any));
+            }
+
             // Handle Camera Error
             if (cameraResult.status === 'rejected') {
                 setCameraOpen(false);
@@ -253,7 +261,7 @@ export default function QuickAttendancePage() {
     // Robust Detection Loop using useEffect + requestAnimationFrame
     const animationFrameRef = useRef<number>();
     useEffect(() => {
-        if (!cameraOpen || !stream || !isReady || step !== 'idle') {
+        if (!cameraOpen || !stream || !isReady || !faceSystemLoaded || step !== 'idle') {
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
             return;
         }
@@ -271,18 +279,12 @@ export default function QuickAttendancePage() {
                     if (result && result.faceLandmarks?.length > 0) {
                         setFaceDetected(true);
 
-                        // Deep check descriptor
-                        const descriptor = await getDeepDescriptor(video);
-                        if (descriptor && user) {
-                            const { data: faceData } = await (supabase
-                                .from('face_enrollments') as any)
-                                .select('face_descriptor')
-                                .eq('user_id', user.id)
-                                .eq('is_active', true)
-                                .maybeSingle();
-
-                            if (faceData) {
-                                const similarity = computeMatch(descriptor, new Float32Array(faceData.face_descriptor as any));
+                        // Optimized: Throttled deep check every 5 frames
+                        frameCounterRef.current++;
+                        if (registeredDescriptor && frameCounterRef.current % 5 === 0) {
+                            const descriptor = await getDeepDescriptor(video);
+                            if (descriptor) {
+                                const similarity = computeMatch(descriptor, registeredDescriptor);
                                 setFaceMatch(similarity);
                             }
                         }
@@ -303,7 +305,7 @@ export default function QuickAttendancePage() {
         return () => {
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
-    }, [cameraOpen, stream, isReady, step, user, checkingFace]);
+    }, [cameraOpen, stream, isReady, faceSystemLoaded, step, user, checkingFace]);
 
     const handleCapture = async () => {
         const isMatch = await checkFaceMatch();
@@ -750,17 +752,24 @@ export default function QuickAttendancePage() {
                                             )}
                                         >
                                             <Scan className={cn("h-3 w-3", faceDetected && "animate-pulse")} />
-                                            {faceDetected ? 'Wajah Terdeteksi' : 'Mencari Wajah...'}
+                                            {faceDetected ? (faceMatch && faceMatch > 0.40 ? 'Wajah Terverifikasi' : 'Wajah Terdeteksi') : 'Mencari Wajah...'}
                                         </Badge>
 
                                         <Badge
                                             className={cn(
                                                 "px-3 py-1.5 font-black border-none shadow-lg backdrop-blur-md",
-                                                (faceMatch || 0) >= 0.55 ? "bg-blue-600/90" : "bg-red-600/90"
+                                                (faceMatch || 0) >= 0.40 ? "bg-blue-600/90" : "bg-red-600/90"
                                             )}
                                         >
                                             Match: {((faceMatch || 0) * 100).toFixed(0)}%
                                         </Badge>
+
+                                        {!faceSystemLoaded && (
+                                            <Badge className="bg-blue-600/50 text-white border-none animate-pulse">
+                                                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                                                Init AI...
+                                            </Badge>
+                                        )}
                                     </div>
                                 </div>
 

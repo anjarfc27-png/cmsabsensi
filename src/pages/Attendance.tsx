@@ -108,6 +108,8 @@ export default function AttendancePage() {
   const [faceMatch, setFaceMatch] = useState<number | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [checkingFace, setCheckingFace] = useState(false);
+  const [registeredDescriptor, setRegisteredDescriptor] = useState<Float32Array | null>(null);
+  const frameCounterRef = useRef(0);
 
   // Maximum allowed radius from office in meters
   const MAX_RADIUS_M = 100;
@@ -295,8 +297,8 @@ export default function AttendancePage() {
       const similarity = computeMatch(currentDescriptor, registeredDescriptor);
       setFaceMatch(similarity);
 
-      // Strict Threshold for Security (equivalent to < 0.45 distance)
-      const THRESHOLD = 0.55;
+      // Standard Threshold (Distance 0.60 corresponds to Similarity 0.40)
+      const THRESHOLD = 0.40;
 
       if (similarity < THRESHOLD) {
         toast({
@@ -384,6 +386,11 @@ export default function AttendancePage() {
         return;
       }
 
+      // Cache the descriptor once
+      if (faceCheckResult.value.data.face_descriptor) {
+        setRegisteredDescriptor(new Float32Array(faceCheckResult.value.data.face_descriptor as any));
+      }
+
       // Handle Camera Error
       if (cameraResult.status === 'rejected') {
         setCameraOpen(false);
@@ -410,7 +417,7 @@ export default function AttendancePage() {
   // Robust Detection Loop for Attendance Page
   const animationFrameRef = useRef<number>();
   useEffect(() => {
-    if (!cameraOpen || !stream || !isReady) {
+    if (!cameraOpen || !stream || !isReady || !faceSystemLoaded) {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       return;
     }
@@ -428,19 +435,12 @@ export default function AttendancePage() {
           if (result && result.faceLandmarks?.length > 0) {
             setFaceDetected(true);
 
-            // Only occasional descriptor check or just use simple detection for UI
-            // To keep it simple like QuickAttendance:
-            const descriptor = await getDeepDescriptor(video);
-            if (descriptor && user) {
-              const { data: faceData } = await supabase
-                .from('face_enrollments')
-                .select('face_descriptor')
-                .eq('user_id', user.id)
-                .eq('is_active', true)
-                .maybeSingle();
-
-              if (faceData) {
-                const similarity = computeMatch(descriptor, new Float32Array(faceData.face_descriptor as any));
+            // Optimized: Throttled deep check every 10 frames if match is not certain
+            frameCounterRef.current++;
+            if (registeredDescriptor && frameCounterRef.current % 10 === 0) {
+              const descriptor = await getDeepDescriptor(video);
+              if (descriptor) {
+                const similarity = computeMatch(descriptor, registeredDescriptor);
                 setFaceMatch(similarity);
               }
             }
@@ -1041,14 +1041,21 @@ export default function AttendancePage() {
                         )}
                       >
                         <Scan className={cn("h-3 w-3", faceDetected && "animate-pulse")} />
-                        {faceDetected ? 'Wajah Terdeteksi' : 'Mencari Wajah...'}
+                        {faceDetected ? (faceMatch && faceMatch > 0.40 ? 'Wajah Terverifikasi' : 'Wajah Terdeteksi') : 'Mencari Wajah...'}
                       </Badge>
+
+                      {!faceSystemLoaded && (
+                        <Badge variant="outline" className="bg-blue-600/50 text-white border-none animate-pulse">
+                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                          Init AI...
+                        </Badge>
+                      )}
 
                       {faceMatch !== null && (
                         <Badge
                           className={cn(
                             "px-3 py-1.5 font-black border-none shadow-lg backdrop-blur-md",
-                            faceMatch >= 0.75 ? "bg-blue-600/90" : "bg-red-600/90"
+                            faceMatch >= 0.40 ? "bg-blue-600/90" : "bg-red-600/90"
                           )}
                         >
                           Match: {(faceMatch * 100).toFixed(0)}%
