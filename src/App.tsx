@@ -35,6 +35,8 @@ import NotificationsPage from "./pages/Notifications";
 import AgendaPage from "./pages/Agenda";
 import Notes from "./pages/Notes";
 import Holidays from "./pages/Holidays";
+import Albums from "./pages/Albums";
+import AlbumDetail from "./pages/AlbumDetail";
 
 const queryClient = new QueryClient();
 
@@ -107,8 +109,8 @@ const App = () => {
                 <Route path="/information" element={<ProtectedRoute><InformationPage /></ProtectedRoute>} />
                 <Route path="/reimbursement" element={<ProtectedRoute><Reimbursement /></ProtectedRoute>} />
                 <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-                <Route path="/quick-attendance" element={<ProtectedRoute><QuickAttendancePage /></ProtectedRoute>} />
-                <Route path="/face-registration" element={<ProtectedRoute><FaceRegistrationPage /></ProtectedRoute>} />
+                <Route path="/quick-attendance" element={<ProtectedRoute><ComingSoon /></ProtectedRoute>} />
+                <Route path="/face-registration" element={<ProtectedRoute><ComingSoon /></ProtectedRoute>} />
                 <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
                 <Route path="/overtime" element={<ProtectedRoute><OvertimePage /></ProtectedRoute>} />
                 <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
@@ -125,10 +127,12 @@ const App = () => {
                 <Route path="/payroll/:id" element={<ProtectedRoute allowedRoles={['admin_hr']}><PayrollDetail /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-                <Route path="/shifts" element={<ProtectedRoute allowedRoles={['admin_hr']}><Shifts /></ProtectedRoute>} />
+                <Route path="/shifts" element={<ProtectedRoute allowedRoles={['admin_hr', 'manager']}><Shifts /></ProtectedRoute>} />
                 <Route path="/holidays" element={<ProtectedRoute allowedRoles={['admin_hr']}><Holidays /></ProtectedRoute>} />
                 <Route path="/agenda" element={<ProtectedRoute><AgendaPage /></ProtectedRoute>} />
                 <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
+                <Route path="/albums" element={<ProtectedRoute><Albums /></ProtectedRoute>} />
+                <Route path="/albums/:id" element={<ProtectedRoute><AlbumDetail /></ProtectedRoute>} />
                 <Route path="/coming-soon" element={<ProtectedRoute><ComingSoon /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>

@@ -106,7 +106,23 @@ interface ReimbursementRequest {
     } | null;
 }
 
-type RequestType = 'leave' | 'overtime' | 'correction' | 'reimbursement';
+interface PendingAccount {
+    id: string;
+    full_name: string;
+    email: string;
+    phone?: string;
+    nik_ktp?: string;
+    position?: string;
+    department_id?: string;
+    job_position_id?: string;
+    role: string;
+    is_active: boolean;
+    created_at: string;
+    department?: { name: string } | null;
+    job_position?: { title: string } | null;
+}
+
+type RequestType = 'leave' | 'overtime' | 'correction' | 'reimbursement' | 'account';
 
 export default function ApprovalsPage() {
     const { user, role } = useAuth();
@@ -118,6 +134,7 @@ export default function ApprovalsPage() {
     const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequest[]>([]);
     const [correctionRequests, setCorrectionRequests] = useState<CorrectionRequest[]>([]);
     const [reimbursementRequests, setReimbursementRequests] = useState<ReimbursementRequest[]>([]);
+    const [pendingAccounts, setPendingAccounts] = useState<PendingAccount[]>([]);
     const [loading, setLoading] = useState(true);
 
     const [actionDialog, setActionDialog] = useState<{
@@ -146,46 +163,76 @@ export default function ApprovalsPage() {
         try {
             const statusFilter = activeTab === 'pending' ? 'pending' : ['approved', 'rejected'];
 
-            // Fetch leave requests
-            const { data: leaveData, error: leaveError } = await supabase
-                .from('leave_requests')
-                .select('*, profiles:user_id(full_name, email, position, avatar_url, departments(name))')
-                .in('status', Array.isArray(statusFilter) ? statusFilter : [statusFilter])
-                .order('created_at', { ascending: false });
+            // Determine if Manager needs filtering
+            let managerDeptId: string | null = null;
+            if (role === 'manager' && user?.id) {
+                const { data: p } = await supabase
+                    .from('profiles')
+                    .select('department_id')
+                    .eq('id', user.id)
+                    .single();
+                managerDeptId = p?.department_id;
+            }
 
-            if (leaveError) throw leaveError;
+            // Helper to fetch request tables with conditional filtering
+            const fetchTable = async (tableName: string) => {
+                const isManagerFilter = role === 'manager' && managerDeptId;
 
-            // Fetch overtime requests
-            const { data: overtimeData, error: overtimeError } = await supabase
-                .from('overtime_requests')
-                .select('*, profiles:user_id(full_name, email, position, avatar_url, departments(name))')
-                .in('status', Array.isArray(statusFilter) ? statusFilter : [statusFilter])
-                .order('created_at', { ascending: false });
+                // Use !inner join if filtering by relation to enforce strict request-to-profile match
+                const relation = isManagerFilter ? 'profiles:user_id!inner' : 'profiles:user_id';
 
-            if (overtimeError) throw overtimeError;
+                let query = supabase
+                    .from(tableName as any)
+                    .select(`*, ${relation}(full_name, email, position, avatar_url, department_id, departments(name))`)
+                    .order('created_at', { ascending: false });
 
-            // Fetch correction requests
-            const { data: correctionData, error: correctionError } = await supabase
-                .from('attendance_corrections')
-                .select('*, profiles:user_id(full_name, email, position, avatar_url, departments(name))')
-                .in('status', Array.isArray(statusFilter) ? statusFilter : [statusFilter])
-                .order('created_at', { ascending: false });
+                if (Array.isArray(statusFilter)) {
+                    query = query.in('status', statusFilter);
+                } else {
+                    query = query.eq('status', statusFilter);
+                }
 
-            if (correctionError) throw correctionError;
+                if (isManagerFilter) {
+                    query = query.eq(`${relation}.department_id`, managerDeptId);
+                }
 
-            // Fetch reimbursement requests
-            const { data: reimbursementData, error: reimbursementError } = await supabase
-                .from('reimbursements')
-                .select('*, profiles:user_id(full_name, email, position, avatar_url, departments(name))')
-                .in('status', Array.isArray(statusFilter) ? statusFilter : [statusFilter])
-                .order('created_at', { ascending: false });
+                const { data, error } = await query;
+                if (error) throw error;
+                return data;
+            };
 
-            if (reimbursementError) throw reimbursementError;
+            // Helper for Pending Accounts
+            const fetchAccounts = async () => {
+                let query = supabase
+                    .from('profiles')
+                    .select('*, department:departments(name), job_position:job_positions(title)')
+                    .eq('is_active', activeTab === 'pending' ? false : true)
+                    .order('created_at', { ascending: false });
+
+                if (role === 'manager' && managerDeptId) {
+                    query = query.eq('department_id', managerDeptId);
+                }
+
+                const { data, error } = await query;
+                if (error) throw error;
+                return data;
+            };
+
+            // Execute parallel
+            const [leaveData, overtimeData, correctionData, reimbursementData, accountsData] = await Promise.all([
+                fetchTable('leave_requests'),
+                fetchTable('overtime_requests'),
+                fetchTable('attendance_corrections'),
+                fetchTable('reimbursements'),
+                fetchAccounts()
+            ]);
 
             setLeaveRequests((leaveData as unknown) as LeaveRequest[] || []);
             setOvertimeRequests((overtimeData as unknown) as OvertimeRequest[] || []);
             setCorrectionRequests((correctionData as unknown) as CorrectionRequest[] || []);
             setReimbursementRequests((reimbursementData as unknown) as ReimbursementRequest[] || []);
+            setPendingAccounts((accountsData as unknown) as PendingAccount[] || []);
+
         } catch (error) {
             console.error('Error fetching requests:', error);
             toast({
@@ -217,25 +264,86 @@ export default function ApprovalsPage() {
 
         setProcessing(true);
         try {
-            let tableName = '';
-            if (actionDialog.requestType === 'leave') tableName = 'leave_requests';
-            else if (actionDialog.requestType === 'overtime') tableName = 'overtime_requests';
-            else if (actionDialog.requestType === 'correction') tableName = 'attendance_corrections';
-            else if (actionDialog.requestType === 'reimbursement') tableName = 'reimbursements';
+            if (actionDialog.requestType === 'account') {
+                if (actionDialog.type === 'approve') {
+                    const { error } = await supabase
+                        .from('profiles')
+                        .update({ is_active: true })
+                        .eq('id', actionDialog.requestId);
 
-            const newStatus = actionDialog.type === 'approve' ? 'approved' : 'rejected';
+                    if (error) throw error;
 
-            const updateData: any = { status: newStatus };
-            if (actionDialog.type === 'reject') {
-                updateData.rejection_reason = rejectionReason.trim();
+                    // Send internal notification
+                    await supabase.from('notifications').insert({
+                        user_id: actionDialog.requestId,
+                        title: 'Akun Diaktifkan',
+                        message: 'Selamat! Akun Anda telah diaktifkan oleh admin. Silakan login untuk mengakses aplikasi.',
+                        type: 'system',
+                        is_read: false
+                    });
+
+
+
+
+
+
+
+
+
+
+                } else {
+                    const { error } = await supabase
+                        .from('profiles')
+                        .delete()
+                        .eq('id', actionDialog.requestId);
+
+                    if (error) throw error;
+                }
+            } else {
+                let tableName = '';
+                if (actionDialog.requestType === 'leave') tableName = 'leave_requests';
+                else if (actionDialog.requestType === 'overtime') tableName = 'overtime_requests';
+                else if (actionDialog.requestType === 'correction') tableName = 'attendance_corrections';
+                else if (actionDialog.requestType === 'reimbursement') tableName = 'reimbursements';
+
+                const newStatus = actionDialog.type === 'approve' ? 'approved' : 'rejected';
+
+                const updateData: any = { status: newStatus };
+                if (actionDialog.type === 'reject') {
+                    updateData.rejection_reason = rejectionReason.trim();
+                }
+
+                const { error } = await supabase
+                    .from(tableName as any)
+                    .update(updateData)
+                    .eq('id', actionDialog.requestId);
+
+                if (error) throw error;
+
+                // Send notification
+                let notifTitle = '';
+                let notifMessage = '';
+
+                if (actionDialog.requestType === 'leave') {
+                    notifTitle = actionDialog.type === 'approve' ? 'Cuti Disetujui' : 'Cuti Ditolak';
+                    notifMessage = actionDialog.type === 'approve' ? 'Pengajuan cuti Anda telah disetujui.' : 'Pengajuan cuti Anda ditolak.';
+                } else if (actionDialog.requestType === 'overtime') {
+                    notifTitle = actionDialog.type === 'approve' ? 'Lembur Disetujui' : 'Lembur Ditolak';
+                    notifMessage = actionDialog.type === 'approve' ? 'Pengajuan lembur Anda telah disetujui.' : 'Pengajuan lembur Anda ditolak.';
+                } else if (actionDialog.requestType === 'correction') {
+                    notifTitle = actionDialog.type === 'approve' ? 'Koreksi Disetujui' : 'Koreksi Ditolak';
+                    notifMessage = actionDialog.type === 'approve' ? 'Pengajuan koreksi absen Anda telah disetujui.' : 'Pengajuan koreksi absen Anda ditolak.';
+                } else if (actionDialog.requestType === 'reimbursement') {
+                    notifTitle = actionDialog.type === 'approve' ? 'Reimbursement Disetujui' : 'Reimbursement Ditolak';
+                    notifMessage = actionDialog.type === 'approve' ? 'Pengajuan reimbursement Anda telah disetujui.' : 'Pengajuan reimbursement Anda ditolak.';
+                }
+
+                // Get user_id for notification (need to find it in the request list)
+                // Simplified: We assume we can get user_id from the list or we do a fetch. 
+                // However, for simplicity and speed, let's skip user notification for now or assume trigger handles it?
+                // Actually, the original code had notification logic? Let's check below 260.
             }
 
-            const { error } = await supabase
-                .from(tableName)
-                .update(updateData)
-                .eq('id', actionDialog.requestId);
-
-            if (error) throw error;
 
             // Send notification to user
             try {
@@ -307,17 +415,17 @@ export default function ApprovalsPage() {
     const pendingCount = leaveRequests.filter(r => r.status === 'pending').length +
         overtimeRequests.filter(r => r.status === 'pending').length +
         correctionRequests.filter(r => r.status === 'pending').length +
-        reimbursementRequests.filter(r => r.status === 'pending').length;
+        reimbursementRequests.filter(r => r.status === 'pending').length +
+        pendingAccounts.filter(a => !a.is_active).length;
 
     return (
         <DashboardLayout>
             <div className="relative min-h-screen bg-slate-50/50">
-                {/* Background Gradient */}
-                {/* eslint-disable-next-line react/no-unknown-property */}
-                <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+                {/* Background Gradient Header */}
+                <div className="absolute top-0 left-0 w-full h-[calc(200px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[32px] z-0 shadow-lg" />
 
-                <div className="relative z-10 space-y-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-8 max-w-6xl mx-auto">
-                    {/* Header with Back Button */}
+                <div className="relative z-10 space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24">
+                    {/* Header Section */}
                     <div className="flex items-start gap-3 text-white">
                         <Button
                             variant="ghost"
@@ -328,30 +436,46 @@ export default function ApprovalsPage() {
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-bold tracking-tight drop-shadow-md">Persetujuan</h1>
-                            <p className="text-xs text-blue-50 font-medium opacity-90 mt-0.5">
-                                Review & kelola permohonan karyawan
+                            <h1 className="text-xl font-bold tracking-tight text-white drop-shadow-md">Persetujuan</h1>
+                            <p className="text-xs text-blue-50 font-medium opacity-90">Kelola permohonan & akun</p>
+                        </div>
+                    </div>
+
+                    {/* Stats Grid - Compact */}
+                    <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-white/10 backdrop-blur-md p-2 rounded-lg border border-white/20">
+                            <p className="text-[9px] font-bold text-blue-100 uppercase tracking-wider mb-0.5">PENDING</p>
+                            <p className="text-xl font-bold text-white leading-none">{pendingCount}</p>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md p-2 rounded-lg border border-white/20">
+                            <p className="text-[9px] font-bold text-blue-100 uppercase tracking-wider mb-0.5">NEW</p>
+                            <p className="text-xl font-bold text-white leading-none">{pendingAccounts.filter(a => !a.is_active).length}</p>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md p-2 rounded-lg border border-white/20">
+                            <p className="text-[9px] font-bold text-blue-100 uppercase tracking-wider mb-0.5">TOTAL</p>
+                            <p className="text-xl font-bold text-white leading-none">
+                                {leaveRequests.length + overtimeRequests.length + correctionRequests.length + reimbursementRequests.length}
                             </p>
                         </div>
                     </div>
 
-                    {/* Tabs */}
+                    {/* Tabs - Like Leave Page Style */}
                     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'history')} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 bg-slate-200/50 backdrop-blur-md p-1 rounded-2xl mb-6 border border-white/20">
+                        <TabsList className="bg-slate-200/50 backdrop-blur-md p-1 rounded-2xl border border-white/20 w-fit">
                             <TabsTrigger
                                 value="pending"
-                                className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm font-bold text-slate-600 rounded-xl relative transition-all"
+                                className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm text-slate-600 font-bold px-6 rounded-xl transition-all"
                             >
                                 Menunggu
                                 {pendingCount > 0 && (
-                                    <Badge className="ml-2 bg-red-500 text-white h-5 min-w-[20px] px-1.5 flex items-center justify-center">
+                                    <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                                         {pendingCount}
-                                    </Badge>
+                                    </span>
                                 )}
                             </TabsTrigger>
                             <TabsTrigger
                                 value="history"
-                                className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm font-bold text-slate-600 rounded-xl transition-all"
+                                className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm text-slate-600 font-bold px-6 rounded-xl transition-all"
                             >
                                 Riwayat
                             </TabsTrigger>
@@ -368,67 +492,105 @@ export default function ApprovalsPage() {
                                     {leaveRequests.filter(r => r.status === 'pending').length === 0 &&
                                         overtimeRequests.filter(r => r.status === 'pending').length === 0 &&
                                         correctionRequests.filter(r => r.status === 'pending').length === 0 &&
-                                        reimbursementRequests.filter(r => r.status === 'pending').length === 0 ? (
-                                        <Card className="border-none shadow-md">
-                                            <CardContent className="py-12 text-center">
-                                                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                                                <h3 className="font-bold text-slate-900 mb-2">Semua Beres!</h3>
-                                                <p className="text-slate-500">Tidak ada permohonan yang menunggu persetujuan.</p>
-                                            </CardContent>
-                                        </Card>
+                                        reimbursementRequests.filter(r => r.status === 'pending').length === 0 &&
+                                        pendingAccounts.filter(a => !a.is_active).length === 0 ? (
+                                        <div className="text-center py-12">
+                                            <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <CheckCircle2 className="h-8 w-8 text-slate-300" />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-slate-900 mb-1">Semua Beres</h3>
+                                            <p className="text-slate-500 text-sm">Tidak ada permohonan yang menunggu.</p>
+                                        </div>
                                     ) : (
-                                        <div className="space-y-4">
-                                            {leaveRequests
-                                                .filter(r => r.status === 'pending')
-                                                .map(req => (
-                                                    <RequestCard
-                                                        key={req.id}
-                                                        type="leave"
-                                                        request={req}
-                                                        onApprove={() => handleAction('approve', 'leave', req.id)}
-                                                        onReject={() => handleAction('reject', 'leave', req.id)}
-                                                        onViewAttachment={(url) => setAttachmentDialog({ open: true, url })}
-                                                    />
-                                                ))}
+                                        <div className="space-y-6">
+                                            {/* Account Approvals - New Users */}
+                                            {pendingAccounts.filter(a => !a.is_active).length > 0 && (
+                                                <div className="space-y-3">
+                                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Registrasi Baru</h3>
+                                                    {pendingAccounts
+                                                        .filter(a => !a.is_active)
+                                                        .map(account => (
+                                                            <div key={account.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden">
+                                                                <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
+                                                                <div className="flex gap-4">
+                                                                    <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold shrink-0">
+                                                                        {account.full_name?.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex justify-between items-start mb-1">
+                                                                            <h4 className="font-bold text-slate-900 truncate pr-2">{account.full_name}</h4>
+                                                                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] shrink-0">New User</Badge>
+                                                                        </div>
+                                                                        <p className="text-xs text-slate-500 truncate mb-1">{account.email}</p>
+                                                                        <div className="flex gap-3 text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded-lg">
+                                                                            <span className="font-medium">{account.department?.name || 'No Dept'}</span>
+                                                                            <span className="text-slate-300">|</span>
+                                                                            <span className="font-medium">{account.job_position?.title || account.position || 'No Pos'}</span>
+                                                                        </div>
+                                                                        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                                                                            <Button size="sm" variant="outline" onClick={() => handleAction('reject', 'account', account.id)} className="flex-1 h-9 border-slate-200 text-slate-700 hover:bg-slate-50">Tolak</Button>
+                                                                            <Button size="sm" onClick={() => handleAction('approve', 'account', account.id)} className="flex-1 h-9 bg-slate-900 hover:bg-slate-800 text-white">Aktifkan</Button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                </div>
+                                            )}
 
-                                            {overtimeRequests
-                                                .filter(r => r.status === 'pending')
-                                                .map(req => (
-                                                    <RequestCard
-                                                        key={req.id}
-                                                        type="overtime"
-                                                        request={req}
-                                                        onApprove={() => handleAction('approve', 'overtime', req.id)}
-                                                        onReject={() => handleAction('reject', 'overtime', req.id)}
-                                                        onViewAttachment={(url) => setAttachmentDialog({ open: true, url })}
-                                                    />
-                                                ))}
+                                            <div className="space-y-4">
+                                                {leaveRequests
+                                                    .filter(r => r.status === 'pending')
+                                                    .map(req => (
+                                                        <RequestCard
+                                                            key={req.id}
+                                                            type="leave"
+                                                            request={req}
+                                                            onApprove={() => handleAction('approve', 'leave', req.id)}
+                                                            onReject={() => handleAction('reject', 'leave', req.id)}
+                                                            onViewAttachment={(url) => setAttachmentDialog({ open: true, url })}
+                                                        />
+                                                    ))}
 
-                                            {correctionRequests
-                                                .filter(r => r.status === 'pending')
-                                                .map(req => (
-                                                    <RequestCard
-                                                        key={req.id}
-                                                        type="correction"
-                                                        request={req}
-                                                        onApprove={() => handleAction('approve', 'correction', req.id)}
-                                                        onReject={() => handleAction('reject', 'correction', req.id)}
-                                                        onViewAttachment={req.proof_url ? (url) => setAttachmentDialog({ open: true, url }) : undefined}
-                                                    />
-                                                ))}
+                                                {overtimeRequests
+                                                    .filter(r => r.status === 'pending')
+                                                    .map(req => (
+                                                        <RequestCard
+                                                            key={req.id}
+                                                            type="overtime"
+                                                            request={req}
+                                                            onApprove={() => handleAction('approve', 'overtime', req.id)}
+                                                            onReject={() => handleAction('reject', 'overtime', req.id)}
+                                                            onViewAttachment={(url) => setAttachmentDialog({ open: true, url })}
+                                                        />
+                                                    ))}
 
-                                            {reimbursementRequests
-                                                .filter(r => r.status === 'pending')
-                                                .map(req => (
-                                                    <RequestCard
-                                                        key={req.id}
-                                                        type="reimbursement"
-                                                        request={req}
-                                                        onApprove={() => handleAction('approve', 'reimbursement', req.id)}
-                                                        onReject={() => handleAction('reject', 'reimbursement', req.id)}
-                                                        onViewAttachment={req.attachment_url ? (url) => setAttachmentDialog({ open: true, url }) : undefined}
-                                                    />
-                                                ))}
+                                                {correctionRequests
+                                                    .filter(r => r.status === 'pending')
+                                                    .map(req => (
+                                                        <RequestCard
+                                                            key={req.id}
+                                                            type="correction"
+                                                            request={req}
+                                                            onApprove={() => handleAction('approve', 'correction', req.id)}
+                                                            onReject={() => handleAction('reject', 'correction', req.id)}
+                                                            onViewAttachment={req.proof_url ? (url) => setAttachmentDialog({ open: true, url }) : undefined}
+                                                        />
+                                                    ))}
+
+                                                {reimbursementRequests
+                                                    .filter(r => r.status === 'pending')
+                                                    .map(req => (
+                                                        <RequestCard
+                                                            key={req.id}
+                                                            type="reimbursement"
+                                                            request={req}
+                                                            onApprove={() => handleAction('approve', 'reimbursement', req.id)}
+                                                            onReject={() => handleAction('reject', 'reimbursement', req.id)}
+                                                            onViewAttachment={req.attachment_url ? (url) => setAttachmentDialog({ open: true, url }) : undefined}
+                                                        />
+                                                    ))}
+                                            </div>
                                         </div>
                                     )}
                                 </>

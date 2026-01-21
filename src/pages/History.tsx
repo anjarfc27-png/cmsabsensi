@@ -11,7 +11,26 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Calendar as CalendarIcon, Download, Filter, LayoutList, CalendarDays, ChevronLeft } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Loader2,
+  Calendar as CalendarIcon,
+  Download,
+  Filter,
+  LayoutList,
+  CalendarDays,
+  ChevronLeft,
+  FileSpreadsheet,
+  History as HistoryIcon,
+  Clock,
+  AlertCircle,
+  FileCheck,
+  Upload
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isSameDay, getDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -21,6 +40,8 @@ import { Attendance } from '@/types';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/LoadingSkeletons';
 import { holidays } from '@/lib/holidays';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { downloadExcel } from '@/utils/csvExport';
 
 export default function HistoryPage() {
   const { user } = useAuth();
@@ -30,6 +51,21 @@ export default function HistoryPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
+
+  const isMobile = useIsMobile();
+  const { toast } = useToast();
+
+  // Correction State
+  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
+  const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
+  const [correctionForm, setCorrectionForm] = useState({
+    date: '',
+    corrected_clock_in: '',
+    corrected_clock_out: '',
+    reason: '',
+  });
+  const [correctionProof, setCorrectionProof] = useState<File | null>(null);
+  const [submittingCorrection, setSubmittingCorrection] = useState(false);
 
   useEffect(() => {
     fetchAttendances();
@@ -83,20 +119,20 @@ export default function HistoryPage() {
 
   const getStatusBadge = (attendance: Attendance) => {
     if (attendance.is_late) {
-      return <Badge variant="destructive">Terlambat</Badge>;
+      return <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100">Terlambat</Badge>;
     }
 
     switch (attendance.status) {
       case 'present':
-        return <Badge>Hadir</Badge>;
+        return <Badge className="bg-green-50 text-green-600 border-green-200 hover:bg-green-100">Hadir</Badge>;
       case 'late':
         return <Badge variant="destructive">Terlambat</Badge>;
       case 'absent':
-        return <Badge variant="secondary">Tidak Hadir</Badge>;
+        return <Badge variant="secondary" className="bg-slate-100 text-slate-500 hover:bg-slate-200">Tidak Hadir</Badge>;
       case 'leave':
-        return <Badge variant="outline">Cuti</Badge>;
+        return <Badge variant="outline" className="bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100">Cuti</Badge>;
       case 'sick':
-        return <Badge variant="outline">Sakit</Badge>;
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100">Sakit</Badge>;
       default:
         return <Badge variant="secondary">{attendance.status}</Badge>;
     }
@@ -105,11 +141,11 @@ export default function HistoryPage() {
   const getWorkModeBadge = (mode: string) => {
     switch (mode) {
       case 'wfo':
-        return <Badge variant="outline">WFO</Badge>;
+        return <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">WFO</Badge>;
       case 'wfh':
-        return <Badge variant="outline">WFH</Badge>;
+        return <Badge variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">WFH</Badge>;
       case 'field':
-        return <Badge variant="outline">Dinas</Badge>;
+        return <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">Dinas</Badge>;
       default:
         return <Badge variant="secondary">{mode}</Badge>;
     }
@@ -157,6 +193,393 @@ export default function HistoryPage() {
     doc.save(`Absensi_${format(selectedMonth, 'MM_yyyy')}.pdf`);
   };
 
+  const handleExportExcel = () => {
+    const headers = ['Tanggal', 'Masuk', 'Keluar', 'Durasi', 'Mode', 'Status'];
+    const rows = attendances.map(a => [
+      format(new Date(a.date), 'yyyy-MM-dd'),
+      formatTime(a.clock_in),
+      formatTime(a.clock_out),
+      formatMinutes(a.work_hours_minutes),
+      a.work_mode.toUpperCase(),
+      a.is_late ? 'TERLAMBAT' : a.status === 'present' ? 'HADIR' : a.status.toUpperCase(),
+    ]);
+
+    downloadExcel(headers, rows, {
+      filename: `History_Absensi_${format(selectedMonth, 'MM_yyyy')}`,
+      title: 'Riwayat Absensi Saya',
+      period: format(selectedMonth, 'MMMM yyyy', { locale: id }),
+      generatedBy: user?.user_metadata?.full_name || user?.email
+    });
+  };
+
+  const handleOpenCorrection = (attendance: Attendance) => {
+    setSelectedAttendance(attendance);
+    setCorrectionForm({
+      date: attendance.date,
+      corrected_clock_in: attendance.clock_in ? format(new Date(attendance.clock_in), "HH:mm") : '',
+      corrected_clock_out: attendance.clock_out ? format(new Date(attendance.clock_out), "HH:mm") : '',
+      reason: '',
+    });
+    setCorrectionProof(null);
+    setIsCorrectionOpen(true);
+  };
+
+  const handleCorrectionSubmit = async () => {
+    if (!correctionForm.reason.trim()) {
+      toast({ title: "Error", description: "Alasan koreksi wajib diisi", variant: "destructive" });
+      return;
+    }
+
+    setSubmittingCorrection(true);
+    try {
+      let proofUrl = null;
+
+      if (correctionProof) {
+        const fileExt = correctionProof.name.split('.').pop();
+        const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('correction-proofs')
+          .upload(fileName, correctionProof);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('correction-proofs')
+          .getPublicUrl(fileName);
+
+        proofUrl = publicUrl;
+      }
+
+      // Convert HH:mm to ISO TIMESTAMPTZ for the selected date
+      const dateStr = correctionForm.date;
+      const clockInISO = correctionForm.corrected_clock_in
+        ? new Date(`${dateStr}T${correctionForm.corrected_clock_in}:00`).toISOString()
+        : null;
+      const clockOutISO = correctionForm.corrected_clock_out
+        ? new Date(`${dateStr}T${correctionForm.corrected_clock_out}:00`).toISOString()
+        : null;
+
+      const { error } = await supabase
+        .from('attendance_corrections')
+        .insert({
+          user_id: user?.id,
+          attendance_id: selectedAttendance?.id,
+          date: dateStr,
+          original_clock_in: selectedAttendance?.clock_in,
+          original_clock_out: selectedAttendance?.clock_out,
+          corrected_clock_in: clockInISO,
+          corrected_clock_out: clockOutISO,
+          reason: correctionForm.reason,
+          proof_url: proofUrl,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      toast({ title: "Berhasil", description: "Pengajuan koreksi telah dikirim dan menunggu persetujuan HR." });
+      setIsCorrectionOpen(false);
+    } catch (error: any) {
+      console.error(error);
+      toast({ title: "Gagal", description: error.message || "Gagal mengirim pengajuan koreksi", variant: "destructive" });
+    } finally {
+      setSubmittingCorrection(false);
+    }
+  };
+
+
+  if (!isMobile) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-7xl mx-auto p-8 space-y-8">
+          {/* Desktop Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Riwayat Absensi</h1>
+              <p className="text-slate-500 font-medium">Pantau kehadiran dan performa kerja Anda di sini.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                className="rounded-xl border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 font-bold"
+                onClick={() => setSelectedMonth(new Date())}
+              >
+                Hari Ini
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-200"
+                onClick={handleExportPDF}
+                disabled={loading || attendances.length === 0}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download Laporan PDF
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-200"
+                onClick={handleExportExcel}
+                disabled={loading || attendances.length === 0}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Excel
+              </Button>
+            </div>
+          </div>
+
+          {/* Premium Filter Bar */}
+          <Card className="border-none shadow-xl shadow-slate-200/40 rounded-2xl bg-white p-2 flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-lg hover:bg-white text-slate-400 hover:text-slate-900 hover:shadow-sm"
+                onClick={() => setSelectedMonth(subMonths(selectedMonth, 1))}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="px-4 font-black text-slate-700 w-40 text-center uppercase tracking-wider text-sm">
+                {format(selectedMonth, 'MMMM yyyy', { locale: id })}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-lg hover:bg-white text-slate-400 hover:text-slate-900 hover:shadow-sm"
+                onClick={() => setSelectedMonth(addMonths(selectedMonth, 1))}
+              >
+                <ChevronLeft className="h-5 w-5 rotate-180" />
+              </Button>
+            </div>
+
+            <div className="h-8 w-px bg-slate-100 mx-2" />
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[180px] border-none shadow-none bg-slate-50 rounded-xl font-bold text-slate-600">
+                <SelectValue placeholder="Semua Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="present">Hadir Tepat Waktu</SelectItem>
+                <SelectItem value="late">Terlambat</SelectItem>
+                <SelectItem value="leave">Izin / Cuti</SelectItem>
+                <SelectItem value="sick">Sakit</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="ml-auto flex bg-slate-100 p-1 rounded-xl">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('calendar')}
+                className={cn("rounded-lg text-xs font-bold uppercase tracking-wider px-4", viewMode === 'calendar' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-900")}
+              >
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Kalender
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={cn("rounded-lg text-xs font-bold uppercase tracking-wider px-4", viewMode === 'list' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-900")}
+              >
+                <LayoutList className="h-4 w-4 mr-2" />
+                List View
+              </Button>
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-12 gap-8">
+            {/* LEFT SIDE: STATISTICS & INFO */}
+            <div className="col-span-3 space-y-6">
+              {/* Main Stats Card */}
+              <Card className="border-none shadow-xl shadow-slate-200/40 rounded-[28px] bg-gradient-to-br from-blue-600 to-blue-700 text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium text-blue-100 uppercase tracking-widest">Total Kehadiran</CardTitle>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-5xl font-black tracking-tighter">{stats.total}</span>
+                    <span className="text-sm font-bold text-blue-200">Hari</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/10 rounded-2xl p-3 backdrop-blur-sm">
+                      <div className="text-[10px] font-bold text-blue-200 uppercase mb-1">Hadir</div>
+                      <div className="text-2xl font-black">{stats.present}</div>
+                    </div>
+                    <div className="bg-white/10 rounded-2xl p-3 backdrop-blur-sm">
+                      <div className="text-[10px] font-bold text-red-200 uppercase mb-1">Telat</div>
+                      <div className="text-2xl font-black text-red-100">{stats.late}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Secondary Stats */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="border-none shadow-lg shadow-slate-200/50 rounded-3xl bg-white p-5 flex flex-col items-center justify-center gap-2 group hover:shadow-xl transition-all">
+                  <div className="h-10 w-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <LayoutList className="h-5 w-5" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-black text-slate-900">{stats.leave}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cuti</div>
+                  </div>
+                </Card>
+                <Card className="border-none shadow-lg shadow-slate-200/50 rounded-3xl bg-white p-5 flex flex-col items-center justify-center gap-2 group hover:shadow-xl transition-all">
+                  <div className="h-10 w-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Download className="h-5 w-5" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-black text-slate-900">PDF</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Export</div>
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            {/* RIGHT SIDE: CONTENT */}
+            <div className="col-span-9">
+              <Card className="border-none shadow-2xl shadow-slate-200/20 rounded-[32px] overflow-hidden bg-white ring-1 ring-slate-100 min-h-[500px]">
+                <CardContent className="p-6">
+                  {loading ? (
+                    <TableSkeleton rows={8} columns={6} />
+                  ) : viewMode === 'list' ? (
+                    attendances.length === 0 ? (
+                      <EmptyState
+                        icon={CalendarIcon}
+                        title="Tidak ada data absensi"
+                        description="Belum ada riwayat absensi untuk periode yang dipilih"
+                        action={{ label: "Absen Sekarang", onClick: () => navigate('/attendance') }}
+                      />
+                    ) : (
+                      <Table>
+                        <TableHeader className="bg-slate-50/80">
+                          <TableRow className="border-b-slate-100 hover:bg-transparent">
+                            <TableHead className="py-4 pl-6 text-xs font-black text-slate-400 uppercase tracking-widest">Tanggal</TableHead>
+                            <TableHead className="py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Jam Kerja</TableHead>
+                            <TableHead className="py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Durasi</TableHead>
+                            <TableHead className="py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Lokasi</TableHead>
+                            <TableHead className="py-4 pr-6 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Status Kehadiran</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {attendances.map((attendance) => (
+                            <TableRow key={attendance.id} className="group hover:bg-blue-50/30 border-b-slate-50 transition-colors">
+                              <TableCell className="pl-6 py-4">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-slate-900">{format(new Date(attendance.date), 'dd MMMM yyyy', { locale: id })}</span>
+                                  <span className="text-xs text-slate-400 font-medium">{format(new Date(attendance.date), 'EEEE', { locale: id })}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-4">
+                                <div className="flex items-center gap-3">
+                                  <span className={cn("text-xs font-bold px-2 py-1 rounded-lg border", attendance.is_late ? "bg-red-50 text-red-600 border-red-200" : "bg-slate-50 text-slate-600 border-slate-200")}>
+                                    {formatTime(attendance.clock_in)}
+                                  </span>
+                                  <span className="text-slate-300">-</span>
+                                  <span className="text-xs font-bold px-2 py-1 rounded-lg bg-slate-50 text-slate-600 border border-slate-200">
+                                    {formatTime(attendance.clock_out)}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-4">
+                                <span className="text-sm font-bold text-slate-700">{formatMinutes(attendance.work_hours_minutes)}</span>
+                              </TableCell>
+                              <TableCell className="py-4">
+                                {getWorkModeBadge(attendance.work_mode)}
+                              </TableCell>
+                              <TableCell className="pr-6 py-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {getStatusBadge(attendance)}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-lg hover:bg-orange-50 hover:text-orange-600"
+                                    onClick={() => handleOpenCorrection(attendance)}
+                                    title="Ajukan Koreksi"
+                                  >
+                                    <HistoryIcon className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )
+                  ) : (
+                    /* Calendar Desktop View */
+                    <div className="p-4">
+                      <div className="grid grid-cols-7 mb-4">
+                        {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((day) => (
+                          <div key={day} className="text-center py-2 text-xs font-black text-slate-400 uppercase tracking-[0.2em]">
+                            {day}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-7 gap-3">
+                        {(() => {
+                          const monthStart = startOfMonth(selectedMonth);
+                          const monthEnd = endOfMonth(monthStart);
+                          const calendarStart = startOfWeek(monthStart);
+                          const calendarEnd = endOfWeek(monthEnd);
+
+                          const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+                          return days.map((day, idx) => {
+                            const dateStr = format(day, 'yyyy-MM-dd');
+                            const attendance = attendances.find(a => a.date === dateStr);
+                            const holiday = holidays.find(h => h.date === dateStr);
+                            const isSunday = getDay(day) === 0;
+                            const isCurrentMonth = isSameMonth(day, monthStart);
+                            const isToday = isSameDay(day, new Date());
+
+                            return (
+                              <div
+                                key={idx}
+                                className={cn(
+                                  "min-h-[100px] border rounded-2xl p-3 flex flex-col justify-between transition-all group relative overflow-hidden",
+                                  !isCurrentMonth ? "bg-slate-50/40 border-transparent opacity-40" : "bg-white border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-100/50 hover:-translate-y-1",
+                                  isToday && "ring-2 ring-blue-500 ring-offset-2 border-blue-200Bg"
+                                )}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <span className={cn("text-sm font-bold", isSunday || holiday ? "text-red-500" : "text-slate-700")}>
+                                    {format(day, 'd')}
+                                  </span>
+                                </div>
+
+                                <div className="mt-2 space-y-1">
+                                  {holiday && (
+                                    <div className="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md truncate" title={holiday.name}>
+                                      {holiday.name}
+                                    </div>
+                                  )}
+                                  {attendance && (
+                                    <>
+                                      <div className={cn("text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1.5",
+                                        attendance.is_late ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700")}>
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", attendance.is_late ? "bg-red-500" : "bg-green-500")} />
+                                        {formatTime(attendance.clock_in)} - {formatTime(attendance.clock_out)}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50">
@@ -191,6 +614,16 @@ export default function HistoryPage() {
               >
                 <Download className="mr-2 h-4 w-4" />
                 PDF
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="bg-white hover:bg-white/90 text-green-700 border-none shadow-lg font-bold transition-all active:scale-95"
+                onClick={handleExportExcel}
+                disabled={loading || attendances.length === 0}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                XLSX
               </Button>
 
             </div>
@@ -392,7 +825,7 @@ export default function HistoryPage() {
                                 </div>
 
                                 {/* Status */}
-                                <div className="col-span-4 flex justify-end">
+                                <div className="col-span-4 flex justify-end items-center gap-2">
                                   {attendance.is_late ? (
                                     <Badge variant="outline" className="text-[10px] px-1.5 h-5 text-red-600 bg-red-50 border-red-200">Telat</Badge>
                                   ) : attendance.status === 'present' ? (
@@ -400,6 +833,14 @@ export default function HistoryPage() {
                                   ) : (
                                     <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-slate-50">{attendance.status}</Badge>
                                   )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 rounded-lg hover:bg-orange-50 text-orange-600"
+                                    onClick={() => handleOpenCorrection(attendance)}
+                                  >
+                                    <HistoryIcon className="h-3.5 w-3.5" />
+                                  </Button>
                                 </div>
                               </div>
                             ))}
@@ -556,6 +997,108 @@ export default function HistoryPage() {
           </Card>
         </div>
       </div>
+
+      {/* ATTENDANCE CORRECTION DIALOG */}
+      <Dialog open={isCorrectionOpen} onOpenChange={setIsCorrectionOpen}>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-none rounded-[32px] bg-white shadow-2xl">
+          <DialogHeader className="p-8 bg-gradient-to-br from-orange-500 to-amber-600 text-white relative overflow-hidden">
+            <div className="absolute right-0 top-0 h-32 w-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+            <div className="relative z-10">
+              <DialogTitle className="text-2xl font-black tracking-tight mb-2 flex items-center gap-2">
+                <HistoryIcon className="h-6 w-6" /> Ajukan Koreksi
+              </DialogTitle>
+              <DialogDescription className="text-orange-100 font-medium">
+                Berikan data absensi yang benar untuk tanggal {selectedAttendance && format(new Date(selectedAttendance.date), 'dd MMMM yyyy', { locale: id })}.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <div className="p-8 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Jam Masuk Baru</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    type="time"
+                    value={correctionForm.corrected_clock_in}
+                    onChange={(e) => setCorrectionForm({ ...correctionForm, corrected_clock_in: e.target.value })}
+                    className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 font-bold focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Jam Pulang Baru</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    type="time"
+                    value={correctionForm.corrected_clock_out}
+                    onChange={(e) => setCorrectionForm({ ...correctionForm, corrected_clock_out: e.target.value })}
+                    className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 font-bold focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Alasan Koreksi</Label>
+              <Textarea
+                placeholder="Contoh: Lupa absen karena rapat mendadak, atau kendala perangkat..."
+                value={correctionForm.reason}
+                onChange={(e) => setCorrectionForm({ ...correctionForm, reason: e.target.value })}
+                className="min-h-[100px] rounded-2xl border-slate-200 bg-slate-50 p-4 focus:ring-orange-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Lampiran Bukti (Opsional)</Label>
+              <div className="relative group">
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setCorrectionProof(e.target.files ? e.target.files[0] : null)}
+                  className="hidden"
+                  id="correction-upload"
+                />
+                <label
+                  htmlFor="correction-upload"
+                  className="flex items-center justify-center gap-3 h-14 w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-orange-50 hover:border-orange-200 transition-all cursor-pointer"
+                >
+                  <Upload className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                  <span className="text-sm font-bold text-slate-500 group-hover:text-orange-600">
+                    {correctionProof ? correctionProof.name : "Upload Foto/Bukti"}
+                  </span>
+                </label>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium px-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> Mendukung format JPG, PNG, atau PDF.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100 flex-col sm:flex-row gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsCorrectionOpen(false)}
+              className="w-full sm:w-auto h-12 rounded-2xl border-slate-200 text-slate-600 font-bold hover:bg-white"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleCorrectionSubmit}
+              disabled={submittingCorrection}
+              className="w-full sm:w-auto flex-1 h-12 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-black shadow-lg shadow-orange-200 transition-all active:scale-95"
+            >
+              {submittingCorrection ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengirim...</>
+              ) : (
+                <><FileCheck className="mr-2 h-4 w-4" /> Kirim Pengajuan</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

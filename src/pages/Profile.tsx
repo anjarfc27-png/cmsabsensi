@@ -42,12 +42,18 @@ import {
   Fingerprint,
   Info,
   Image as ImageIcon,
-  X
+  X,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera as CapCamera } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 const CONSENT_VERSION = 'biometric_v1';
 
@@ -61,6 +67,30 @@ export default function ProfilePage() {
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
 
   const [faceDataRegistered, setFaceDataRegistered] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Check dark mode preference
+    const darkMode = document.documentElement.classList.contains('dark') ||
+      localStorage.getItem('theme') === 'dark';
+    setIsDarkMode(darkMode);
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  const toggleDarkMode = (enabled: boolean) => {
+    setIsDarkMode(enabled);
+    if (enabled) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      toast({ title: 'Dark Mode Aktif', description: 'Tampilan aplikasi beralih ke mode gelap.' });
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      toast({ title: 'Light Mode Aktif', description: 'Tampilan aplikasi beralih ke mode terang.' });
+    }
+  };
 
   useEffect(() => {
     setFaceLoginEnabled(localStorage.getItem('face_login_enabled') === 'true');
@@ -70,6 +100,53 @@ export default function ProfilePage() {
       stopCamera();
     };
   }, [user]);
+
+  const [deptManager, setDeptManager] = useState<any>(null);
+  const [isEditingDept, setIsEditingDept] = useState(false);
+  const [deptForm, setDeptForm] = useState({ name: '', description: '' });
+  const [savingDept, setSavingDept] = useState(false);
+
+  useEffect(() => {
+    if (profile?.department_id) {
+      supabase.from('profiles')
+        .select('full_name, email, avatar_url, position')
+        .eq('department_id', profile.department_id)
+        .eq('role', 'manager')
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => setDeptManager(data));
+    }
+    if (profile?.department) {
+      setDeptForm({
+        name: profile.department.name,
+        description: profile.department.description || ''
+      });
+    }
+  }, [profile?.department_id, profile?.department]);
+
+  const handleUpdateDept = async () => {
+    if (!profile?.department_id) return;
+    setSavingDept(true);
+    try {
+      const { error } = await supabase
+        .from('departments')
+        .update({
+          name: deptForm.name,
+          description: deptForm.description
+        })
+        .eq('id', profile.department_id);
+
+      if (error) throw error;
+      toast({ title: 'Berhasil', description: 'Informasi departemen telah diperbarui.' });
+      setIsEditingDept(false);
+      refreshProfile();
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Gagal', description: 'Gagal memperbarui departemen.', variant: 'destructive' });
+    } finally {
+      setSavingDept(false);
+    }
+  };
 
   const checkFaceRegistration = async () => {
     if (!user) return;
@@ -365,6 +442,428 @@ export default function ProfilePage() {
     }
   };
 
+  const isMobile = useIsMobile();
+
+  // ... (Permission checking logic is shared) ...
+
+  if (!isMobile) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-7xl mx-auto p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Profil Karyawan</h1>
+              <p className="text-slate-500 font-medium mt-1">Kelola informasi pribadi dan pengaturan akun Anda.</p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={() => setLogoutDialogOpen(true)}
+              className="rounded-xl font-bold shadow-lg shadow-red-200"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-12 gap-8">
+            {/* LEFT COLUMN: Profile Card */}
+            <div className="col-span-4 space-y-6">
+              <Card className="border-none shadow-2xl shadow-slate-200/50 rounded-[28px] overflow-visible bg-white relative">
+                <div className="h-32 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-t-[28px]" />
+                <div className="px-8 -mt-16 flex flex-col items-center">
+                  <div className="relative group cursor-pointer" onClick={() => setAvatarDialogOpen(true)}>
+                    <Avatar className="h-32 w-32 border-4 border-white shadow-xl">
+                      <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
+                      <AvatarFallback className="text-3xl bg-slate-100 font-black text-slate-400">
+                        {profile?.full_name?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                      <Camera className="h-8 w-8 text-white" />
+                    </div>
+                    <div className="absolute bottom-1 right-1 h-8 w-8 bg-white rounded-full flex items-center justify-center shadow-md">
+                      <div className={cn("h-5 w-5 rounded-full", faceDataRegistered ? "bg-green-500" : "bg-slate-300")} />
+                    </div>
+                  </div>
+
+                  <div className="text-center mt-4 mb-6">
+                    <h2 className="text-2xl font-black text-slate-900">{profile?.full_name}</h2>
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                      <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-none px-3 py-1">
+                        {profile?.position || 'Employee'}
+                      </Badge>
+                      <Badge variant="outline" className="border-slate-200 text-slate-500">
+                        {profile?.employee_id || 'ID: --'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="w-full grid grid-cols-2 gap-3 mb-8">
+                    <div className="p-3 bg-slate-50 rounded-xl text-center border border-slate-100">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Status</div>
+                      <div className="font-black text-green-600 flex items-center justify-center gap-1.5 mt-1">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                        Active
+                      </div>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl text-center border border-slate-100">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Tipe</div>
+                      <div className="font-black text-slate-700 mt-1">Full Time</div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Quick Documents */}
+              <Card className="border-none shadow-xl shadow-slate-200/30 rounded-3xl bg-white overflow-hidden">
+                <CardHeader>
+                  <CardTitle className="text-lg font-black text-slate-900">Dokumen</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    className="w-full justify-start h-12 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700"
+                    variant="outline"
+                    onClick={() => navigate('/salary-slips')}
+                  >
+                    <FileText className="mr-3 h-5 w-5 text-blue-500" />
+                    Lihat Slip Gaji
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* RIGHT COLUMN: Settings & Info */}
+            <div className="col-span-8 space-y-6">
+              {/* Personal Info */}
+              <Card className="border-none shadow-xl shadow-slate-200/30 rounded-3xl bg-white overflow-hidden">
+                <CardHeader className="border-b border-slate-50 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                      <User className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-black text-slate-900">Informasi Pribadi</CardTitle>
+                      <CardDescription>Detail kontak dan informasi dasar akun Anda.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</Label>
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 font-bold text-slate-700">
+                      <Mail className="h-4 w-4 text-slate-400" />
+                      {user?.email}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nomer Telepon</Label>
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 font-bold text-slate-700">
+                      <Phone className="h-4 w-4 text-slate-400" />
+                      {profile?.phone || '-'}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Departemen</Label>
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 font-bold text-slate-700">
+                      <Building className="h-4 w-4 text-slate-400" />
+                      {(profile as any)?.department?.name || '-'}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tanggal Bergabung</Label>
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 font-bold text-slate-700">
+                      <Calendar className="h-4 w-4 text-slate-400" />
+                      {profile?.join_date ? format(new Date(profile.join_date), 'dd MMMM yyyy', { locale: id }) : '-'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Department Info & Management */}
+              <Card className="border-none shadow-xl shadow-slate-200/30 rounded-3xl bg-white overflow-hidden">
+                <CardHeader className="border-b border-slate-50 pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                        <Building className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg font-black text-slate-900">Informasi Departemen</CardTitle>
+                        <CardDescription>Detail organisasi dan pimpinan Anda.</CardDescription>
+                      </div>
+                    </div>
+                    {profile?.role === 'manager' && (
+                      <Button variant="outline" size="sm" onClick={() => setIsEditingDept(true)} className="rounded-xl border-blue-200 text-blue-600 font-bold">
+                        Edit Unit
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  {/* General Dept Info */}
+                  <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-blue-600 font-black text-lg">
+                      {((profile as any)?.department?.name || 'D').substring(0, 1)}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-slate-900">{(profile as any)?.department?.name || 'Belum Ditentukan'}</h4>
+                      <p className="text-xs text-slate-500 mt-1">{(profile as any)?.department?.description || 'Tidak ada deskripsi departemen.'}</p>
+                    </div>
+                  </div>
+
+                  {/* Manager Info */}
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pimpinan Departemen</Label>
+                    {deptManager ? (
+                      <div className="flex items-center gap-4 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                        <Avatar className="h-10 w-10 border-2 border-slate-50">
+                          <AvatarImage src={deptManager.avatar_url || ''} />
+                          <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
+                            {deptManager.full_name?.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-900 truncate">{deptManager.full_name}</p>
+                          <p className="text-[10px] text-slate-500 font-medium truncate">{deptManager.position || 'Manager Departemen'}</p>
+                        </div>
+                        <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-600 border-blue-100 px-2 py-0.5">MANAGER</Badge>
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center border-2 border-dashed border-slate-100 rounded-2xl">
+                        <p className="text-xs text-slate-400 font-medium italic">Manager belum ditunjuk</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Edit Department Dialog */}
+              <Dialog open={isEditingDept} onOpenChange={setIsEditingDept}>
+                <DialogContent className="rounded-[28px] max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-black text-slate-900">Edit Pengaturan Unit</DialogTitle>
+                    <DialogDescription>Perbarui nama dan deskripsi departemen Anda.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label className="font-bold text-slate-700">Nama Departemen</Label>
+                      <Input
+                        value={deptForm.name}
+                        onChange={e => setDeptForm({ ...deptForm, name: e.target.value })}
+                        className="rounded-xl h-11 border-slate-200"
+                        placeholder="Contoh: IT Support"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold text-slate-700">Deskripsi / Moto</Label>
+                      <Input
+                        value={deptForm.description}
+                        onChange={e => setDeptForm({ ...deptForm, description: e.target.value })}
+                        className="rounded-xl h-11 border-slate-200"
+                        placeholder="Moto atau deskripsi singkat..."
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="ghost" className="rounded-xl" onClick={() => setIsEditingDept(false)}>Batal</Button>
+                    <Button
+                      className="rounded-xl bg-blue-600 hover:bg-blue-700 font-bold"
+                      onClick={handleUpdateDept}
+                      disabled={savingDept}
+                    >
+                      {savingDept ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                      Simpan Perubahan
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Security Settings */}
+              <Card className="border-none shadow-xl shadow-slate-200/30 rounded-3xl bg-white overflow-hidden">
+                <CardHeader className="border-b border-slate-50 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-black text-slate-900">Keamanan & Login</CardTitle>
+                      <CardDescription>Atur metode keamanan untuk akses akun.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  {/* Theme Settings (NEW) */}
+                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm">
+                        {isDarkMode ? <Moon className="h-5 w-5 text-indigo-400" /> : <Sun className="h-5 w-5 text-amber-500" />}
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 dark:text-white">Mode Gelap (Dark Mode)</p>
+                        <p className="text-xs text-slate-400">Atur tampilan aplikasi agar lebih nyaman di mata.</p>
+                      </div>
+                    </div>
+                    <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl relative overflow-hidden group">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-400">
+                        <ScanFace className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-400">Data Wajah</p>
+                          <Badge variant="secondary" className="text-[9px] bg-slate-200 text-slate-500 border-none px-1.5 h-4">Segera Hadir</Badge>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                          {faceDataRegistered ? 'Wajah Anda sudah terdaftar untuk absensi.' : 'Fitur pengenalan wajah akan segera tersedia.'}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="rounded-lg font-bold opacity-50 cursor-not-allowed"
+                      disabled
+                    >
+                      Daftarkan Wajah
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="flex items-center justify-between p-4 bg-slate-50/50 border border-slate-100 rounded-2xl">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-400">Login Wajah</p>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold text-blue-600 uppercase tracking-tighter">Segera Hadir</p>
+                      </div>
+                      <Switch checked={false} disabled />
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl">
+                      <div className="space-y-1">
+                        <p className="font-bold text-slate-900">Biometrik Device</p>
+                        <p className="text-[10px] text-slate-400">Fingerprint / FaceID HP</p>
+                      </div>
+                      <Switch checked={fingerprintEnabled} onCheckedChange={toggleFingerprint} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Permissions */}
+              <Card className="border-none shadow-xl shadow-slate-200/30 rounded-3xl bg-white overflow-hidden">
+                <CardHeader className="border-b border-slate-50 pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-orange-50 rounded-lg text-orange-600">
+                        <Lock className="h-5 w-5" />
+                      </div>
+                      <CardTitle className="text-lg font-black text-slate-900">Izin Aplikasi</CardTitle>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={checkAllPermissions} className="text-blue-600">
+                      <RefreshCw className={cn("h-4 w-4 mr-2", checkingPermissions && "animate-spin")} />
+                      Cek Izin
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 grid grid-cols-2 gap-4">
+                  {[
+                    { icon: <Camera className="h-4 w-4" />, label: 'Kamera', status: cameraPermission, action: requestCameraPermission },
+                    { icon: <MapPin className="h-4 w-4" />, label: 'Lokasi', status: locationPermission, action: requestLocationPermission },
+                    { icon: <Bell className="h-4 w-4" />, label: 'Notifikasi', status: notificationPermission, action: requestNotificationPermission },
+                    { icon: <HardDrive className="h-4 w-4" />, label: 'Storage', status: storagePermission, action: null }
+                  ].map((perm, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white shadow-sm rounded-lg text-slate-500 border border-slate-100">{perm.icon}</div>
+                        <span className="font-bold text-sm text-slate-700">{perm.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={cn("text-[10px]", (perm.status as any) === 'granted' ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-500")}>
+                          {(perm.status as any) === 'granted' ? 'GRANTED' : 'DENIED'}
+                        </Badge>
+                        {(perm.status as any) !== 'granted' && perm.action && (
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-blue-600 text-xs" onClick={() => (perm.action as any)()}>Allow</Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Logout Dialog */}
+        <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+          <DialogContent className="sm:max-w-md rounded-2xl p-8">
+            <div className="text-center space-y-4">
+              <div className="h-16 w-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <LogOut className="h-8 w-8" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900">Konfirmasi Keluar</h3>
+              <p className="text-slate-500">Apakah Anda yakin ingin keluar dari sesi ini?</p>
+              <div className="flex gap-4 mt-8">
+                <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold" onClick={() => setLogoutDialogOpen(false)}>Batal</Button>
+                <Button className="flex-1 h-12 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white" onClick={handleLogout} disabled={loggingOut}>
+                  {loggingOut ? <Loader2 className="animate-spin" /> : "Ya, Keluar"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Desktop Avatar Dialog */}
+        <Dialog open={avatarDialogOpen} onOpenChange={(open) => { if (!open) { setAvatarDialogOpen(false); stopCamera(); setAvatarSource(null); } }}>
+          <DialogContent className="sm:max-w-lg rounded-2xl p-0 overflow-hidden bg-white">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-black text-xl text-slate-900">Ubah Foto Profil</h3>
+              <Button variant="ghost" size="icon" onClick={() => setAvatarDialogOpen(false)}><X className="h-5 w-5" /></Button>
+            </div>
+            <div className="p-8">
+              {!avatarSource ? (
+                <div className="grid grid-cols-2 gap-6">
+                  <div
+                    onClick={async () => { setAvatarSource('camera'); try { await startCamera(); } catch (e) { } }}
+                    className="cursor-pointer group p-8 border-2 border-dashed border-slate-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition-all text-center space-y-4"
+                  >
+                    <div className="h-16 w-16 mx-auto bg-blue-100 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Camera className="h-8 w-8" />
+                    </div>
+                    <p className="font-bold text-slate-700">Ambil Foto</p>
+                  </div>
+                  <div
+                    onClick={() => document.getElementById('desktop-avatar-input')?.click()}
+                    className="cursor-pointer group p-8 border-2 border-dashed border-slate-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all text-center space-y-4"
+                  >
+                    <div className="h-16 w-16 mx-auto bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <ImageIcon className="h-8 w-8" />
+                    </div>
+                    <p className="font-bold text-slate-700">Upload dari Galeri</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="relative aspect-video rounded-2xl overflow-hidden bg-black">
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex gap-4">
+                    <Button variant="outline" className="flex-1 h-12" onClick={() => { stopCamera(); setAvatarSource(null); }}>Batal</Button>
+                    <Button className="flex-1 h-12 bg-blue-600" onClick={handleDirectCapture} disabled={uploadingAvatar}>
+                      {uploadingAvatar ? <Loader2 className="animate-spin" /> : "Ambil Foto"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <input id="desktop-avatar-input" type="file" className="hidden" accept="image/*" onChange={handleAvatarFileSelect} />
+          </DialogContent>
+        </Dialog>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50 pb-32">
@@ -447,7 +946,7 @@ export default function ProfilePage() {
                     { icon: <Mail className="h-4 w-4 text-blue-500" />, label: 'Email', value: user?.email },
                     { icon: <Phone className="h-4 w-4 text-emerald-500" />, label: 'Telepon', value: profile?.phone || '-' },
                     { icon: <Building className="h-4 w-4 text-indigo-500" />, label: 'Departemen', value: (profile as any)?.department?.name || '-' },
-                    { icon: <Calendar className="h-4 w-4 text-amber-500" />, label: 'Bergabung', value: new Date().getFullYear().toString() }
+                    { icon: <Calendar className="h-4 w-4 text-amber-500" />, label: 'Bergabung', value: profile?.join_date ? format(new Date(profile.join_date), 'dd MMMM yyyy', { locale: id }) : '-' }
                   ].map((item, idx) => (
                     <div key={idx} className="flex items-center justify-between p-4 hover:bg-slate-50 rounded-2xl transition-all group">
                       <div className="flex items-center gap-4">
@@ -599,6 +1098,22 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <Switch checked={fingerprintEnabled} onCheckedChange={toggleFingerprint} />
+                </div>
+
+                <div className="h-px bg-slate-100 dark:bg-slate-800 my-2" />
+
+                {/* Dark Mode Toggle Mobile (NEW) */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {isDarkMode ? <Moon className="h-6 w-6" /> : <Sun className="h-6 w-6" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-white">Mode Gelap (Dark Mode)</p>
+                      <p className="text-[10px] text-slate-500 leading-tight">Ubah tampilan aplikasi ke mode malam</p>
+                    </div>
+                  </div>
+                  <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
                 </div>
               </CardContent>
             </Card>

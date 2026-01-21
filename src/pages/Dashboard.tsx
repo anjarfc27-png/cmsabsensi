@@ -33,7 +33,11 @@ import {
   DollarSign,
   TrendingUp,
   StickyNote,
-  CalendarDays
+  CalendarDays,
+  CheckCircle2,
+  Fingerprint,
+  UserX,
+  Image
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -77,9 +81,13 @@ export default function Dashboard() {
   const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null);
   const [todaySchedule, setTodaySchedule] = useState<any>(null);
   const [stats, setStats] = useState({ present: 0, late: 0, leave: 0, overtime: 0 });
+  const [teamStats, setTeamStats] = useState({ total_employees: 0, present: 0, late: 0, leave: 0, absent: 0 });
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [upcomingActivities, setUpcomingActivities] = useState<UpcomingActivity[]>([]);
+  const [agendaPopupOpen, setAgendaPopupOpen] = useState(false);
+  const [todayAgendas, setTodayAgendas] = useState<UpcomingActivity[]>([]);
+  const [deptManager, setDeptManager] = useState<any>(null);
 
   // Announcement Form State
   const [announcementOpen, setAnnouncementOpen] = useState(false);
@@ -92,7 +100,8 @@ export default function Dashboard() {
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
 
   // Allow admin_hr OR any email containing 'admin' (for dev convenience)
-  const isAdmin = profile?.role === 'admin_hr' || profile?.email?.includes('admin');
+  // Allow admin_hr, manager OR any email containing 'admin' (for dev convenience)
+  const isAdmin = profile?.role === 'admin_hr' || profile?.role === 'manager' || profile?.email?.includes('admin');
 
   useEffect(() => {
     fetchDashboardData();
@@ -132,6 +141,18 @@ export default function Dashboard() {
         setAnnouncements(filteredAnnouncements);
       }
 
+      // Fetch Dept Manager for transparency
+      if (profile?.department_id) {
+        const { data: manager } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('department_id', profile.department_id)
+          .eq('role', 'manager')
+          .limit(1)
+          .maybeSingle();
+        setDeptManager(manager);
+      }
+
       if (monthRes.data) {
         setStats({
           present: monthRes.data.filter(a => a.status === 'present').length,
@@ -139,6 +160,36 @@ export default function Dashboard() {
           leave: monthRes.data.filter(a => a.status === 'leave').length,
           overtime: monthRes.data.reduce((acc, a) => acc + (a.work_hours_minutes && a.work_hours_minutes > 480 ? 1 : 0), 0),
         });
+      }
+
+      // Fetch Team Stats if Manager/Admin
+      if (profile?.role === 'admin_hr' || profile?.role === 'manager') {
+        let teamProfilesQuery = supabase.from('profiles').select('id').eq('is_active', true);
+        if (profile.role === 'manager' && profile.department_id) {
+          teamProfilesQuery = teamProfilesQuery.eq('department_id', profile.department_id);
+        }
+        const { data: teamProfiles } = await teamProfilesQuery;
+        const teamIds = teamProfiles?.map(p => p.id) || [];
+
+        if (teamIds.length > 0) {
+          const { data: teamAttToday } = await supabase
+            .from('attendances')
+            .select('user_id, status, is_late')
+            .eq('date', today)
+            .in('user_id', teamIds);
+
+          const presentCount = teamAttToday?.filter(a => a.status === 'present').length || 0;
+          const lateCount = teamAttToday?.filter(a => a.is_late).length || 0;
+          const leaveCount = teamAttToday?.filter(a => a.status === 'leave').length || 0;
+
+          setTeamStats({
+            total_employees: teamIds.length,
+            present: presentCount,
+            late: lateCount,
+            leave: leaveCount,
+            absent: Math.max(0, teamIds.length - presentCount - leaveCount)
+          });
+        }
       }
 
       // Fetch Upcoming Activities (Agenda & Notes)
@@ -179,9 +230,23 @@ export default function Dashboard() {
         is_completed: n.is_completed
       }));
 
-      setUpcomingActivities([...agendaActivities, ...noteActivities].sort((a, b) =>
+      const sortedActivities = [...agendaActivities, ...noteActivities].sort((a, b) =>
         new Date(a.time).getTime() - new Date(b.time).getTime()
-      ).slice(0, 3));
+      );
+
+      setUpcomingActivities(sortedActivities.slice(0, 3));
+
+      const agendasOnly = sortedActivities.filter(act => act.type === 'agenda');
+      setTodayAgendas(agendasOnly);
+
+      // Check if we should show the popup (once per session/day)
+      const popupShownKey = `agenda_popup_shown_${today}_${user.id}`;
+      const alreadyShown = sessionStorage.getItem(popupShownKey);
+
+      if (agendasOnly.length > 0 && !alreadyShown) {
+        setAgendaPopupOpen(true);
+        sessionStorage.setItem(popupShownKey, 'true');
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -286,9 +351,21 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-[9px] text-blue-50 font-bold opacity-80 uppercase tracking-widest leading-none mb-1">{getGreeting()} 👋</p>
                   <h1 className="text-base font-black tracking-tight text-white drop-shadow-md leading-none truncate">{profile?.full_name?.split(' ')[0]}</h1>
-                  <p className="text-[8px] text-white/70 font-bold mt-1.5 bg-black/20 px-2 py-0.5 rounded-full inline-block backdrop-blur-sm border border-white/10 uppercase tracking-tighter">
-                    {profile?.employee_id || 'ID: --'}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-1.5 min-w-0">
+                    <p className="text-[8px] text-white/70 font-bold bg-black/20 px-2 py-0.5 rounded-full inline-block backdrop-blur-sm border border-white/10 uppercase tracking-tighter">
+                      {profile?.employee_id || 'ID: --'}
+                    </p>
+                    {deptManager && profile?.role !== 'manager' && (
+                      <p className="text-[7px] text-blue-100 font-bold bg-white/10 px-1.5 py-0.5 rounded-full backdrop-blur-sm truncate border border-white/5 uppercase">
+                        SV: {deptManager.full_name}
+                      </p>
+                    )}
+                    {profile?.role === 'manager' && (
+                      <p className="text-[7px] text-amber-100 font-bold bg-amber-500/20 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-amber-500/20 uppercase">
+                        Unit Manager
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -309,6 +386,49 @@ export default function Dashboard() {
               <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
                 <div className="h-1 w-3 bg-blue-500 rounded-full" /> Menu Karyawan
               </h3>
+
+              {/* Mobile Only: Today's Agenda Highlight */}
+              {isMobile && todayAgendas.length > 0 && (
+                <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-700">
+                  <div className="bg-indigo-600 rounded-[20px] p-4 text-white shadow-lg shadow-indigo-200 overflow-hidden relative group">
+                    <div className="absolute right-0 top-0 h-16 w-16 bg-white/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="h-6 w-6 bg-white/20 rounded-lg flex items-center justify-center">
+                        <Calendar className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Agenda Hari Ini</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {todayAgendas.slice(0, 2).map((act) => (
+                        <div key={act.id} className="flex items-start gap-3">
+                          <div className="text-sm font-black tabular-nums border-r border-white/20 pr-3 h-full flex flex-col justify-center">
+                            {format(new Date(act.time), 'HH:mm')}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-black text-white line-clamp-1 truncate">{act.title}</h4>
+                            <p className="text-[10px] font-bold text-indigo-100/70 flex items-center gap-1 mt-0.5">
+                              <MapPin className="h-2.5 w-2.5" />
+                              <span className="truncate">{act.location || 'Lokasi tidak ditentukan'}</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate('/agenda')}
+                      className="w-full mt-4 h-8 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-1 border-0"
+                    >
+                      Buka Kalender Agenda <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="my-4 border-t border-slate-50" />
+                </div>
+              )}
+
               <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
                 <div data-tour="quick-action"><MenuGridItem href="/attendance" icon={Clock} label="Absen" color="text-blue-600" bg="bg-blue-50" /></div>
                 <div data-tour="nav-history"><MenuGridItem href="/history" icon={Calendar} label="Riwayat" color="text-purple-600" bg="bg-purple-50" /></div>
@@ -316,6 +436,7 @@ export default function Dashboard() {
                 <MenuGridItem href="/overtime" icon={Clock} label="Lembur" color="text-red-500" bg="bg-red-50" />
                 <div data-tour="nav-schedule"><MenuGridItem href="/agenda" icon={Calendar} label="Agenda" color="text-indigo-600" bg="bg-indigo-50" /></div>
                 <MenuGridItem href="/notes" icon={StickyNote} label="Catatan" color="text-yellow-600" bg="bg-yellow-100/50" />
+                <MenuGridItem href="/albums" icon={Image} label="Album" color="text-pink-600" bg="bg-pink-50" />
 
                 <MenuGridItem href="/reimbursement" icon={Receipt} label="Klaim" color="text-emerald-600" bg="bg-emerald-50" isComingSoon />
                 <MenuGridItem href="/salary-slips" icon={Wallet} label="Gaji" color="text-teal-600" bg="bg-teal-50" isComingSoon />
@@ -373,13 +494,13 @@ export default function Dashboard() {
                   </h3>
                   <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
                     <MenuGridItem href="/team-map" icon={Users} label="Pantau" color="text-cyan-600" bg="bg-cyan-50" />
-                    <MenuGridItem href="/employees" icon={Users} label="Staff" color="text-indigo-600" bg="bg-indigo-50" roles={['admin_hr']} />
-                    <MenuGridItem href="/shifts" icon={Clock} label="Shift" color="text-pink-600" bg="bg-pink-50" roles={['admin_hr']} />
+                    <MenuGridItem href="/employees" icon={Users} label="Staff" color="text-indigo-600" bg="bg-indigo-50" roles={['admin_hr', 'manager']} />
+                    <MenuGridItem href="/shifts" icon={Clock} label="Shift" color="text-pink-600" bg="bg-pink-50" roles={['admin_hr', 'manager']} />
                     <MenuGridItem href="/holidays" icon={CalendarDays} label="Libur" color="text-red-600" bg="bg-red-50" roles={['admin_hr']} />
                     <MenuGridItem href="/approvals" icon={ClipboardCheck} label="Approval" color="text-amber-600" bg="bg-amber-50" />
                     <MenuGridItem href="/payroll" icon={DollarSign} label="Payroll" color="text-green-600" bg="bg-green-50" roles={['admin_hr']} />
                     <MenuGridItem href="/locations" icon={MapPin} label="Lokasi" color="text-rose-600" bg="bg-rose-50" roles={['admin_hr']} />
-                    <MenuGridItem href="/reports" icon={BarChart3} label="Laporan" color="text-slate-600" bg="bg-slate-50" />
+                    <MenuGridItem href="/reports" icon={BarChart3} label="Laporan" color="text-slate-600" bg="bg-slate-50" roles={['admin_hr', 'manager']} />
                   </div>
                 </>
               )}
@@ -506,7 +627,7 @@ export default function Dashboard() {
                       date={item.date}
                       image={item.image}
                       onClick={() => setSelectedArticle(item)}
-                      onDelete={item.onDelete}
+                      onDelete={'onDelete' in item ? item.onDelete : undefined}
                     />
                   ));
                 })()}
@@ -605,158 +726,409 @@ export default function Dashboard() {
   }
 
   // -------------------------------------------------------------------------
-  // RENDER DESKTOP LAYOUT (Unified)
+  // RENDER DESKTOP LAYOUT (Premium V2)
   // -------------------------------------------------------------------------
   return (
     <DashboardLayout>
       <DashboardTour />
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Desktop Welcome Section */}
+      <div className="max-w-7xl mx-auto space-y-8 px-6 py-8">
+
+        {/* Header Section - Simplified to Greeting only */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">{getGreeting()}, {profile?.full_name}</h1>
-            <p className="text-slate-500 mt-1 font-medium">Selamat datang kembali di sistem HRIS.</p>
+          <div className="space-y-1">
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
+              {getGreeting()}, <span className="text-blue-600">{profile?.full_name?.split(' ')[0]}</span>
+            </h1>
+            <div className="flex flex-col gap-1">
+              <p className="text-base text-slate-500 font-medium max-w-lg">
+                Selamat datang di dashboard absensi. Pantau produktivitas dan kelola jadwal Anda hari ini.
+              </p>
+              {deptManager && profile?.role !== 'manager' && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="text-[10px] font-black bg-blue-50 text-blue-600 border-blue-100 px-2 h-5">
+                    MANAGER UNIT: {deptManager.full_name.toUpperCase()}
+                  </Badge>
+                </div>
+              )}
+              {profile?.role === 'manager' && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="text-[10px] font-black bg-amber-50 text-amber-700 border-amber-200 px-2 h-5">
+                    MANAJER UNIT: {((profile as any)?.department?.name || 'UNIT').toUpperCase()}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="hidden lg:flex items-center gap-4">
+            <div className="h-12 px-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center text-sm font-bold text-slate-600">
+              {format(new Date(), 'EEEE, d MMMM yyyy', { locale: id })}
+            </div>
           </div>
         </div>
 
-        {/* Desktop Statistics Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-none shadow-xl bg-white rounded-3xl overflow-hidden hover:scale-105 transition-all">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Kehadiran</p>
-                <Clock className="h-5 w-5 text-green-500" />
-              </div>
-              <div className="text-3xl font-black text-slate-900">{stats.present}</div>
-              <p className="text-xs text-slate-400 mt-1">Tepat waktu bulan ini</p>
-            </CardContent>
-          </Card>
+        {/* Main Grid Layout */}
+        <div className="grid lg:grid-cols-12 gap-8">
 
-          <Card className="border-none shadow-xl bg-white rounded-3xl overflow-hidden hover:scale-105 transition-all">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Terlambat</p>
-                <AlertCircle className="h-5 w-5 text-red-500" />
-              </div>
-              <div className="text-3xl font-black text-slate-900">{stats.late}</div>
-              <p className="text-xs text-slate-400 mt-1">Sesi terlambat terdeteksi</p>
-            </CardContent>
-          </Card>
+          {/* LEFT PRIMARY COLUMN (8 Cols) */}
+          <div className="lg:col-span-8 space-y-8">
 
-          <Card className="border-none shadow-xl bg-white rounded-3xl overflow-hidden hover:scale-105 transition-all">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Cuti / Izin</p>
-                <Calendar className="h-5 w-5 text-blue-500" />
-              </div>
-              <div className="text-3xl font-black text-slate-900">{stats.leave}</div>
-              <p className="text-xs text-slate-400 mt-1">Hari absen terdaftar</p>
-            </CardContent>
-          </Card>
+            {/* 1. Hero Card - Status & Quick Action */}
+            <Card className={cn(
+              "border-none overflow-hidden relative group transition-all duration-500 hover:shadow-2xl shadow-xl",
+              todayAttendance && !todayAttendance.clock_out
+                ? "bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 shadow-orange-200"
+                : todayAttendance?.clock_out
+                  ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-teal-200"
+                  : "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 shadow-blue-200/50"
+            )}>
+              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full -mr-64 -mt-64 blur-3xl" />
+              <CardContent className="p-8 relative">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/20">
+                      <Clock className="h-3.5 w-3.5 text-white" />
+                      <span className="text-[11px] font-black text-white uppercase tracking-widest">
+                        {todaySchedule?.is_day_off ? 'Hari Libur' : 'Status Absensi'}
+                      </span>
+                    </div>
 
-          <Card className="border-none shadow-xl bg-white rounded-3xl overflow-hidden hover:scale-105 transition-all">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Lembur</p>
-                <Briefcase className="h-5 w-5 text-orange-500" />
-              </div>
-              <div className="text-3xl font-black text-slate-900">{stats.overtime}</div>
-              <p className="text-xs text-slate-400 mt-1">Sesi lembur divalidasi</p>
-            </CardContent>
-          </Card>
-        </div>
+                    <div>
+                      <h2 className="text-4xl font-black text-white mb-2 tracking-tight">
+                        {todaySchedule?.is_day_off
+                          ? 'Selamat Berlibur! 🏖️'
+                          : todayAttendance
+                            ? (todayAttendance.clock_out ? 'Kerja Bagus Hari Ini!' : 'Selamat Bekerja!') // Custom greeting based on state
+                            : 'Jangan Lupa Absen!'}
+                      </h2>
+                      <p className="text-blue-100 font-medium text-lg">
+                        {todaySchedule?.is_day_off
+                          ? 'Nikmati waktu istirahat Anda.'
+                          : todayAttendance
+                            ? (todayAttendance.clock_out ? 'Anda sudah menyelesaikan jam kerja hari ini.' : 'Waktu terus berjalan, semangat produktif!')
+                            : 'Silakan lakukan Clock In untuk memulai hari.'}
+                      </p>
+                    </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Today Status Card */}
-          <Card className="lg:col-span-2 border-none shadow-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-[32px]">
-            <CardContent className="p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm mb-2">Status Absensi Hari Ini</p>
-                  <h2 className="text-3xl font-black mb-1">
-                    {todayAttendance ? (todayAttendance.clock_out ? 'Sudah Selesai' : 'Sedang Bekerja') : 'Belum Absen'}
-                  </h2>
-                  {todayAttendance && (
-                    <p className="text-blue-100">
-                      Masuk: {format(new Date(todayAttendance.clock_in), 'HH:mm')}
-                      {todayAttendance.clock_out && ` • Pulang: ${format(new Date(todayAttendance.clock_out), 'HH:mm')}`}
-                    </p>
+                    {todayAttendance && !todaySchedule?.is_day_off && (
+                      <div className="flex items-center gap-6 pt-2">
+                        <div>
+                          <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Waktu Masuk</p>
+                          <div className="text-2xl font-black text-white font-mono bg-white/10 px-3 py-1 rounded-lg backdrop-blur-sm inline-block">
+                            {format(new Date(todayAttendance.clock_in), 'HH:mm')}
+                          </div>
+                        </div>
+                        {todayAttendance.clock_out && (
+                          <div>
+                            <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Waktu Pulang</p>
+                            <div className="text-2xl font-black text-white font-mono bg-white/10 px-3 py-1 rounded-lg backdrop-blur-sm inline-block">
+                              {format(new Date(todayAttendance.clock_out), 'HH:mm')}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {!todaySchedule?.is_day_off && (
+                    <div className="flex flex-col items-center gap-3">
+                      <Button
+                        size="lg"
+                        onClick={() => navigate('/attendance')}
+                        className="h-16 px-8 bg-white hover:bg-slate-50 text-slate-900 border-none rounded-2xl font-black text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
+                      >
+                        <Fingerprint className="h-6 w-6 mr-3 text-blue-600" />
+                        {todayAttendance && !todayAttendance.clock_out ? 'Clock Out Status' : 'Absen Sekarang'}
+                      </Button>
+                      <p className="text-xs text-white/60 font-medium">Lokasi Anda Terpantau</p>
+                    </div>
                   )}
                 </div>
-                <Button
-                  size="lg"
-                  onClick={() => navigate('/attendance')}
-                  className="bg-white text-blue-700 hover:bg-blue-50 rounded-2xl px-8 font-black shadow-xl"
-                >
-                  {todayAttendance && !todayAttendance.clock_out ? 'Absen Pulang' : 'Buka Absensi'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Desktop Announcements */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-                Berita & Pengumuman
-              </h3>
-              <Button variant="ghost" className="text-blue-600" onClick={() => navigate('/information')}>
-                Lihat Semua <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {announcements.length > 0 ? (
-                announcements.map((ann) => (
-                  <Card key={ann.id} className="border-none shadow-lg bg-white rounded-2xl cursor-pointer hover:bg-slate-50 transition-colors">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-1">
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 bg-blue-50 text-blue-700">Info</Badge>
-                        <span className="text-[10px] text-slate-400">{format(new Date(ann.created_at), 'd MMM yyyy', { locale: id })}</span>
+            {/* 2. Stats Grid - Clean & Big */}
+            <div className="grid grid-cols-4 gap-6">
+              {[
+                {
+                  label: isAdmin ? 'Hadir (Tim)' : 'Hadir',
+                  value: isAdmin ? teamStats.present : stats.present,
+                  icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'ring-emerald-100',
+                  sub: isAdmin ? `${teamStats.total_employees} Total` : 'Bulan Ini'
+                },
+                {
+                  label: isAdmin ? 'Terlambat (Tim)' : 'Terlambat',
+                  value: isAdmin ? teamStats.late : stats.late,
+                  icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', ring: 'ring-red-100',
+                  sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
+                },
+                {
+                  label: isAdmin ? 'Cuti (Tim)' : 'Cuti / Izin',
+                  value: isAdmin ? teamStats.leave : stats.leave,
+                  icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-50', ring: 'ring-blue-100',
+                  sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
+                },
+                {
+                  label: isAdmin ? 'Mangkir (Tim)' : 'Lembur',
+                  value: isAdmin ? teamStats.absent : stats.overtime,
+                  icon: isAdmin ? UserX : Briefcase,
+                  color: isAdmin ? 'text-slate-600' : 'text-orange-600',
+                  bg: isAdmin ? 'bg-slate-100' : 'bg-orange-50',
+                  ring: isAdmin ? 'ring-slate-200' : 'ring-orange-100',
+                  sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
+                }
+              ].map((stat, i) => (
+                <Card key={i} className="border-none shadow-lg shadow-slate-200/40 hover:shadow-xl transition-all hover:-translate-y-1 group bg-white ring-1 ring-slate-100/50">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm", stat.bg, stat.color)}>
+                        <stat.icon className="h-6 w-6" />
                       </div>
-                      <h4 className="font-bold text-sm text-slate-800 mb-1 mt-2 line-clamp-1">{ann.title}</h4>
-                      <p className="text-xs text-slate-500 line-clamp-2">{ann.content}</p>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <Card className="border-dashed border-2 border-slate-200 shadow-none bg-transparent">
-                  <CardContent className="p-6 text-center text-slate-400 text-sm">
-                    Tidak ada pengumuman saat ini.
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Desktop Article Feed (Added to match Mobile) */}
-            <Card className="border-none shadow-xl bg-white rounded-2xl p-4">
-              <CardHeader className="p-0 pb-4">
-                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-orange-500" />
-                  Artikel Terbaru
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 space-y-4">
-                {(() => {
-                  const dailyArticles = getDailyArticles();
-                  return dailyArticles.slice(0, 3).map((item, idx) => (
-                    <div key={idx} className="flex gap-3 items-center group cursor-pointer hover:bg-slate-50 p-2 rounded-xl transition-colors" onClick={() => setSelectedArticle(item)}>
-                      <div className="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
-                        {item.image ? <img src={item.image} className="h-full w-full object-cover" /> : <FileText className="h-6 w-6 text-slate-400" />}
-                      </div>
-                      <div className="min-w-0">
-                        <h5 className="text-xs font-bold text-slate-800 line-clamp-2 group-hover:text-blue-600">{item.title}</h5>
-                        <span className="text-[10px] text-slate-400">{item.date}</span>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-1 rounded-lg">
+                        {stat.sub}
                       </div>
                     </div>
-                  ));
-                })()}
-                <Button variant="ghost" size="sm" className="w-full text-xs text-blue-600 mt-2">Lihat Semua</Button>
+                    <div>
+                      <div className="text-4xl font-black text-slate-900 tracking-tight">{stat.value}</div>
+                      <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">{stat.label}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* 3. Charts Section */}
+            <div className="grid grid-cols-1 gap-6">
+              <Card className="border-none shadow-xl shadow-slate-200/40 rounded-[32px] overflow-hidden bg-white ring-1 ring-slate-100">
+                <CardHeader className="border-b border-slate-50 p-6 bg-slate-50/30">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                      <BarChart3 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-black text-slate-900">Statistik Aktivitas</CardTitle>
+                      <p className="text-xs text-slate-500 font-medium">Grafik kehadiran 7 hari terakhir</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <DashboardCharts />
+                </CardContent>
+              </Card>
+            </div>
+
+          </div>
+
+          {/* RIGHT SIDEBAR COLUMN (4 Cols) */}
+          <div className="lg:col-span-4 space-y-8">
+
+
+            {/* Announcements Widget */}
+            <Card className="border-none shadow-xl shadow-slate-200/40 rounded-[32px] overflow-hidden bg-white ring-1 ring-slate-100">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 p-6">
+                <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Megaphone className="h-5 w-5 text-orange-500" /> Info Terbaru
+                </CardTitle>
+                <Button variant="ghost" size="sm" className="text-blue-600 font-bold" onClick={() => navigate('/information')}>Lihat Semua</Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {announcements.length > 0 ? (
+                  <div className="divide-y divide-slate-50">
+                    {announcements.slice(0, 3).map((ann) => (
+                      <div key={ann.id} className="p-5 hover:bg-slate-50 transition-colors cursor-pointer group" onClick={() => navigate('/information')}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className="bg-orange-50 text-orange-700 hover:bg-orange-100 border-none text-[10px] font-black px-2 py-0.5">TERBARU</Badge>
+                          <span className="text-[10px] font-bold text-slate-400">{format(new Date(ann.created_at), 'd MMM')}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-800 line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">{ann.title}</h4>
+                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{ann.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-slate-50/50">
+                    <Info className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-slate-500">Belum ada pengumuman</p>
+                  </div>
+                )}
+                {isAdmin && (
+                  <div className="p-4 border-t border-slate-50 bg-slate-50/30">
+                    <Button onClick={() => setAnnouncementOpen(true)} className="w-full bg-white border border-slate-200 text-slate-700 hover:text-blue-600 hover:border-blue-200 shadow-sm font-bold">
+                      <Plus className="h-4 w-4 mr-2" /> Buat Pengumuman
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Agenda Widget */}
+            <Card className="border-none shadow-xl shadow-slate-200/40 rounded-[32px] overflow-hidden bg-white ring-1 ring-slate-100">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 p-6">
+                <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5 text-indigo-500" /> Agenda Hari Ini
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {upcomingActivities.length > 0 ? (
+                  <div className="divide-y divide-slate-50">
+                    {upcomingActivities.map((act) => (
+                      <div key={act.id} className="p-5 hover:bg-slate-50 transition-colors cursor-pointer group flex items-center justify-between" onClick={() => navigate(act.type === 'agenda' ? '/agenda' : '/notes')}>
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{act.title}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-[9px] h-5 bg-slate-100 text-slate-500">{format(new Date(act.time), 'HH:mm')}</Badge>
+                            {act.location && <span className="text-[10px] font-medium text-slate-400 truncate max-w-[120px]">{act.location}</span>}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-500" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-slate-50/50">
+                    <Calendar className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-slate-500">Tidak ada agenda hari ini</p>
+                    <Button variant="link" onClick={() => navigate('/agenda')} className="text-blue-600 h-auto p-0 mt-2 text-xs font-bold">Cek Agenda Mendatang</Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
           </div>
         </div>
+
+        {/* --- Dialogs (Shared with Mobile but kept here for scope) --- */}
+        {/* Article Detail Dialog */}
+        <Dialog open={!!selectedArticle} onOpenChange={(open) => !open && setSelectedArticle(null)}>
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto rounded-[32px] border-0 shadow-2xl p-0">
+            {selectedArticle && (
+              <div className="relative">
+                <div className="h-32 bg-slate-100 relative">
+                  <img src={selectedArticle.image} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <Button size="icon" variant="ghost" className="absolute top-2 right-2 text-white hover:bg-black/20 rounded-full" onClick={() => setSelectedArticle(null)}>
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none">{selectedArticle.category}</Badge>
+                    <span className="text-xs font-bold text-slate-400">{selectedArticle.date}</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-4 leading-tight">{selectedArticle.title}</h3>
+                  <div className="prose prose-sm prose-slate leading-relaxed text-slate-600">
+                    {selectedArticle.content}
+                  </div>
+                  {selectedArticle.is_generated && (
+                    <Button
+                      variant="outline"
+                      className="w-full mt-6 h-12 rounded-xl font-bold border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200"
+                      onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(selectedArticle.title)}`, '_blank')}
+                    >
+                      Baca Selengkapnya di Google <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Announcement Dialog */}
+        <Dialog open={announcementOpen} onOpenChange={setAnnouncementOpen}>
+          <DialogContent className="sm:max-w-lg rounded-[28px] p-6">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black text-slate-900">Buat Pengumuman Baru</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Judul</label>
+                <Input
+                  placeholder="Judul pengumuman..."
+                  value={announcementForm.title}
+                  onChange={e => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
+                  className="h-12 rounded-xl border-slate-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Isi Konten</label>
+                <Textarea
+                  placeholder="Tulis isi pengumuman di sini..."
+                  className="min-h-[120px] rounded-xl border-slate-200 p-4"
+                  value={announcementForm.content}
+                  onChange={e => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Tampil Sampai (Opsional)</label>
+                <Input
+                  type="datetime-local"
+                  value={announcementForm.expires_at}
+                  onChange={e => setAnnouncementForm({ ...announcementForm, expires_at: e.target.value })}
+                  className="h-12 rounded-xl border-slate-200"
+                />
+                <p className="text-[10px] font-bold text-slate-400">Jika dikosongkan, pengumuman akan tampil selamanya.</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setAnnouncementOpen(false)} className="rounded-xl font-bold text-slate-500">Batal</Button>
+              <Button onClick={handleCreateAnnouncement} disabled={submittingAnnouncement} className="bg-blue-600 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700">
+                {submittingAnnouncement ? 'Menyimpan...' : 'Posting Berita'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <DashboardTour />
+
+        {/* TODAY'S AGENDA POPUP */}
+        <Dialog open={agendaPopupOpen} onOpenChange={setAgendaPopupOpen}>
+          <DialogContent className="max-w-md p-0 overflow-hidden border-none rounded-[32px] bg-white shadow-2xl">
+            <div className="relative">
+              {/* Header with Background */}
+              <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+                <div className="absolute right-0 top-0 h-32 w-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+                <div className="relative z-10 flex flex-col items-center text-center">
+                  <div className="h-20 w-20 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md mb-4 shadow-xl">
+                    <Calendar className="h-10 w-10 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tight mb-2">Jangan Lupa Agenda Hari Ini!</h2>
+                  <p className="text-indigo-100 text-sm font-medium">Anda memiliki {todayAgendas.length} agenda yang harus dihadiri hari ini.</p>
+                </div>
+              </div>
+
+              {/* Content List */}
+              <div className="p-6 space-y-4 max-h-[350px] overflow-y-auto scrollbar-hide bg-slate-50/50">
+                {todayAgendas.map((act) => (
+                  <Card key={act.id} className="border-none shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group" onClick={() => { setAgendaPopupOpen(false); navigate('/agenda'); }}>
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 flex flex-col items-center justify-center shrink-0 border border-indigo-100">
+                        <span className="text-xs font-black tabular-nums">{format(new Date(act.time), 'HH:mm')}</span>
+                        <span className="text-[8px] font-bold uppercase tracking-tighter">WIB</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">{act.title}</h4>
+                        <p className="text-xs text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3" />
+                          <span className="truncate">{act.location || 'Lokasi tidak ditentukan'}</span>
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:translate-x-1 transition-all" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 bg-white border-t border-slate-100">
+                <Button
+                  className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-base shadow-xl shadow-indigo-200 transition-all active:scale-95"
+                  onClick={() => setAgendaPopupOpen(false)}
+                >
+                  SIAP, SAYA MENGERTI
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

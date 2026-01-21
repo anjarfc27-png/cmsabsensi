@@ -269,6 +269,21 @@ export function NotificationBell({ iconClassName }: NotificationBellProps) {
             ))}
           </div>
         )}
+
+        {/* Footer actions for Desktop Dropdown */}
+        <div className="p-2 border-t border-slate-50 bg-slate-50/50 rounded-b-xl flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            onClick={() => {
+              navigate('/notifications');
+              setOpen(false);
+            }}
+          >
+            Lihat Semua Notifikasi
+          </Button>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

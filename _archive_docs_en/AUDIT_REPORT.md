@@ -1,7 +1,7 @@
-# Audit Report: Absensi Ceria System
+# Audit Report: cms absensi System
 
 ## Overview
-This document summarizes the current state of features, functionality, and identified missing components in the Absensi Ceria application.
+This document summarizes the current state of features, functionality, and identified missing components in the cms absensi application.
 
 ## 1. Core Modules Status
 

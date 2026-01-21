@@ -1,6 +1,6 @@
 # Python Face Recognition Service
 
-Production-grade face recognition service untuk Absensi Ceria menggunakan `face_recognition` library (built on dlib).
+Production-grade face recognition service untuk cms absensi menggunakan `face_recognition` library (built on dlib).
 
 ## Features
 

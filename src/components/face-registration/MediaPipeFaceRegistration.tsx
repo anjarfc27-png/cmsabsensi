@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,15 +18,16 @@ interface MediaPipeFaceRegistrationProps {
 }
 
 type Step = 'intro' | 'capture' | 'blink-challenge' | 'processing' | 'success' | 'error';
-
 export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeFaceRegistrationProps) {
     const { user } = useAuth();
     const { toast } = useToast();
+    const navigate = useNavigate();
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const blinkDetectorRef = useRef(new MediaPipeBlinkDetector());
     const animationFrameRef = useRef<number>();
+    const isMounted = useRef(true);
 
     const [step, setStep] = useState<Step>('intro');
     const [faceImage, setFaceImage] = useState<string | null>(null);
@@ -206,41 +208,38 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
 
     // Render loop for capture step
     useEffect(() => {
+        let active = true;
         if (step === 'capture' && isReady) {
             const renderLoop = async () => {
                 const video = videoRef.current;
-                if (!video) return;
+                if (!video || !active) return;
 
                 if (step !== 'capture' || !isReady) return;
 
-                // Wait until the video has dimensions; detectForVideo can silently fail otherwise.
+                // Wait until the video has dimensions
                 if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
-                    animationFrameRef.current = requestAnimationFrame(renderLoop);
+                    if (active) animationFrameRef.current = requestAnimationFrame(renderLoop);
                     return;
                 }
 
                 try {
                     const result = await detectFace(video);
+                    if (!active) return;
 
                     if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
-                        if (showMesh) {
-                            drawFaceMesh(result);
-                        }
+                        if (showMesh) drawFaceMesh(result);
                         setDetectedFace(true);
                     } else {
-                        if (showMesh) {
-                            clearCanvas();
-                        }
+                        if (showMesh) clearCanvas();
                         setDetectedFace(false);
                     }
                 } catch (e) {
-                    if (showMesh) {
-                        clearCanvas();
-                    }
+                    console.error('Detection loop error:', e);
+                    if (showMesh) clearCanvas();
                     setDetectedFace(false);
                 }
 
-                if (step === 'capture') {
+                if (active && step === 'capture') {
                     animationFrameRef.current = requestAnimationFrame(renderLoop);
                 }
             };
@@ -249,6 +248,7 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
         }
 
         return () => {
+            active = false;
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
@@ -257,45 +257,51 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
 
     // Blink detection loop for blink-challenge step
     useEffect(() => {
+        let active = true;
         if (step === 'blink-challenge' && isReady && videoRef.current) {
             const detectBlinks = async () => {
                 const video = videoRef.current;
-                if (step !== 'blink-challenge' || !video || !isReady) {
+                if (!active || step !== 'blink-challenge' || !video || !isReady) {
                     return;
                 }
 
                 // Wait for video to be ready
                 if (video.readyState < 2) {
-                    if (step === 'blink-challenge') {
+                    if (active && step === 'blink-challenge') {
                         animationFrameRef.current = requestAnimationFrame(detectBlinks);
                     }
                     return;
                 }
 
-                const result = await detectFace(video);
+                try {
+                    const result = await detectFace(video);
+                    if (!active) return;
 
-                if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
-                    setDetectedFace(true);
+                    if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
+                        setDetectedFace(true);
 
-                    blinkDetectorRef.current.processFrame(result);
-                    const currentBlinks = blinkDetectorRef.current.getBlinkCount();
-                    setBlinkCount(currentBlinks);
+                        blinkDetectorRef.current.processFrame(result);
+                        const currentBlinks = blinkDetectorRef.current.getBlinkCount();
+                        setBlinkCount(currentBlinks);
 
-                    if (showMesh) {
-                        drawFaceMesh(result);
+                        if (showMesh) {
+                            drawFaceMesh(result);
+                        }
+
+                        // Check if enough blinks and auto-save
+                        if (currentBlinks >= requiredBlinks) {
+                            await saveEnrollment();
+                            return;
+                        }
+                    } else {
+                        setDetectedFace(false);
                     }
-
-                    // Check if enough blinks and auto-save
-                    if (currentBlinks >= requiredBlinks) {
-                        await saveEnrollment();
-                        return;
-                    }
-                } else {
-                    setDetectedFace(false);
+                } catch (e) {
+                    console.error('Blink detection loop error:', e);
                 }
 
                 // Continue loop
-                if (step === 'blink-challenge') {
+                if (active && step === 'blink-challenge') {
                     animationFrameRef.current = requestAnimationFrame(detectBlinks);
                 }
             };
@@ -304,6 +310,7 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
         }
 
         return () => {
+            active = false;
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
@@ -357,13 +364,18 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
 
             if (dbError) throw dbError;
 
+            stopCamera();
             setStep('success');
             toast({ title: 'Registrasi wajah berhasil!', className: 'bg-green-600 text-white' });
 
+            // Call onComplete immediately or with a very short delay
+            // We'll give it a tiny bit of time for the success state to render if needed,
+            // but the parent will immediately swap it anyway.
             setTimeout(() => {
-                stopCamera();
-                onComplete?.(true, { face_image_url: publicUrl });
-            }, 2000);
+                if (isMounted.current) {
+                    onComplete?.(true, { face_image_url: publicUrl });
+                }
+            }, 500);
 
         } catch (error: any) {
             console.error('Save error:', error);
@@ -385,7 +397,10 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
         };
         preLoad();
 
-        return () => stopCamera();
+        return () => {
+            isMounted.current = false;
+            stopCamera();
+        };
     }, []);
 
     return (
@@ -572,7 +587,7 @@ export function MediaPipeFaceRegistration({ onComplete, employeeId }: MediaPipeF
                                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">Registrasi Berhasil!</h2>
                                     <p className="text-slate-600 text-sm max-w-[200px] mx-auto">Wajah Anda kini terdaftar. Anda dapat menggunakan fitur Login & Absensi Wajah.</p>
                                 </div>
-                                <Button onClick={() => window.location.href = '/profile'} className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700">
+                                <Button onClick={() => navigate('/profile')} className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700">
                                     Kembali ke Profil
                                 </Button>
                             </div>

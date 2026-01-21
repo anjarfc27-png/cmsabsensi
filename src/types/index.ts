@@ -478,3 +478,26 @@ export interface AgendaParticipant {
   created_at: string;
   user?: Profile;
 }
+
+export interface Album {
+  id: string;
+  title: string;
+  description: string | null;
+  created_by: string;
+  department_id: string | null;
+  visibility: 'public' | 'department';
+  created_at: string;
+  updated_at: string;
+  department?: Department;
+  items?: AlbumItem[];
+}
+
+export interface AlbumItem {
+  id: string;
+  album_id: string;
+  file_url: string;
+  file_type: 'photo' | 'video';
+  file_name: string | null;
+  file_size: number | null;
+  created_at: string;
+}

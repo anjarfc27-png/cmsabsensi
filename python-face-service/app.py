@@ -1,5 +1,5 @@
 """
-Face Recognition Service for Absensi Ceria
+Face Recognition Service for cms absensi
 Provides face enrollment and verification endpoints
 Menggunakan face_recognition library (dlib) untuk akurasi maksimal
 """

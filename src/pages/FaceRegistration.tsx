@@ -1,3 +1,116 @@
+/* =============================================================================
+   FACE REGISTRATION PAGE - TEMPORARILY DISABLED (IN DEVELOPMENT)
+   
+   Status: Coming Soon
+   Reason: Face recognition system is currently being optimized
+   
+   Alternative: System now uses fingerprint/biometric authentication
+   Timeline: Face recognition will be re-enabled after tensor optimization
+   
+   All original code is preserved below for future restoration
+============================================================================= */
+
+import { useNavigate } from 'react-router-dom';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { ArrowLeft, Construction, Fingerprint, Shield, Zap } from 'lucide-react';
+
+export default function FaceRegistrationPage() {
+  const navigate = useNavigate();
+
+  return (
+    <DashboardLayout>
+      <div className="relative min-h-screen bg-slate-50/50 pb-20 overflow-x-hidden">
+        {/* Modern Header Curve Theme */}
+        <div
+          className="absolute top-0 left-0 w-full bg-gradient-to-r from-amber-600 via-orange-500 to-yellow-500 rounded-b-[48px] z-0 shadow-lg"
+          style={{ height: 'calc(180px + env(safe-area-inset-top))' }}
+        />
+
+        <div
+          className="relative z-10 max-w-md mx-auto px-6 space-y-6"
+          style={{ paddingTop: 'calc(2.5rem + env(safe-area-inset-top) + 0.5rem)' }}
+        >
+          {/* Top Bar */}
+          <div className="flex items-center gap-4 text-white mb-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/profile')}
+              className="text-white hover:bg-white/20 hover:text-white shrink-0 -ml-2 h-11 w-11 rounded-full backdrop-blur-sm"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+            <div className="space-y-0.5">
+              <h1 className="text-2xl font-black tracking-tight leading-none">Registrasi Wajah</h1>
+              <p className="text-orange-100 text-[11px] font-bold uppercase tracking-widest opacity-80">Segera Hadir</p>
+            </div>
+          </div>
+
+          {/* Coming Soon Card */}
+          <Card className="border-none shadow-xl shadow-orange-900/5 rounded-3xl overflow-hidden bg-white animate-in slide-in-from-bottom-4 duration-500">
+            <CardContent className="pt-12 pb-10 px-6 text-center space-y-6">
+              <div className="relative mx-auto w-28 h-28">
+                <div className="absolute inset-0 bg-amber-100 rounded-full animate-pulse opacity-50"></div>
+                <div className="relative flex items-center justify-center w-full h-full bg-gradient-to-br from-amber-50 to-orange-50 rounded-full border-4 border-white shadow-lg">
+                  <Construction className="h-12 w-12 text-amber-600 animate-bounce" />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h2 className="text-2xl font-black text-slate-900">Dalam Pengembangan</h2>
+                <p className="text-slate-600 text-sm max-w-[280px] mx-auto leading-relaxed">
+                  Fitur <span className="font-bold text-amber-600">Face Recognition</span> sedang dalam proses optimasi untuk memberikan pengalaman terbaik.
+                </p>
+              </div>
+
+              <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+
+              {/* Current Authentication Method */}
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-100 rounded-2xl p-5">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <Fingerprint className="h-6 w-6 text-blue-600" />
+                  <h3 className="font-bold text-slate-900">Metode Verifikasi Saat Ini</h3>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Gunakan <span className="font-bold text-blue-600">Sidik Jari / Biometrik</span> perangkat Anda untuk absensi dan autentikasi yang aman.
+                </p>
+              </div>
+
+              {/* Features Preview */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <Shield className="h-5 w-5 text-slate-400 mx-auto mb-2" />
+                  <p className="text-[10px] font-bold text-slate-500">Keamanan Tinggi</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <Zap className="h-5 w-5 text-slate-400 mx-auto mb-2" />
+                  <p className="text-[10px] font-bold text-slate-500">Proses Cepat</p>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => navigate('/profile')}
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold shadow-lg"
+              >
+                Kembali ke Profil
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+/* =============================================================================
+   ORIGINAL CODE - PRESERVED FOR FUTURE RESTORATION
+   Last Updated: 2026-01-20
+   
+   Uncomment section below to restore face registration functionality
+============================================================================= 
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,8 +130,6 @@ export default function FaceRegistrationPage() {
   const [loading, setLoading] = useState(true);
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const [error, setError] = useState('');
-
-  // Mode edit allows re-registration even if data exists
   const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
@@ -63,17 +174,14 @@ export default function FaceRegistrationPage() {
   return (
     <DashboardLayout>
       <div className="relative min-h-screen bg-slate-50/50 pb-20 overflow-x-hidden">
-        {/* Modern Header Curve Theme - Safe Area Aware */}
         <div
           className="absolute top-0 left-0 w-full bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[48px] z-0 shadow-lg transition-all"
           style={{ height: 'calc(180px + env(safe-area-inset-top))' }}
         />
-
         <div
           className="relative z-10 max-w-md mx-auto px-6 space-y-6"
           style={{ paddingTop: 'calc(2.5rem + env(safe-area-inset-top) + 0.5rem)' }}
         >
-          {/* Top Bar with Enhanced Safe Area Spacing */}
           <div className="flex items-center gap-4 text-white mb-8">
             <Button
               variant="ghost"
@@ -88,11 +196,7 @@ export default function FaceRegistrationPage() {
               <p className="text-blue-100 text-[11px] font-bold uppercase tracking-widest opacity-80">Security Biometric</p>
             </div>
           </div>
-
-          {/* Main Content Area */}
           <div className="space-y-6">
-
-            {/* Status if already registered */}
             {hasFaceEnrollment && !isEditMode && !registrationComplete && (
               <Card className="border-none shadow-xl shadow-blue-900/5 rounded-3xl overflow-hidden bg-white animate-in slide-in-from-bottom-4 duration-500">
                 <CardContent className="pt-10 pb-8 px-6 text-center space-y-6">
@@ -105,16 +209,13 @@ export default function FaceRegistrationPage() {
                       <CheckCircle className="h-4 w-4" />
                     </div>
                   </div>
-
                   <div>
                     <h2 className="text-2xl font-bold text-slate-800">Wajah Terdaftar</h2>
                     <p className="text-slate-500 text-sm mt-2 max-w-[260px] mx-auto">
                       Data wajah Anda sudah aktif. Anda dapat menggunakan wajah untuk login dan absensi.
                     </p>
                   </div>
-
                   <div className="w-full h-px bg-slate-100"></div>
-
                   <Button
                     onClick={() => setIsEditMode(true)}
                     className="w-full h-12 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold shadow-sm"
@@ -124,29 +225,23 @@ export default function FaceRegistrationPage() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Registration Form / Component */}
             {(!hasFaceEnrollment || isEditMode) && !registrationComplete && (
-              <div className="animate-in slide-in-from-bottom-4 duration-500">
+              <div key="registration-container" className="animate-in slide-in-from-bottom-4 duration-500">
                 <MediaPipeFaceRegistration onComplete={handleRegistrationComplete} />
               </div>
             )}
-
-            {/* Success State */}
             {registrationComplete && (
-              <Card className="border-none shadow-xl shadow-green-900/5 rounded-3xl overflow-hidden bg-white animate-in zoom-in-95 duration-500">
+              <Card key="success-card" className="border-none shadow-xl shadow-green-900/5 rounded-3xl overflow-hidden bg-white animate-in zoom-in-95 duration-500">
                 <CardContent className="pt-10 pb-8 px-6 text-center space-y-6">
                   <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
                     <CheckCircle className="h-10 w-10 text-green-600" />
                   </div>
-
                   <div>
                     <h2 className="text-2xl font-bold text-slate-800">Berhasil!</h2>
                     <p className="text-slate-500 text-sm mt-2">
                       Wajah Anda telah didaftarkan. Anda sekarang dapat menggunakan fitur Login Wajah.
                     </p>
                   </div>
-
                   <Button
                     onClick={() => navigate('/profile')}
                     className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-200"
@@ -156,8 +251,6 @@ export default function FaceRegistrationPage() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Features Info (Only show when registering) */}
             {(!hasFaceEnrollment || isEditMode) && !registrationComplete && (
               <div className="grid grid-cols-2 gap-3 pb-8">
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center space-y-2">
@@ -174,15 +267,12 @@ export default function FaceRegistrationPage() {
                 </div>
               </div>
             )}
-
-            {/* Error Message */}
             {error && (
               <Alert variant="destructive" className="rounded-2xl border-white/20 bg-red-400 text-white">
                 <AlertCircle className="h-4 w-4 text-white" />
                 <AlertDescription className="ml-2 font-medium">{error}</AlertDescription>
               </Alert>
             )}
-
           </div>
         </div>
       </div>
@@ -190,3 +280,4 @@ export default function FaceRegistrationPage() {
   );
 }
 
+============================================================================= */

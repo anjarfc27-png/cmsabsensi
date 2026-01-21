@@ -1,28 +1,20 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useCamera } from '@/hooks/useCamera';
-import { useMediaPipeFace } from '@/hooks/useMediaPipeFace';
-import { useFaceSystem } from '@/hooks/useFaceSystem'; // Added Import
-import { Loader2, Camera, MapPin, CheckCircle2, LogIn, LogOut, RefreshCw, Smartphone, ChevronLeft, Map, AlertOctagon, X, Clock, Info, Scan } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { promptBiometricForAttendance } from '@/utils/biometricAuth';
 import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
 import { Attendance, OfficeLocation, WorkMode, EmployeeSchedule } from '@/types';
-import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { MapContainer, TileLayer, Marker, Circle, useMap, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Loader2 } from 'lucide-react';
+
+import AttendanceMobileView from './AttendanceMobileView';
+import AttendanceDesktopView from './AttendanceDesktopView';
 
 // Utility to calculate distance between two coordinates in meters (Haversine Formula)
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -42,46 +34,15 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
-// Fix Leaflet Icon
-// @ts-ignore
-import iconMarker from 'leaflet/dist/images/marker-icon.png';
-// @ts-ignore
-import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
-// @ts-ignore
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-const DefaultIcon = L.icon({
-  iconRetinaUrl: iconRetina,
-  iconUrl: iconMarker,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// Component to recenter map
-function MapController({ lat, long }: { lat: number; long: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo([lat, long], 16);
-  }, [lat, long, map]);
-  return null;
-}
-
 export default function AttendancePage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { toast } = useToast();
-  const { latitude, longitude, error: locationError, loading: locationLoading, isMocked, getLocation } = useGeolocation();
+  const { latitude, longitude, error: locationError, loading: locationLoading, isMocked, accuracy, getLocation } = useGeolocation();
 
   // Camera hook
-  const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
-  // MediaPipe Hook
-  // MediaPipe for UI/Liveness, FaceSystem for Secure Recognition
-  const { isReady, initialize, detectFace } = useMediaPipeFace();
-  const { getDeepDescriptor, computeMatch, isLoaded: faceSystemLoaded } = useFaceSystem();
+  const { stream, videoRef, startCamera, stopCamera } = useCamera();
 
   // Fix: Attach stream to video element when stream is available
   useEffect(() => {
@@ -103,16 +64,13 @@ export default function AttendancePage() {
   const [isLocationValid, setIsLocationValid] = useState(true);
   const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
 
-  // Face recognition states
+  // Camera state for photo capture
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [faceMatch, setFaceMatch] = useState<number | null>(null);
-  const [faceDetected, setFaceDetected] = useState(false);
-  const [checkingFace, setCheckingFace] = useState(false);
-  const [registeredDescriptor, setRegisteredDescriptor] = useState<Float32Array | null>(null);
-  const frameCounterRef = useRef(0);
+  const [verifying, setVerifying] = useState(false);
 
-  // Maximum allowed radius from office in meters
-  const MAX_RADIUS_M = 100;
+  // GPS validation - STRICTER for security
+  const MAX_RADIUS_M = 50; // Reduced from 100m to 50m
+  const MIN_GPS_ACCURACY = 20; // Require accuracy better than 20 meters
 
   useEffect(() => {
     fetchData();
@@ -147,6 +105,13 @@ export default function AttendancePage() {
       } else {
         setLocationErrorMsg("GPS belum terkunci. Klik 'Perbarui GPS' untuk mencoba lagi.");
       }
+      return;
+    }
+
+    // GPS ACCURACY CHECK - NEW SECURITY MEASURE
+    if (accuracy && accuracy > MIN_GPS_ACCURACY) {
+      setIsLocationValid(false);
+      setLocationErrorMsg(`Akurasi GPS tidak cukup (${Math.round(accuracy)}m). Diperlukan akurasi < ${MIN_GPS_ACCURACY}m. Mohon gunakan GPS di area terbuka.`);
       return;
     }
 
@@ -188,7 +153,7 @@ export default function AttendancePage() {
         setLocationErrorMsg(null);
       }
     }
-  }, [latitude, longitude, selectedLocationId, workMode, officeLocations, isMocked, locationError, locationLoading, profile]);
+  }, [latitude, longitude, selectedLocationId, workMode, officeLocations, isMocked, locationError, locationLoading, accuracy]);
 
   const fetchData = async () => {
     try {
@@ -236,103 +201,8 @@ export default function AttendancePage() {
     }
   };
 
-  // Check face match before allowing attendance
-  const checkFaceMatch = async (): Promise<boolean> => {
-    if (!videoRef.current || !isReady) {
-      toast({
-        title: 'Sistem Belum Siap',
-        description: 'Model biometrik sedang dimuat',
-        variant: 'destructive'
-      });
-      return false;
-    }
-
-    setCheckingFace(true);
-
-    try {
-      // 1. Detect Face using MediaPipe
-      const detectionResult = await detectFace(videoRef.current);
-
-      if (!detectionResult || !detectionResult.faceLandmarks || detectionResult.faceLandmarks.length === 0) {
-        setFaceDetected(false);
-        toast({
-          title: 'Wajah Tidak Terdeteksi',
-          description: 'Pastikan wajah Anda terlihat jelas di kamera',
-          variant: 'destructive'
-        });
-        return false;
-      }
-
-      setFaceDetected(true);
-
-      // 2. Get Deep Learning Descriptor (ResNet-34)
-      const currentDescriptor = await getDeepDescriptor(videoRef.current);
-      if (!currentDescriptor) {
-        toast({ title: 'Gagal memproses detail wajah', variant: 'destructive' });
-        return false;
-      }
-
-      // 3. Get registered face from database
-      const { data: faceData, error } = await supabase
-        .from('face_enrollments')
-        .select('face_descriptor')
-        .eq('user_id', user?.id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
-
-      if (error || !faceData) {
-        toast({
-          title: 'Belum Registrasi Wajah',
-          description: 'Silakan daftar wajah Anda terlebih dahulu di menu Profile',
-          variant: 'destructive'
-        });
-        return false;
-      }
-
-      // 4. Compare faces
-      const registeredDescriptor = new Float32Array(faceData.face_descriptor as any);
-
-      // Compute Similarity (0 to 1) using FaceAPI Logic
-      const similarity = computeMatch(currentDescriptor, registeredDescriptor);
-      setFaceMatch(similarity);
-
-      // Standard Threshold (Distance 0.60 corresponds to Similarity 0.40)
-      const THRESHOLD = 0.40;
-
-      if (similarity < THRESHOLD) {
-        toast({
-          title: 'Wajah Tidak Cocok',
-          description: `Kemiripan: ${(similarity * 100).toFixed(0)}%. Mohon daftar ulang wajah Anda agar kompatibel dengan sistem keamanan baru.`,
-          variant: 'destructive',
-          duration: 5000
-        });
-        return false;
-      }
-
-      // Success!
-      toast({
-        title: 'Wajah Terverifikasi ✓',
-        description: `Tingkat kemiripan: ${(similarity * 100).toFixed(0)}%`,
-        className: 'bg-green-600 text-white border-none'
-      });
-
-      return true;
-
-    } catch (error) {
-      console.error('Face matching error:', error);
-      toast({
-        title: 'Error',
-        description: 'Gagal memverifikasi wajah',
-        variant: 'destructive'
-      });
-      return false;
-    } finally {
-      setCheckingFace(false);
-    }
-  };
-
-  const openCamera = async () => {
+  // NEW: Simple camera opening for photo capture (no face enrollment required)
+  const openCameraForPhoto = async () => {
     try {
       if (!user) {
         toast({
@@ -352,57 +222,14 @@ export default function AttendancePage() {
 
       setCameraOpen(true);
 
-      // Run checks in parallel
-      const [faceCheckResult, cameraResult, initResult] = await Promise.allSettled([
-        // Check face registration
-        supabase
-          .from('face_enrollments')
-          .select('id, face_descriptor')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .limit(1)
-          .maybeSingle(),
-        // Start camera
-        startCamera(),
-        // Init MediaPipe
-        initialize()
-      ]);
+      // Start camera
+      await startCamera();
 
       // Start location in background if not already available
       if (!latitude || !longitude) {
         getLocation();
       }
 
-      // Handle face registration check
-      const faceRegFulfilled = faceCheckResult.status === 'fulfilled' && faceCheckResult.value && faceCheckResult.value.data;
-      if (!faceRegFulfilled) {
-        setCameraOpen(false);
-        toast({
-          title: 'Registrasi Wajah Diperlukan',
-          description: 'Anda belum mendaftarkan wajah. Silakan daftar di halaman Profil terlebih dahulu.',
-          variant: 'destructive'
-        });
-        setTimeout(() => navigate('/profile'), 1500);
-        return;
-      }
-
-      // Cache the descriptor once
-      if (faceCheckResult.value.data.face_descriptor) {
-        setRegisteredDescriptor(new Float32Array(faceCheckResult.value.data.face_descriptor as any));
-      }
-
-      // Handle Camera Error
-      if (cameraResult.status === 'rejected') {
-        setCameraOpen(false);
-        toast({
-          title: 'Kamera Gagal',
-          description: cameraResult.reason.message || 'Gagal mengakses kamera perangkat.',
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      // Loop is now handled by useEffect below
     } catch (error) {
       setCameraOpen(false);
       const errorMessage = error instanceof Error ? error.message : 'Gagal mengakses kamera';
@@ -414,79 +241,46 @@ export default function AttendancePage() {
     }
   };
 
-  // Robust Detection Loop for Attendance Page
-  const animationFrameRef = useRef<number>();
-  useEffect(() => {
-    if (!cameraOpen || !stream || !isReady || !faceSystemLoaded) {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      return;
-    }
-
-    const runDetection = async () => {
-      if (!videoRef.current || !cameraOpen || checkingFace) {
-        animationFrameRef.current = requestAnimationFrame(runDetection);
-        return;
-      }
-
-      const video = videoRef.current;
-      if (video.readyState >= 2) {
-        try {
-          const result = await detectFace(video);
-          if (result && result.faceLandmarks?.length > 0) {
-            setFaceDetected(true);
-
-            // Optimized: Throttled deep check every 10 frames if match is not certain
-            frameCounterRef.current++;
-            if (registeredDescriptor && frameCounterRef.current % 10 === 0) {
-              const descriptor = await getDeepDescriptor(video);
-              if (descriptor) {
-                const similarity = computeMatch(descriptor, registeredDescriptor);
-                setFaceMatch(similarity);
-              }
-            }
-          } else {
-            setFaceDetected(false);
-            setFaceMatch(0);
-          }
-        } catch (err) {
-          console.error("Attendance auto detection error", err);
-        }
-      }
-
-      animationFrameRef.current = requestAnimationFrame(runDetection);
-    };
-
-    animationFrameRef.current = requestAnimationFrame(runDetection);
-
-    return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    };
-  }, [cameraOpen, stream, isReady, user, checkingFace]);
-
+  // NEW: Handle photo capture with biometric verification
   const handleCapturePhoto = async () => {
     try {
-      // FIRST: Check face match
-      const isMatch = await checkFaceMatch();
-      if (!isMatch) {
-        // Strict Security: Reject capture if face doesn't match
+      // STEP 1: BIOMETRIC VERIFICATION FIRST
+      setVerifying(true);
+
+      toast({
+        title: 'Verifikasi Identitas',
+        description: 'Silakan gunakan sidik jari untuk verifikasi',
+        duration: 2000,
+      });
+
+      const biometricResult = await promptBiometricForAttendance();
+
+      if (!biometricResult.success) {
+        toast({
+          title: 'Verifikasi Gagal',
+          description: biometricResult.error || 'Sidik jari tidak cocok atau dibatalkan',
+          variant: 'destructive',
+          duration: 4000,
+        });
+        setVerifying(false);
         return;
       }
 
-      setCheckingFace(true);
-
-      // THEN: Capture photo
-      // NOTE: useCamera capturePhoto usually returns a Blob from the video feed.
-      // If the feed is mirrored in CSS (scaleX(-1)), the capture itself might NOT be mirrored by default.
-      // But if user says "result is mirrored", we need to flip it manually using Canvas.
-
-      if (!videoRef.current) return;
+      // STEP 2: CAPTURE PHOTO after successful biometric
+      if (!videoRef.current) {
+        setVerifying(false);
+        return;
+      }
 
       const video = videoRef.current;
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        setVerifying(false);
+        return;
+      }
 
       // Flip context to correct the mirror effect
       ctx.translate(canvas.width, 0);
@@ -501,30 +295,27 @@ export default function AttendancePage() {
         }
       }, 'image/jpeg', 0.95);
 
-      // Clear interval
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-
       stopCamera();
       setCameraOpen(false);
-      setCheckingFace(false);
+      setVerifying(false);
+
+      toast({
+        title: '✓ Verifikasi Berhasil',
+        description: 'Identitas terverifikasi dengan sidik jari',
+        className: 'bg-green-600 text-white border-none',
+        duration: 3000,
+      });
 
     } catch (error) {
       console.error('Capture error:', error);
-      toast({ title: 'Gagal', description: 'Gagal mengambil foto', variant: 'destructive' });
-      setCheckingFace(false);
+      toast({
+        title: 'Gagal',
+        description: 'Gagal mengambil foto',
+        variant: 'destructive'
+      });
+      setVerifying(false);
     }
   };
-
-  // Cleanup for face check interval
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
 
   const handleSubmit = async () => {
     if (!user || latitude == null || longitude == null || !capturedPhoto) {
@@ -539,7 +330,6 @@ export default function AttendancePage() {
         description: 'Sistem mendeteksi penggunaan Fake GPS. Mohon matikan aplikasi manipulasi lokasi dan gunakan GPS asli perangkat.',
         variant: 'destructive'
       });
-      // Optionally log this behavior to a security table in database
       return;
     }
 
@@ -668,474 +458,46 @@ export default function AttendancePage() {
 
   if (loading) return <DashboardLayout><div className="flex justify-center py-20"><Loader2 className="animate-spin text-slate-400" /></div></DashboardLayout>;
 
-  return (
-    <DashboardLayout>
-      <div className="relative min-h-screen bg-slate-50/50">
-        {/* Background Gradient - Matching Dashboard Theme */}
-        <div className="absolute top-0 left-0 w-full h-[calc(110px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+  // Use props spread to avoid repetition
+  const viewProps = {
+    user,
+    navigate,
+    todayAttendance,
+    todaySchedule,
+    officeLocations,
+    latitude,
+    longitude,
+    locationLoading,
+    locationError,
+    isLocationValid,
+    locationErrorMsg,
+    getLocation,
+    MAX_RADIUS_M,
+    workMode,
+    setWorkMode,
+    selectedLocationId,
+    setSelectedLocationId,
+    notes,
+    setNotes,
+    loading,
+    submitting,
+    handleSubmit,
+    cameraOpen,
+    setCameraOpen,
+    videoRef,
+    stream,
+    stopCamera,
+    handleCapturePhoto,
+    openCameraForPhoto,
+    photoPreview,
+    setPhotoPreview,
+    capturedPhoto,
+    verifying
+  };
 
-        {/* Floating Content */}
-        <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-0">
-          <div className="flex items-center gap-3 text-white mb-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard')}
-              className="text-white hover:bg-white/20 hover:text-white shrink-0 -ml-1 h-10 w-10 rounded-full"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-black tracking-tight drop-shadow-sm">Presensi</h1>
-              <p className="text-[10px] text-blue-50 font-bold opacity-80 uppercase tracking-widest leading-none">Record your activity</p>
-            </div>
-          </div>
+  if (isMobile) {
+    return <AttendanceMobileView {...viewProps} />;
+  }
 
-          {/* 1. Status Info Card - Premium Restyling */}
-          <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden bg-white/95 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hari ini</span>
-                  <span className="text-sm font-bold text-slate-700">{format(new Date(), 'EEEE, d MMMM yyyy', { locale: id })}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Jam Berjalan</span>
-                  <span className="text-xl font-black text-blue-600 tracking-tighter tabular-nums">{format(new Date(), 'HH:mm')}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Jadwal Masuk</span>
-                  <span className="text-sm font-black text-slate-800">{todaySchedule?.shift?.start_time?.substring(0, 5) || '--:--'}</span>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Jadwal Pulang</span>
-                  <span className="text-sm font-black text-slate-800">{todaySchedule?.shift?.end_time?.substring(0, 5) || '--:--'}</span>
-                </div>
-              </div>
-
-              {todayAttendance && (
-                <div className="mt-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-xl">
-                      <Clock className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-blue-400 uppercase">Clock In</p>
-                      <p className="text-sm font-black text-blue-700">{format(new Date(todayAttendance.clock_in), 'HH:mm:ss')}</p>
-                    </div>
-                  </div>
-                  {todayAttendance.is_late && (
-                    <Badge variant="destructive" className="rounded-full font-black text-[9px] px-2 py-0.5 animate-pulse">
-                      TERLAMBAT {todayAttendance.late_minutes}m
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 2. Attendance Action Form */}
-          {todayAttendance?.clock_out ? (
-            <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden bg-white/95 backdrop-blur-sm">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <div className="h-20 w-20 bg-green-50 text-green-500 rounded-[28px] shadow-sm border border-green-100 flex items-center justify-center mb-6">
-                  <CheckCircle2 className="h-10 w-10" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-1">Tugas Selesai!</h3>
-                <p className="text-slate-500 text-sm font-medium">Anda sudah absen pulang hari ini.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden bg-white">
-              <CardContent className="p-6 space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-50 rounded-2xl text-blue-600">
-                    <MapPin className="h-5 w-5" />
-                  </div>
-                  <h3 className="font-black text-slate-800 tracking-tight text-lg">Data Kehadiran</h3>
-                </div>
-
-                {/* GPS Status Indicator */}
-                {latitude && longitude ? (
-                  <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-center gap-3">
-                    <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <MapPin className="h-4 w-4 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-green-700">GPS Terkunci</p>
-                      <p className="text-[10px] text-green-600">
-                        Lat: {latitude.toFixed(6)}, Lon: {longitude.toFixed(6)}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-3 flex items-center gap-3">
-                    <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                      {locationLoading ? (
-                        <Loader2 className="h-4 w-4 text-yellow-600 animate-spin" />
-                      ) : (
-                        <AlertOctagon className="h-4 w-4 text-yellow-600" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-yellow-700">
-                        {locationLoading ? 'Mencari GPS...' : 'GPS Belum Terkunci'}
-                      </p>
-                      <p className="text-[10px] text-yellow-600">
-                        {locationError || 'Klik "Perbarui GPS" untuk mencoba lagi'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Location Alert */}
-                {!isLocationValid && workMode === 'wfo' && latitude && longitude && (
-                  <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 rounded-2xl">
-                    <AlertOctagon className="h-4 w-4" />
-                    <AlertTitle className="text-sm font-bold">Lokasi Tidak Valid</AlertTitle>
-                    <AlertDescription className="text-xs">
-                      {locationErrorMsg || "GPS belum terkunci."}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between px-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode & Lokasi</label>
-                      <button
-                        type="button"
-                        onClick={() => getLocation()}
-                        disabled={locationLoading}
-                        className="text-[10px] font-bold text-blue-600 flex items-center gap-1 active:scale-95 transition-transform"
-                      >
-                        {locationLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                        Perbarui GPS
-                      </button>
-                    </div>
-                    <Select value={workMode} onValueChange={(v) => setWorkMode(v as WorkMode)}>
-                      <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:ring-2 focus:ring-blue-100"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="wfo">Work From Office</SelectItem>
-                        <SelectItem value="wfh">Work From Home</SelectItem>
-                        <SelectItem value="field">Dinas Luar</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    {workMode === 'wfo' && (
-                      <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
-                        <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-slate-50/50"><SelectValue placeholder="Pilih Lokasi" /></SelectTrigger>
-                        <SelectContent>
-                          {officeLocations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-
-                  {/* Map Integration */}
-                  {latitude && longitude ? (
-                    <div className="h-44 w-full rounded-[24px] overflow-hidden border border-slate-100 relative z-0 shadow-inner">
-                      {(MapContainer as any) && (
-                        <MapContainer
-                          center={[latitude, longitude] as [number, number]}
-                          zoom={16}
-                          style={{ height: '100%', width: '100%' }}
-                          dragging={false}
-                          scrollWheelZoom={false}
-                        >
-                          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OSM' />
-                          <MapController lat={latitude} long={longitude} />
-                          <Marker position={[latitude, longitude] as [number, number]}>
-                            <Popup>Posisi Anda</Popup>
-                          </Marker>
-                          {workMode === 'wfo' && selectedLocationId && (() => {
-                            const office = officeLocations.find(l => l.id === selectedLocationId);
-                            if (office) {
-                              return (
-                                <>
-                                  <Marker position={[office.latitude, office.longitude] as [number, number]}>
-                                    <Popup>{office.name}</Popup>
-                                  </Marker>
-                                  <Circle
-                                    center={[office.latitude, office.longitude] as [number, number]}
-                                    radius={office.radius_meters || MAX_RADIUS_M}
-                                    pathOptions={{ fillColor: isLocationValid ? '#3b82f6' : '#ef4444', color: isLocationValid ? '#3b82f6' : '#ef4444', opacity: 0.1, weight: 1 }}
-                                  />
-                                </>
-                              )
-                            }
-                          })()}
-                          {workMode === 'wfh' && profile?.home_latitude && profile?.home_longitude && (
-                            <>
-                              <Marker position={[profile.home_latitude, profile.home_longitude] as [number, number]}>
-                                <Popup>Rumah</Popup>
-                              </Marker>
-                              <Circle
-                                center={[profile.home_latitude, profile.home_longitude] as [number, number]}
-                                radius={100}
-                                pathOptions={{ fillColor: isLocationValid ? '#10b981' : '#ef4444', color: isLocationValid ? '#10b981' : '#ef4444', opacity: 0.1, weight: 1 }}
-                              />
-                            </>
-                          )}
-                        </MapContainer>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="h-44 w-full rounded-[24px] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center text-[10px] text-slate-400 font-bold uppercase tracking-widest gap-2">
-                      <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-                        {locationLoading ? <Loader2 className="h-5 w-5 text-blue-500 animate-spin" /> : <MapPin className="h-5 w-5 text-slate-300" />}
-                      </div>
-                      {locationError || (locationLoading ? 'Mencari Lokasi...' : 'GPS Belum Terkunci')}
-                      {!locationLoading && (
-                        <Button variant="outline" size="sm" onClick={() => getLocation()} className="mt-2 h-7 text-[9px] rounded-full">
-                          Ambil Lokasi
-                        </Button>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Catatan</label>
-                    <Textarea
-                      placeholder="Tambahkan keterangan..."
-                      rows={2}
-                      value={notes}
-                      onChange={e => setNotes(e.target.value)}
-                      className="resize-none rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-colors"
-                    />
-                  </div>
-
-                  {/* Photo Trigger */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Verifikasi Kamera</label>
-                    {!photoPreview ? (
-                      <div
-                        onClick={openCamera}
-                        className="border-2 border-dashed border-slate-200 rounded-[24px] h-36 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 hover:border-blue-200 transition-all group"
-                      >
-                        <div className="h-12 w-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform mb-3">
-                          <Camera className="h-6 w-6" />
-                        </div>
-                        <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Mulai Ambil Foto</span>
-                      </div>
-                    ) : (
-                      <div className="relative rounded-[24px] overflow-hidden h-48 bg-black shadow-lg group">
-                        <img src={photoPreview} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                        <div className="absolute top-4 right-4">
-                          <Button size="icon" variant="secondary" className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none" onClick={() => setPhotoPreview(null)}>
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="absolute bottom-4 left-4 flex items-center gap-2">
-                          <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                          <span className="text-white text-[10px] font-black tracking-widest uppercase tabular-nums">
-                            GPS LOCKED: {latitude?.toFixed(4)}, {longitude?.toFixed(4)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {todaySchedule?.is_day_off && (
-                    <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-800 rounded-2xl">
-                      <Info className="h-4 w-4" />
-                      <AlertTitle className="text-sm font-bold">Hari Libur</AlertTitle>
-                      <AlertDescription className="text-xs">
-                        Hari ini adalah hari libur. Anda tidak perlu melakukan absensi.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button
-                    size="lg"
-                    className={cn(
-                      "w-full h-14 text-white font-bold text-lg shadow-xl transition-all rounded-2xl",
-                      !todayAttendance
-                        ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/25"
-                        : (!todayAttendance.clock_out
-                          ? "bg-orange-500 hover:bg-orange-600 shadow-orange-500/25"
-                          : "bg-slate-400 cursor-not-allowed shadow-none"),
-                      (loading || submitting || todaySchedule?.is_day_off) && "opacity-50 grayscale cursor-not-allowed transform-none shadow-none"
-                    )}
-                    onClick={() => {
-                      // Prevent click if already clocked out
-                      if (todayAttendance?.clock_out) return;
-                      capturedPhoto ? handleSubmit() : openCamera();
-                    }}
-                    disabled={loading || submitting || !!todaySchedule?.is_day_off || !!todayAttendance?.clock_out}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Memuat...
-                      </>
-                    ) : !todayAttendance ? (
-                      <>
-                        <LogIn className="mr-2 h-5 w-5" />
-                        Absen Masuk
-                      </>
-                    ) : !todayAttendance.clock_out ? (
-                      <>
-                        <LogOut className="mr-2 h-5 w-5" />
-                        Absen Pulang
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="mr-2 h-5 w-5" />
-                        Selesai Bekerja
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-        </div>
-
-        {/* Fullscreen Camera Modal - Face Recognition Version */}
-        <Dialog open={cameraOpen} onOpenChange={(open) => {
-          if (!open) {
-            if ((window as any).faceCheckInterval) {
-              clearInterval((window as any).faceCheckInterval);
-            }
-            stopCamera();
-            setCameraOpen(false);
-          }
-        }}>
-          <DialogContent className="max-w-md p-0 border-none bg-black text-white gap-0 overflow-hidden rounded-none sm:rounded-[40px] z-[100]">
-            <div className="relative aspect-[3/4] w-full bg-black">
-              {!stream ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-                  <div className="h-20 w-20 bg-white/10 rounded-full flex items-center justify-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-white" />
-                  </div>
-                  <div className="text-center space-y-1">
-                    <p className="text-sm font-black uppercase tracking-[0.2em] text-white">Menyiapkan Kamera</p>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Mohon Tunggu Sebentar</p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{ transform: 'scaleX(-1)', filter: 'brightness(1.08) contrast(1.05) saturate(1.1)' }}
-                    className="w-full h-full object-cover"
-                  />
-
-                  {/* Face Recognition Overlay */}
-                  <div className="absolute top-10 inset-x-0 flex flex-col items-center gap-4 z-20">
-                    <div className="flex gap-2">
-                      <Badge
-                        variant={faceDetected ? "default" : "destructive"}
-                        className={cn(
-                          "gap-2 px-3 py-1.5 border-none shadow-lg backdrop-blur-md",
-                          faceDetected ? "bg-green-600/90" : "bg-yellow-600/90"
-                        )}
-                      >
-                        <Scan className={cn("h-3 w-3", faceDetected && "animate-pulse")} />
-                        {faceDetected ? (faceMatch && faceMatch > 0.40 ? 'Wajah Terverifikasi' : 'Wajah Terdeteksi') : 'Mencari Wajah...'}
-                      </Badge>
-
-                      {!faceSystemLoaded && (
-                        <Badge variant="outline" className="bg-blue-600/50 text-white border-none animate-pulse">
-                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                          Init AI...
-                        </Badge>
-                      )}
-
-                      {faceMatch !== null && (
-                        <Badge
-                          className={cn(
-                            "px-3 py-1.5 font-black border-none shadow-lg backdrop-blur-md",
-                            faceMatch >= 0.40 ? "bg-blue-600/90" : "bg-red-600/90"
-                          )}
-                        >
-                          Match: {(faceMatch * 100).toFixed(0)}%
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Recognition Frame */}
-                  <div className="absolute inset-x-12 inset-y-24 border-2 border-dashed border-white/30 rounded-[60px] flex flex-col items-center justify-center">
-                    {!faceDetected && (
-                      <div className="flex flex-col items-center gap-2 animate-pulse">
-                        <div className="h-12 w-12 rounded-full border-2 border-white/20 flex items-center justify-center">
-                          <Scan className="h-6 w-6 text-white/40" />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Posisikan Wajah Anda</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Loading indicator when checking face */}
-                  {checkingFace && (
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-30">
-                      <div className="bg-white rounded-[32px] p-6 flex flex-col items-center gap-4 shadow-2xl animate-in zoom-in duration-300">
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping" />
-                          <div className="relative h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
-                            <RefreshCw className="h-8 w-8 animate-spin text-white" />
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-black text-slate-900 uppercase tracking-tighter">Memverifikasi Wajah</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Verifikasi Biometrik</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Camera Actions */}
-              <div className="absolute bottom-10 inset-x-0 flex justify-center items-center gap-12 z-40">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-16 w-16 rounded-full text-white hover:bg-white/20 active:scale-90 transition-transform"
-                  onClick={() => {
-                    if ((window as any).faceCheckInterval) {
-                      clearInterval((window as any).faceCheckInterval);
-                    }
-                    stopCamera();
-                    setCameraOpen(false);
-                  }}
-                >
-                  <X className="h-8 w-8" />
-                </Button>
-
-                <button
-                  onClick={handleCapturePhoto}
-                  disabled={!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.4)}
-                  className={cn(
-                    "h-24 w-24 rounded-full border-4 border-white flex items-center justify-center p-1.5 transition-all duration-300",
-                    (!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.4))
-                      ? "opacity-20 grayscale scale-90"
-                      : "active:scale-95 hover:scale-105"
-                  )}
-                >
-                  <div className={cn(
-                    "h-full w-full rounded-full transition-colors duration-500",
-                    faceMatch !== null && faceMatch >= 0.4 ? "bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" : "bg-white"
-                  )} />
-                </button>
-
-                <div className="h-16 w-16 invisible" />
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-      </div>
-    </DashboardLayout>
-  );
+  return <AttendanceDesktopView {...viewProps} />;
 }

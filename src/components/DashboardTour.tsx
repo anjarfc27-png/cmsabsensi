@@ -4,10 +4,12 @@ import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 export function DashboardTour() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { toast } = useToast();
     const [run, setRun] = useState(false);
 
     const steps: Step[] = [
@@ -89,17 +91,33 @@ export function DashboardTour() {
             target: 'body',
             content: (
                 <div className="text-center space-y-4 px-2 py-2">
-                    <div className="text-5xl">🔐</div>
+                    <div className="text-5xl">🛡️</div>
                     <div>
-                        <h3 className="font-black text-xl text-slate-900 mb-2">Satu Langkah Lagi</h3>
+                        <h3 className="font-black text-xl text-slate-900 mb-2">Keamanan Terjamin</h3>
                         <p className="text-slate-600 leading-relaxed text-sm">
-                            Untuk keamanan akun dan kemudahan login, Anda wajib mendaftarkan wajah Anda.
+                            Gunakan fitur <strong>Biometrik Sidik Jari</strong> pada smartphone Anda untuk proses absensi yang cepat dan aman.
                         </p>
-                        <div className='mt-4 bg-blue-50 p-3 rounded-lg border border-blue-100'>
-                            <p className="text-xs font-bold text-blue-700">
-                                Klik "Selesai" untuk menuju halaman Registrasi Wajah.
+                        <div className='mt-4 bg-emerald-50 p-3 rounded-lg border border-emerald-100'>
+                            <p className="text-xs font-bold text-emerald-700">
+                                Pastikan sidik jari Anda sudah terdaftar di pengaturan perangkat.
                             </p>
                         </div>
+                    </div>
+                </div>
+            ),
+            placement: 'center',
+            disableBeacon: true,
+        },
+        {
+            target: 'body',
+            content: (
+                <div className="text-center space-y-4 px-2 py-2">
+                    <div className="text-5xl animate-bounce">🚀</div>
+                    <div>
+                        <h3 className="font-black text-xl text-slate-900 mb-2">Siap Bekerja!</h3>
+                        <p className="text-slate-600 leading-relaxed text-sm">
+                            Semua sudah siap. Anda kini bisa mulai menggunakan aplikasi untuk absensi dan manajemen kerja harian.
+                        </p>
                     </div>
                 </div>
             ),
@@ -147,11 +165,12 @@ export function DashboardTour() {
                     .eq('id', user.id);
             }
 
-            // Redirect to Face Registration ONLY if they finished naturally (didn't skip mid-way)
-            // Or if user specifically requested, we force redirect. 
-            // Here we redirect if finished.
+            // Redirect is no longer needed as biometric is native and face is 'coming soon'
             if (status === STATUS.FINISHED) {
-                navigate('/face-registration');
+                toast({
+                    title: "Tour Selesai",
+                    description: "Selamat bekerja!",
+                });
             }
         }
     };
@@ -206,7 +225,7 @@ export function DashboardTour() {
             locale={{
                 back: 'Kembali',
                 close: 'Tutup',
-                last: 'Selesai & Daftar Wajah',
+                last: 'Selesai & Mulai Kerja',
                 next: 'Lanjut',
                 skip: 'Lewati Tour',
             }}

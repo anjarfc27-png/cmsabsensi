@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { Loader2, Plus, FileText, Image, DollarSign, Calendar, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -151,187 +152,222 @@ export default function ReimbursementPage() {
 
     // ... existing helpers ...
 
+    const isMobile = useIsMobile();
+    // -------------------------------------------------------------------------
+    // RENDER MOBILE VIEW (Strictly Preserved)
+    // -------------------------------------------------------------------------
+    if (isMobile) {
+        return (
+            <DashboardLayout>
+                <div className="relative min-h-screen bg-slate-50/50">
+                    {/* Background Gradient */}
+                    <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+
+                    {/* Floating Content */}
+                    <div className="relative z-10 space-y-6 max-w-[1600px] mx-auto px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-6">
+
+                        {/* Header Section */}
+                        <div className="flex items-center justify-between text-white">
+                            <div className="flex items-start gap-3">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => navigate('/dashboard')}
+                                    className="text-white hover:bg-white/20 hover:text-white shrink-0 -ml-2 h-8 w-8"
+                                >
+                                    <ChevronLeft className="h-5 w-5" />
+                                </Button>
+                                <div>
+                                    <h1 className="text-xl font-bold tracking-tight text-white drop-shadow-md">Reimbursement</h1>
+                                    <p className="text-xs text-blue-50 font-medium opacity-90">Ajukan dan pantau klaim pengeluaran operasional.</p>
+                                </div>
+                            </div>
+                            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button className="bg-white text-blue-600 hover:bg-white/90 shadow-md border-none font-semibold transition-all hover:scale-105 active:scale-95">
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Ajukan Klaim
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[500px]">
+                                    <DialogHeader>
+                                        <DialogTitle>Form Pengajuan Klaim</DialogTitle>
+                                        <DialogDescription>Isi detail pengeluaran yang ingin diklaim.</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Kategori</Label>
+                                                <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="medical">Kesehatan</SelectItem>
+                                                        <SelectItem value="transport">Transportasi</SelectItem>
+                                                        <SelectItem value="travel">Dinas Luar</SelectItem>
+                                                        <SelectItem value="meal">Konsumsi</SelectItem>
+                                                        <SelectItem value="communication">Pulsa/Internet</SelectItem>
+                                                        <SelectItem value="other">Lainnya</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Tanggal</Label>
+                                                <Input
+                                                    type="date"
+                                                    value={formData.date}
+                                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Nominal (Rp)</Label>
+                                            <div className="relative">
+                                                <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input
+                                                    type="number"
+                                                    className="pl-9"
+                                                    placeholder="0"
+                                                    value={formData.amount}
+                                                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Keterangan</Label>
+                                            <Textarea
+                                                placeholder="Contoh: Bensin perjalanan ke klien X..."
+                                                rows={3}
+                                                value={formData.description}
+                                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Bukti Foto/Struk (Opsional)</Label>
+                                            <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+                                                <input
+                                                    type="file"
+                                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    onChange={handleFileChange}
+                                                    accept="image/*,application/pdf"
+                                                />
+                                                <div className="flex justify-center mb-2">
+                                                    <Image className="h-8 w-8 text-slate-300" />
+                                                </div>
+                                                {selectedFile ? (
+                                                    <span className="text-blue-600 font-medium">{selectedFile.name}</span>
+                                                ) : (
+                                                    "Klik untuk upload foto struk"
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button variant="ghost" onClick={() => setDialogOpen(false)}>Batal</Button>
+                                        <Button onClick={handleSubmit} disabled={submitting}>
+                                            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Kirim Pengajuan
+                                        </Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Riwayat Pengajuan</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {loading ? (
+                                    <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>
+                                ) : reimbursements.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                                        <div className="p-4 bg-muted rounded-full">
+                                            <FileText className="h-8 w-8 text-muted-foreground" />
+                                        </div>
+                                        <p className="text-muted-foreground">Belum ada riwayat pengajuan.</p>
+                                    </div>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Tanggal</TableHead>
+                                                <TableHead>Kategori</TableHead>
+                                                <TableHead>Keterangan</TableHead>
+                                                <TableHead>Nominal</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead className="text-right">Bukti</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {reimbursements.map((item) => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell className="font-medium">
+                                                        <div className="flex items-center gap-2">
+                                                            <Calendar className="h-3 w-3 text-muted-foreground" />
+                                                            {format(new Date(item.claim_date), 'd MMM yyyy', { locale: id })}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>{getTypeLabel(item.type)}</TableCell>
+                                                    <TableCell className="max-w-[200px] truncate text-muted-foreground" title={item.description}>
+                                                        {item.description}
+                                                    </TableCell>
+                                                    <TableCell className="font-mono font-medium">
+                                                        {formatCurrency(item.amount)}
+                                                    </TableCell>
+                                                    <TableCell>{getStatusBadge(item.status)}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        {/* @ts-ignore */}
+                                                        {item.attachment_url && (
+                                                            <a
+                                                                // @ts-ignore
+                                                                href={item.attachment_url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600"
+                                                            >
+                                                                <FileText className="h-4 w-4" />
+                                                            </a>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // RENDER DESKTOP VIEW (Coming Soon)
+    // -------------------------------------------------------------------------
     return (
         <DashboardLayout>
-            <div className="relative min-h-screen bg-slate-50/50">
-                {/* Background Gradient */}
-                <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+            <div className="min-h-[80vh] flex flex-col items-center justify-center text-center p-8 max-w-7xl mx-auto">
+                <div className="bg-blue-50 p-8 rounded-[3rem] mb-6 shadow-inner animate-pulse">
+                    <DollarSign className="h-24 w-24 text-blue-600" />
+                </div>
+                <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Reimbursement Segera Hadir</h1>
+                <p className="text-xl text-slate-500 max-w-2xl mb-8 leading-relaxed">
+                    Kami sedang menyiapkan fitur Reimbursement versi Desktop yang lebih canggih.
+                    <br />
+                    Untuk saat ini, silakan gunakan <strong>Aplikasi Mobile</strong> untuk mengajukan klaim.
+                </p>
 
-                {/* Floating Content */}
-                <div className="relative z-10 space-y-6 max-w-[1600px] mx-auto px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-6">
-
-                    {/* Header Section */}
-                    <div className="flex items-center justify-between text-white">
-                        <div className="flex items-start gap-3">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => navigate('/dashboard')}
-                                className="text-white hover:bg-white/20 hover:text-white shrink-0 -ml-2 h-8 w-8"
-                            >
-                                <ChevronLeft className="h-5 w-5" />
-                            </Button>
-                            <div>
-                                <h1 className="text-xl font-bold tracking-tight text-white drop-shadow-md">Reimbursement</h1>
-                                <p className="text-xs text-blue-50 font-medium opacity-90">Ajukan dan pantau klaim pengeluaran operasional.</p>
-                            </div>
-                        </div>
-                        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button className="bg-white text-blue-600 hover:bg-white/90 shadow-md border-none font-semibold transition-all hover:scale-105 active:scale-95">
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Ajukan Klaim
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[500px]">
-                                <DialogHeader>
-                                    <DialogTitle>Form Pengajuan Klaim</DialogTitle>
-                                    <DialogDescription>Isi detail pengeluaran yang ingin diklaim.</DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label>Kategori</Label>
-                                            <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Pilih..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="medical">Kesehatan</SelectItem>
-                                                    <SelectItem value="transport">Transportasi</SelectItem>
-                                                    <SelectItem value="travel">Dinas Luar</SelectItem>
-                                                    <SelectItem value="meal">Konsumsi</SelectItem>
-                                                    <SelectItem value="communication">Pulsa/Internet</SelectItem>
-                                                    <SelectItem value="other">Lainnya</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Tanggal</Label>
-                                            <Input
-                                                type="date"
-                                                value={formData.date}
-                                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Nominal (Rp)</Label>
-                                        <div className="relative">
-                                            <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                type="number"
-                                                className="pl-9"
-                                                placeholder="0"
-                                                value={formData.amount}
-                                                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Keterangan</Label>
-                                        <Textarea
-                                            placeholder="Contoh: Bensin perjalanan ke klien X..."
-                                            rows={3}
-                                            value={formData.description}
-                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Bukti Foto/Struk (Opsional)</Label>
-                                        <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
-                                            <input
-                                                type="file"
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                                onChange={handleFileChange}
-                                                accept="image/*,application/pdf"
-                                            />
-                                            <div className="flex justify-center mb-2">
-                                                <Image className="h-8 w-8 text-slate-300" />
-                                            </div>
-                                            {selectedFile ? (
-                                                <span className="text-blue-600 font-medium">{selectedFile.name}</span>
-                                            ) : (
-                                                "Klik untuk upload foto struk"
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button variant="ghost" onClick={() => setDialogOpen(false)}>Batal</Button>
-                                    <Button onClick={handleSubmit} disabled={submitting}>
-                                        {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Kirim Pengajuan
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Riwayat Pengajuan</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            {loading ? (
-                                <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>
-                            ) : reimbursements.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-                                    <div className="p-4 bg-muted rounded-full">
-                                        <FileText className="h-8 w-8 text-muted-foreground" />
-                                    </div>
-                                    <p className="text-muted-foreground">Belum ada riwayat pengajuan.</p>
-                                </div>
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Tanggal</TableHead>
-                                            <TableHead>Kategori</TableHead>
-                                            <TableHead>Keterangan</TableHead>
-                                            <TableHead>Nominal</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Bukti</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {reimbursements.map((item) => (
-                                            <TableRow key={item.id}>
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-2">
-                                                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                                                        {format(new Date(item.claim_date), 'd MMM yyyy', { locale: id })}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>{getTypeLabel(item.type)}</TableCell>
-                                                <TableCell className="max-w-[200px] truncate text-muted-foreground" title={item.description}>
-                                                    {item.description}
-                                                </TableCell>
-                                                <TableCell className="font-mono font-medium">
-                                                    {formatCurrency(item.amount)}
-                                                </TableCell>
-                                                <TableCell>{getStatusBadge(item.status)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {/* @ts-ignore */}
-                                                    {item.attachment_url && (
-                                                        <a
-                                                            // @ts-ignore
-                                                            href={item.attachment_url}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600"
-                                                        >
-                                                            <FileText className="h-4 w-4" />
-                                                        </a>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            )}
-                        </CardContent>
-                    </Card>
+                <div className="flex gap-4">
+                    <Button
+                        size="lg"
+                        onClick={() => navigate('/dashboard')}
+                        className="rounded-full px-8 h-12 font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xl hover:shadow-2xl transition-all"
+                    >
+                        Kembali ke Dashboard
+                    </Button>
                 </div>
             </div>
         </DashboardLayout>

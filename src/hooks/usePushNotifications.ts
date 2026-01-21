@@ -3,9 +3,11 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export const usePushNotifications = () => {
     const { user } = useAuth();
+    const { toast } = useToast();
 
     useEffect(() => {
         if (Capacitor.isNativePlatform() && user?.id) {
@@ -70,11 +72,25 @@ export const usePushNotifications = () => {
             });
 
             await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-                console.log('Push received: ' + JSON.stringify(notification));
+                console.log('Push received: ', notification);
+
+                // Show in-app toast if foreground
+                toast({
+                    title: notification.title || "Notifikasi Baru",
+                    description: notification.body || "Anda menerima pesan baru.",
+                    variant: "default",
+                });
             });
 
             await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-                console.log('Push action performed: ' + JSON.stringify(notification));
+                console.log('Push action performed: ', notification);
+                // Handle navigation if link is provided in data
+                const link = notification.notification.data?.link;
+                if (link) {
+                    console.log('Should navigate to:', link);
+                    // In a real app, you'd use a global navigation emitter or similar
+                    // For now, we just log it.
+                }
             });
 
             // Create notification channel for Android (High Importance)

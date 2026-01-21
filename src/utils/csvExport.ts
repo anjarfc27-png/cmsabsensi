@@ -2,6 +2,7 @@
  * CSV Export Utilities
  * Handles formal CSV generation with escaping and metadata headers.
  */
+import * as XLSX from 'xlsx';
 
 interface CSVOptions {
     filename: string;
@@ -55,7 +56,11 @@ export const downloadFormalCSV = (
     ].map(line => line.map(escapeCSV).join(',')).join('\r\n');
 
     // Create and download blob
-    const BOM = '\uFEFF'; // Add BOM for Excel UTF-8 support
+    // Add 'sep=,' for Excel compatibility if needed, but BOM is usually enough for modern Excel.
+    // However, for "industry standard" usually means just standard CSV.
+    // We stick with BOM.
+
+    const BOM = '\uFEFF';
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
@@ -66,4 +71,42 @@ export const downloadFormalCSV = (
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+};
+
+/**
+ * Generates and downloads an Excel (.xlsx) file
+ */
+export const downloadExcel = (
+    headers: string[],
+    rows: any[][],
+    options: CSVOptions
+) => {
+    // 1. Prepare Data with Meta Headers
+    // Note: Excel handles merged cells, but for simplicity we just put text in first cell
+    const data = [
+        [`REPORT: ${options.title.toUpperCase()}`],
+        [`PERIODE: ${options.period?.toUpperCase() || '-'}`],
+        [`TANGGAL CETAK: ${new Date().toLocaleString('id-ID')}`],
+        [`DICETAK OLEH: ${options.generatedBy || 'System'}`],
+        [''], // Spacer
+        headers,
+        ...rows
+    ];
+
+    // 2. Create Sheet
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // 3. Styling (Column Widths)
+    // Estimate width based on header length or fixed value
+    // First 5 rows are meta, so specifically resize header row (index 5)
+
+    const wscols = headers.map(h => ({ wch: Math.max(h.length + 5, 15) }));
+    ws['!cols'] = wscols;
+
+    // 4. Create Workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Laporan");
+
+    // 5. Download
+    XLSX.writeFile(wb, options.filename.endsWith('.xlsx') ? options.filename : `${options.filename}.xlsx`);
 };

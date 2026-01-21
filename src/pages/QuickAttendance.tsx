@@ -9,8 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useCamera } from '@/hooks/useCamera';
+import { useIsMobile } from '@/hooks/useIsMobile';
+/* FACE RECOGNITION - TEMPORARILY DISABLED (IN DEVELOPMENT)
 import { useMediaPipeFace } from '@/hooks/useMediaPipeFace';
 import { useFaceSystem } from '@/hooks/useFaceSystem';
+*/
+import { promptBiometricForAttendance } from '@/utils/biometricAuth';
 import {
     Camera,
     Loader2,
@@ -20,7 +24,10 @@ import {
     X,
     Navigation,
     RefreshCw,
-    Scan
+    Scan,
+    Fingerprint,
+    Smartphone,
+    Lock
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -32,12 +39,15 @@ import { EmployeeSchedule, Attendance } from '@/types';
 export default function QuickAttendancePage() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const isMobile = useIsMobile();
     const { toast } = useToast();
 
     // 1. Hooks - Call all hooks first at the top
     const { stream, videoRef, startCamera, stopCamera, capturePhoto } = useCamera();
+    /* FACE RECOGNITION - TEMPORARILY DISABLED
     const { isReady, initialize, detectFace } = useMediaPipeFace();
     const { getDeepDescriptor, computeMatch, isLoaded: faceSystemLoaded } = useFaceSystem();
+    */
     const { latitude, longitude, accuracy, isMocked, loading: locationChecking, getLocation } = useGeolocation();
 
     // 2. States
@@ -50,15 +60,22 @@ export default function QuickAttendancePage() {
     const [officeLocations, setOfficeLocations] = useState<any[]>([]);
     const [nearestOfficeDist, setNearestOfficeDist] = useState<number | null>(null);
     const [isLocationValid, setIsLocationValid] = useState(false);
-    const MAX_RADIUS = 100; // 100 meters
 
-    // Face Recognition States
-    const [cameraOpen, setCameraOpen] = useState(false);
+    // GPS VALIDATION - STRICTER for Quick Attendance (WFO Only)
+    const MAX_RADIUS = 30; // Reduced from 100m to 30m for WFO
+    const MIN_GPS_ACCURACY = 15; // Require accuracy better than 15 meters
+
+    /* FACE RECOGNITION STATES - TEMPORARILY DISABLED
     const [faceMatch, setFaceMatch] = useState<number | null>(null);
     const [faceDetected, setFaceDetected] = useState(false);
     const [checkingFace, setCheckingFace] = useState(false);
     const [registeredDescriptor, setRegisteredDescriptor] = useState<Float32Array | null>(null);
     const frameCounterRef = useRef(0);
+    */
+
+    // Camera state for photo capture
+    const [cameraOpen, setCameraOpen] = useState(false);
+    const [verifying, setVerifying] = useState(false);
 
     // Initial location fetch
     useEffect(() => {
@@ -92,9 +109,16 @@ export default function QuickAttendancePage() {
         return deg * (Math.PI / 180);
     }
 
-    // Real-time Distance Check
+    // Real-time Distance Check with GPS Accuracy
     useEffect(() => {
         if (latitude !== null && longitude !== null) {
+            // GPS ACCURACY CHECK - STRICTER for WFO
+            if (accuracy && accuracy > MIN_GPS_ACCURACY) {
+                setIsLocationValid(false);
+                setNearestOfficeDist(null);
+                return;
+            }
+
             if (officeLocations.length > 0) {
                 let minDistance = Infinity;
                 for (const office of officeLocations) {
@@ -108,7 +132,7 @@ export default function QuickAttendancePage() {
                 setIsLocationValid(true);
             }
         }
-    }, [latitude, longitude, officeLocations]);
+    }, [latitude, longitude, officeLocations, accuracy]);
 
     // Fix: Attach stream to video element when stream is available
     useEffect(() => {
@@ -117,7 +141,15 @@ export default function QuickAttendancePage() {
         }
     }, [stream, videoRef]);
 
-    // Check face match before allowing attendance
+
+    /* =========================================================================
+       FACE RECOGNITION FUNCTIONS - TEMPORARILY DISABLED (IN DEVELOPMENT)
+       
+       Replaced with biometric fingerprint authentication
+       Original code preserved below for future restoration
+    ========================================================================= */
+
+    /* ORIGINAL checkFaceMatch - Commented out
     const checkFaceMatch = async (): Promise<boolean> => {
         if (!videoRef.current || !isReady) {
             toast({
@@ -131,7 +163,6 @@ export default function QuickAttendancePage() {
         setCheckingFace(true);
 
         try {
-            // Detect face first dengan MediaPipe
             const result = await detectFace(videoRef.current);
             if (!result || !result.faceLandmarks || result.faceLandmarks.length === 0) {
                 setFaceDetected(false);
@@ -141,7 +172,6 @@ export default function QuickAttendancePage() {
 
             setFaceDetected(true);
 
-            // Get Deep Descriptor (ResNet-34)
             const currentDescriptor = await getDeepDescriptor(videoRef.current);
             if (!currentDescriptor) {
                 toast({ title: 'Gagal memproses ID wajah', variant: 'destructive' });
@@ -183,7 +213,35 @@ export default function QuickAttendancePage() {
             setCheckingFace(false);
         }
     };
+    */
 
+    // NEW: Simplified camera opening for photo capture
+    const handleStartCameraSimple = async () => {
+        try {
+            if (!user) {
+                toast({
+                    title: 'Error',
+                    description: 'User tidak ditemukan',
+                    variant: 'destructive'
+                });
+                return;
+            }
+
+            setCameraOpen(true);
+            await startCamera();
+            getLocation(); // Refresh location
+
+        } catch (error: any) {
+            setCameraOpen(false);
+            toast({
+                title: 'Error',
+                description: error.message || 'Gagal mengakses kamera',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    /* ORIGINAL handleStartCamera with face checks - Commented out
     const handleStartCamera = async () => {
         try {
             if (!user) {
@@ -195,12 +253,9 @@ export default function QuickAttendancePage() {
                 return;
             }
 
-            // Show dialog immediately for better UX
             setCameraOpen(true);
 
-            // Run checks and initialization in parallel for speed
             const [faceCheckResult, cameraResult, initResult] = await Promise.allSettled([
-                // Check face registration
                 supabase
                     .from('face_enrollments')
                     .select('id, face_descriptor')
@@ -208,16 +263,12 @@ export default function QuickAttendancePage() {
                     .eq('is_active', true)
                     .limit(1)
                     .maybeSingle(),
-                // Start camera
                 startCamera(),
-                // Initialize MediaPipe
                 initialize()
             ]);
 
-            // Start location in background
             getLocation();
 
-            // Handle face registration check
             const faceRegFulfilled = faceCheckResult.status === 'fulfilled' && faceCheckResult.value && faceCheckResult.value.data;
             if (!faceRegFulfilled) {
                 setCameraOpen(false);
@@ -230,13 +281,11 @@ export default function QuickAttendancePage() {
                 return;
             }
 
-            // Cache descriptor
             const faceData = faceCheckResult.value.data;
             if (faceData && (faceData as any).face_descriptor) {
                 setRegisteredDescriptor(new Float32Array((faceData as any).face_descriptor as any));
             }
 
-            // Handle Camera Error
             if (cameraResult.status === 'rejected') {
                 setCameraOpen(false);
                 toast({
@@ -247,7 +296,6 @@ export default function QuickAttendancePage() {
                 return;
             }
 
-            // Real-time detection loop is now handled by useEffect below
         } catch (error: any) {
             setCameraOpen(false);
             toast({
@@ -257,8 +305,10 @@ export default function QuickAttendancePage() {
             });
         }
     };
+    */
 
-    // Robust Detection Loop using useEffect + requestAnimationFrame
+
+    /* FACE DETECTION LOOP - TEMPORARILY DISABLED
     const animationFrameRef = useRef<number>();
     useEffect(() => {
         if (!cameraOpen || !stream || !isReady || !faceSystemLoaded || step !== 'idle') {
@@ -279,7 +329,6 @@ export default function QuickAttendancePage() {
                     if (result && result.faceLandmarks?.length > 0) {
                         setFaceDetected(true);
 
-                        // Optimized: Throttled deep check every 5 frames
                         frameCounterRef.current++;
                         if (registeredDescriptor && frameCounterRef.current % 5 === 0) {
                             const descriptor = await getDeepDescriptor(video);
@@ -306,13 +355,93 @@ export default function QuickAttendancePage() {
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
     }, [cameraOpen, stream, isReady, faceSystemLoaded, step, user, checkingFace]);
+    */
 
+    // NEW: Handle capture with biometric verification
+    const handleCapture = async () => {
+        try {
+            // STEP 1: BIOMETRIC VERIFICATION FIRST
+            setVerifying(true);
+
+            toast({
+                title: 'Verifikasi Identitas',
+                description: 'Silakan gunakan sidik jari untuk verifikasi',
+                duration: 2000,
+            });
+
+            const biometricResult = await promptBiometricForAttendance();
+
+            if (!biometricResult.success) {
+                // --- DESKTOP/INCOMPATIBLE FALLBACK ---
+                if (biometricResult.error?.includes('tidak tersedia') || biometricResult.error?.includes('not available')) {
+                    toast({
+                        title: 'Mode Desktop',
+                        description: 'Hardware sidik jari tidak terdeteksi. Melanjutkan dengan verifikasi foto.',
+                    });
+                    // Allow to proceed to capture
+                } else {
+                    toast({
+                        title: 'Verifikasi Gagal',
+                        description: biometricResult.error || 'Sidik jari tidak cocok atau dibatalkan',
+                        variant: 'destructive',
+                    });
+                    setVerifying(false);
+                    return;
+                }
+            }
+
+            // STEP 2: CAPTURE PHOTO after successful biometric
+            if (!videoRef.current) {
+                setVerifying(false);
+                return;
+            }
+
+            const video = videoRef.current;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                setVerifying(false);
+                return;
+            }
+
+            // Flip / Mirror
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0);
+
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    setCapturedPhoto(blob);
+                    setPhotoPreview(URL.createObjectURL(blob));
+                    setStep('processing');
+                }
+            }, 'image/jpeg', 0.95);
+
+            stopCamera();
+            setCameraOpen(false);
+            setVerifying(false);
+
+            toast({
+                title: '✓ Verifikasi Berhasil',
+                description: 'Identitas terverifikasi dengan sidik jari',
+                className: 'bg-green-600 text-white border-none',
+                duration: 3000,
+            });
+
+        } catch (error) {
+            toast({ title: 'Gagal', description: 'Gagal mengambil foto', variant: 'destructive' });
+            setVerifying(false);
+        }
+    };
+
+    /* ORIGINAL handleCapture with face verification - Commented out
     const handleCapture = async () => {
         const isMatch = await checkFaceMatch();
         if (!isMatch) return;
 
         try {
-            // Manual Canvas Capture with Mirror Fix
             if (!videoRef.current) return;
 
             const video = videoRef.current;
@@ -322,7 +451,6 @@ export default function QuickAttendancePage() {
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
 
-            // Flip / Mirror
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0);
@@ -344,12 +472,16 @@ export default function QuickAttendancePage() {
             toast({ title: 'Gagal', description: 'Gagal mengambil foto', variant: 'destructive' });
         }
     };
+    */
 
+    // Cleanup
     useEffect(() => {
         return () => {
+            /* Cleanup for face detection - disabled
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
+            */
         };
     }, []);
 
@@ -547,6 +679,38 @@ export default function QuickAttendancePage() {
 
     const gpsStatus = getGPSStrength(accuracy);
 
+    // --- DESKTOP BLOCKER ---
+    if (!isMobile) {
+        return (
+            <DashboardLayout>
+                <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                    <Card className="w-full max-w-md border-0 shadow-2xl rounded-[32px] overflow-hidden bg-white p-12 text-center space-y-6">
+                        <div className="flex justify-center relative">
+                            <div className="h-24 w-24 bg-blue-50 rounded-3xl flex items-center justify-center shadow-inner">
+                                <Smartphone className="h-12 w-12 text-blue-600" />
+                            </div>
+                            <div className="absolute -bottom-2 right-[35%] bg-white rounded-full p-2 shadow-lg border border-red-50">
+                                <Lock className="h-6 w-6 text-red-500" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Akses Terbatas</h2>
+                            <p className="text-sm text-slate-500 font-bold leading-relaxed">
+                                Fitur Absensi Cepat hanya tersedia melalui <span className="text-blue-600 underline">Aplikasi Mobile</span> demi keamanan verifikasi sidik jari.
+                            </p>
+                        </div>
+                        <Button
+                            onClick={() => navigate('/dashboard')}
+                            className="w-full h-14 bg-slate-900 hover:bg-black rounded-2xl font-bold text-white transition-all"
+                        >
+                            Kembali ke Beranda
+                        </Button>
+                    </Card>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout>
             <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-white flex items-center justify-center p-4 pt-[calc(2rem+env(safe-area-inset-top))]">
@@ -557,7 +721,7 @@ export default function QuickAttendancePage() {
                             <div className="flex items-center justify-between mb-4">
                                 <div>
                                     <h1 className="text-2xl font-black text-slate-800 tracking-tight">Absen Cepat</h1>
-                                    <p className="text-xs text-slate-500 font-medium mt-1">Verifikasi Lokasi & Wajah</p>
+                                    <p className="text-xs text-slate-500 font-medium mt-1">Verifikasi Lokasi & Sidik Jari</p>
                                 </div>
                                 <Button
                                     variant="ghost"
@@ -577,7 +741,7 @@ export default function QuickAttendancePage() {
                                 {step === 'idle' && (
                                     <div className="text-center">
                                         <Button
-                                            onClick={handleStartCamera}
+                                            onClick={handleStartCameraSimple}
                                             size="lg"
                                             className="w-full h-14 bg-blue-600 hover:bg-blue-700 rounded-2xl text-lg font-bold shadow-blue-200 shadow-xl transition-all active:scale-95"
                                             disabled={!latitude || !longitude}
@@ -588,11 +752,11 @@ export default function QuickAttendancePage() {
                                                 </span>
                                             ) : (
                                                 <span className="flex items-center gap-2">
-                                                    <Camera className="h-6 w-6" /> Buka Kamera
+                                                    <Fingerprint className="h-6 w-6" /> Buka Kamera
                                                 </span>
                                             )}
                                         </Button>
-                                        <p className="text-xs text-slate-400 mt-4">Pastikan Anda berada di area kantor untuk presisi terbaik.</p>
+                                        <p className="text-xs text-slate-400 mt-4">Pastikan Anda berada di area kantor untuk verifikasi sidik jari.</p>
                                     </div>
                                 )}
 
@@ -662,7 +826,7 @@ export default function QuickAttendancePage() {
                                                         </span>
                                                     </div>
                                                     <Badge variant="outline" className={cn("bg-white/50 border-0 text-[10px]", isLocationValid ? "text-green-700" : "text-red-700")}>
-                                                        {nearestOfficeDist ? Math.round(nearestOfficeDist) : 0}m / 100m
+                                                        {nearestOfficeDist ? Math.round(nearestOfficeDist) : 0}m / 30m
                                                     </Badge>
                                                 </div>
                                             )}
@@ -708,12 +872,9 @@ export default function QuickAttendancePage() {
                 </Card>
             </div>
 
-            {/* Quick Attendance Camera Modal */}
+            {/* Quick Attendance Camera Modal - Biometric Version */}
             <Dialog open={cameraOpen} onOpenChange={(open) => {
                 if (!open) {
-                    if (animationFrameRef.current) {
-                        cancelAnimationFrame(animationFrameRef.current);
-                    }
                     stopCamera();
                     setCameraOpen(false);
                 }
@@ -722,11 +883,11 @@ export default function QuickAttendancePage() {
                     <div className="relative aspect-[3/4] w-full bg-black">
                         {!stream ? (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-                                <div className="h-20 w-20 bg-white/10 rounded-full flex items-center justify-center">
+                                <div className="h-20 w-20 bg-white/10 rounded-full  flex items-center justify-center">
                                     <Loader2 className="h-10 w-10 animate-spin text-white" />
                                 </div>
                                 <div className="text-center space-y-1">
-                                    <p className="text-sm font-black uppercase tracking-[0.2em]">Menyiapkan Biometrik</p>
+                                    <p className="text-sm font-black uppercase tracking-[0.2em]">Menyiapkan Kamera</p>
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Mohon Tunggu</p>
                                 </div>
                             </div>
@@ -741,59 +902,37 @@ export default function QuickAttendancePage() {
                                     className="w-full h-full object-cover"
                                 />
 
-                                {/* Face Recognition Overlay */}
+                                {/* Biometric Verification Overlay - Simplified */}
                                 <div className="absolute top-10 inset-x-0 flex flex-col items-center gap-4 z-20">
-                                    <div className="flex gap-2">
-                                        <Badge
-                                            variant={faceDetected ? "default" : "destructive"}
-                                            className={cn(
-                                                "gap-2 px-3 py-1.5 border-none shadow-lg backdrop-blur-md",
-                                                faceDetected ? "bg-green-600/90" : "bg-yellow-600/90"
-                                            )}
-                                        >
-                                            <Scan className={cn("h-3 w-3", faceDetected && "animate-pulse")} />
-                                            {faceDetected ? (faceMatch && faceMatch > 0.40 ? 'Wajah Terverifikasi' : 'Wajah Terdeteksi') : 'Mencari Wajah...'}
-                                        </Badge>
+                                    <Badge
+                                        variant="default"
+                                        className="gap-2 px-4 py-2 border-none shadow-lg backdrop-blur-md bg-blue-600/90"
+                                    >
+                                        <Fingerprint className="h-4 w-4 animate-pulse" />
+                                        Siap Verifikasi
+                                    </Badge>
+                                </div>
 
-                                        <Badge
-                                            className={cn(
-                                                "px-3 py-1.5 font-black border-none shadow-lg backdrop-blur-md",
-                                                (faceMatch || 0) >= 0.40 ? "bg-blue-600/90" : "bg-red-600/90"
-                                            )}
-                                        >
-                                            Match: {((faceMatch || 0) * 100).toFixed(0)}%
-                                        </Badge>
-
-                                        {!faceSystemLoaded && (
-                                            <Badge className="bg-blue-600/50 text-white border-none animate-pulse">
-                                                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                                                Init AI...
-                                            </Badge>
-                                        )}
+                                {/* Camera Frame Guide */}
+                                <div className="absolute inset-x-12 inset-y-24 border-2 border-dashed border-white/30 rounded-[60px] flex flex-col items-center justify-center">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="h-12 w-12 rounded-full border-2 border-white/40 flex items-center justify-center">
+                                            <Camera className="h-6 w-6 text-white/60" />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Posisikan di Tengah</span>
                                     </div>
                                 </div>
 
-                                {/* Recognition Frame */}
-                                <div className="absolute inset-x-12 inset-y-24 border-2 border-dashed border-white/30 rounded-[60px] flex flex-col items-center justify-center">
-                                    {!faceDetected && (
-                                        <div className="flex flex-col items-center gap-2 animate-pulse">
-                                            <div className="h-12 w-12 rounded-full border-2 border-white/20 flex items-center justify-center">
-                                                <Scan className="h-6 w-6 text-white/40" />
-                                            </div>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Face Scanning Area</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Loading indicator when checking face */}
-                                {checkingFace && (
+                                {/* Loading indicator when verifying biometric */}
+                                {verifying && (
                                     <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-30">
                                         <div className="bg-white rounded-[32px] p-6 flex flex-col items-center gap-4 shadow-2xl animate-in zoom-in duration-300">
                                             <div className="relative h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
-                                                <RefreshCw className="h-8 w-8 animate-spin text-white" />
+                                                <Fingerprint className="h-8 w-8 text-white animate-pulse" />
                                             </div>
                                             <div className="text-center">
                                                 <p className="text-sm font-black text-slate-900 uppercase tracking-tighter">Memverifikasi...</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sidik Jari</p>
                                             </div>
                                         </div>
                                     </div>
@@ -808,9 +947,6 @@ export default function QuickAttendancePage() {
                                 variant="ghost"
                                 className="h-16 w-16 rounded-full text-white hover:bg-white/20 active:scale-90 transition-transform"
                                 onClick={() => {
-                                    if (animationFrameRef.current) {
-                                        cancelAnimationFrame(animationFrameRef.current);
-                                    }
                                     stopCamera();
                                     setCameraOpen(false);
                                 }}
@@ -818,28 +954,21 @@ export default function QuickAttendancePage() {
                                 <X className="h-8 w-8" />
                             </Button>
 
-                            <button
+                            <Button
+                                size="icon"
+                                className="h-20 w-20 rounded-full border-4 border-white bg-white/20 text-white hover:bg-white/30 hover:scale-110 active:scale-95 transition-all shadow-2xl backdrop-blur-sm disabled:opacity-50"
                                 onClick={handleCapture}
-                                disabled={!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.4)}
-                                className={cn(
-                                    "h-24 w-24 rounded-full border-4 border-white flex items-center justify-center p-1.5 transition-all duration-300",
-                                    (!stream || checkingFace || !faceDetected || (faceMatch !== null && faceMatch < 0.4))
-                                        ? "opacity-20 grayscale scale-90"
-                                        : "active:scale-95 hover:scale-105"
-                                )}
+                                disabled={verifying || !stream}
                             >
-                                <div className={cn(
-                                    "h-full w-full rounded-full transition-colors duration-500",
-                                    faceMatch !== null && faceMatch >= 0.4 ? "bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" : "bg-white"
-                                )} />
-                            </button>
+                                <Fingerprint className="h-9 w-9" />
+                            </Button>
 
                             <div className="h-16 w-16 invisible" />
                         </div>
                     </div>
                 </DialogContent>
             </Dialog>
+
         </DashboardLayout>
     );
 }
-
