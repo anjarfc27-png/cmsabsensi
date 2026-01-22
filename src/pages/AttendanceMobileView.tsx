@@ -295,13 +295,23 @@ export default function AttendanceMobileView({
                                             if (todayAttendance?.clock_out) return;
                                             handleSubmit();
                                         }}
-                                        disabled={loading || submitting || !!todaySchedule?.is_day_off}
+                                        disabled={loading || submitting || !!todaySchedule?.is_day_off || !latitude || !longitude || (workMode === 'wfo' && !isLocationValid)}
                                     >
                                         {loading ? (
                                             <Loader2 className="h-5 w-5 animate-spin mr-2" />
                                         ) : (
                                             <>
-                                                {!todayAttendance ? "ABSEN MASUK" : "ABSEN PULANG"}
+                                                {!latitude || !longitude ? (
+                                                    "TUNGGU GPS..."
+                                                ) : workMode === 'wfo' && !isLocationValid ? (
+                                                    "LOKASI TIDAK VALID"
+                                                ) : todaySchedule?.is_day_off ? (
+                                                    "HARI LIBUR"
+                                                ) : (
+                                                    <>
+                                                        {!todayAttendance ? "ABSEN MASUK" : "ABSEN PULANG"}
+                                                    </>
+                                                )}
                                             </>
                                         )}
                                     </Button>
