@@ -62,7 +62,7 @@ export default function QuickAttendancePage() {
     const [isLocationValid, setIsLocationValid] = useState(false);
 
     // GPS VALIDATION - Use database radius instead of hardcoded
-    const MIN_GPS_ACCURACY = 15; // Require accuracy better than 15 meters
+    const MIN_GPS_ACCURACY = 50; // Require accuracy better than 50 meters (more realistic)
 
     /* FACE RECOGNITION STATES - TEMPORARILY DISABLED
     const [faceMatch, setFaceMatch] = useState<number | null>(null);

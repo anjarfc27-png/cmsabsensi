@@ -81,7 +81,7 @@ export default function AttendancePage() {
   const [isFaceRequired, setIsFaceRequired] = useState(true);
 
   // GPS validation - Use database radius instead of hardcoded
-  const MIN_GPS_ACCURACY = 20; // Require accuracy better than 20 meters
+  const MIN_GPS_ACCURACY = 50; // Require accuracy better than 50 meters (more realistic)
 
   useEffect(() => {
     fetchData();
