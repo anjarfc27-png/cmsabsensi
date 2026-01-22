@@ -382,6 +382,75 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Info Banner Carousel / Grid - MOVED TO TOP */}
+            <div className="mx-3 md:mx-0 relative z-20 mb-4 -mt-2">
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
+                {/* Attendance Summary Slide */}
+                <div
+                  data-tour="attendance-card"
+                  className={cn(
+                    "w-[85vw] md:w-full h-[120px] rounded-xl p-3 text-white shadow-lg flex flex-col justify-between shrink-0 relative overflow-hidden transition-all active:scale-95",
+                    todayAttendance && !todayAttendance.clock_out
+                      ? "bg-gradient-to-br from-amber-500 to-orange-600 shadow-orange-900/20" // Status: Working
+                      : todayAttendance?.clock_out
+                        ? "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-teal-900/20" // Status: Done
+                        : "bg-gradient-to-br from-blue-600 to-blue-700 shadow-blue-900/10" // Status: Default
+                  )}
+                >
+                  <div className="absolute right-0 top-0 h-20 w-20 bg-white/10 rounded-bl-full -mr-4 -mt-4" />
+                  <div>
+                    <p className="text-[10px] font-medium text-blue-100 mb-0.5">Status Hari Ini</p>
+                    <h3 className="text-lg font-bold">
+                      {todaySchedule?.is_day_off
+                        ? 'Hari Libur'
+                        : todayAttendance
+                          ? (todayAttendance.clock_out ? 'Sudah Pulang' : 'Sedang Bekerja')
+                          : 'Belum Absen'}
+                    </h3>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-[9px] text-blue-200 uppercase tracking-widest">Waktu</p>
+                      <p className="font-mono text-base font-bold">
+                        {todaySchedule?.is_day_off
+                          ? '🏖️'
+                          : todayAttendance
+                            ? format(new Date(todayAttendance.clock_in), 'HH:mm')
+                            : '--:--'}
+                      </p>
+                    </div>
+                    {!todaySchedule?.is_day_off && (
+                      <Button size="sm" variant="secondary" className="h-8 text-xs bg-white text-blue-700 hover:bg-blue-50 border-0" asChild>
+                        <Link to="/attendance">{todayAttendance && !todayAttendance.clock_out ? 'Clock Out' : 'Absen'}</Link>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Announcement Slide */}
+                {announcements.length > 0 ? (
+                  announcements.map((ann, idx) => (
+                    <div key={ann.id} className="w-[85vw] md:w-full h-[140px] rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col justify-between shrink-0 transition-all hover:shadow-md">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Megaphone className="h-4 w-4 text-orange-500" />
+                          <span className="text-[10px] font-bold text-orange-500 uppercase bg-orange-50 px-2 py-0.5 rounded-full">Info</span>
+                        </div>
+                        <h4 className="font-bold text-slate-800 line-clamp-2">{ann.title}</h4>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{ann.content}</p>
+                      </div>
+                      <p className="text-[10px] text-slate-400 text-right">{format(new Date(ann.created_at), 'd MMM yyyy')}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="w-[85vw] md:w-full h-[140px] rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 p-4 flex flex-col items-center justify-center text-center shrink-0">
+                    <Info className="h-8 w-8 text-slate-300 mb-2" />
+                    <p className="text-sm font-medium text-slate-500">Tidak ada pengumuman baru</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Main Features Grid - Grouped by Category */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-3 -mt-1 mx-3 relative z-20">
               {/* CATEGORY 1: ABSENSI */}
@@ -534,74 +603,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Info Banner Carousel / Grid */}
-            <div className="mx-3 md:mx-0">
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
-                {/* Attendance Summary Slide */}
-                <div
-                  data-tour="attendance-card"
-                  className={cn(
-                    "w-[85vw] md:w-full h-[120px] rounded-xl p-3 text-white shadow-lg flex flex-col justify-between shrink-0 relative overflow-hidden transition-all active:scale-95",
-                    todayAttendance && !todayAttendance.clock_out
-                      ? "bg-gradient-to-br from-amber-500 to-orange-600 shadow-orange-900/20" // Status: Working
-                      : todayAttendance?.clock_out
-                        ? "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-teal-900/20" // Status: Done
-                        : "bg-gradient-to-br from-blue-600 to-blue-700 shadow-blue-900/10" // Status: Default
-                  )}
-                >
-                  <div className="absolute right-0 top-0 h-20 w-20 bg-white/10 rounded-bl-full -mr-4 -mt-4" />
-                  <div>
-                    <p className="text-[10px] font-medium text-blue-100 mb-0.5">Status Hari Ini</p>
-                    <h3 className="text-lg font-bold">
-                      {todaySchedule?.is_day_off
-                        ? 'Hari Libur'
-                        : todayAttendance
-                          ? (todayAttendance.clock_out ? 'Sudah Pulang' : 'Sedang Bekerja')
-                          : 'Belum Absen'}
-                    </h3>
-                  </div>
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-[9px] text-blue-200 uppercase tracking-widest">Waktu</p>
-                      <p className="font-mono text-base font-bold">
-                        {todaySchedule?.is_day_off
-                          ? '🏖️'
-                          : todayAttendance
-                            ? format(new Date(todayAttendance.clock_in), 'HH:mm')
-                            : '--:--'}
-                      </p>
-                    </div>
-                    {!todaySchedule?.is_day_off && (
-                      <Button size="sm" variant="secondary" className="h-8 text-xs bg-white text-blue-700 hover:bg-blue-50 border-0" asChild>
-                        <Link to="/attendance">{todayAttendance && !todayAttendance.clock_out ? 'Clock Out' : 'Absen'}</Link>
-                      </Button>
-                    )}
-                  </div>
-                </div>
 
-                {/* Announcement Slide */}
-                {announcements.length > 0 ? (
-                  announcements.map((ann, idx) => (
-                    <div key={ann.id} className="w-[85vw] md:w-full h-[140px] rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col justify-between shrink-0 transition-all hover:shadow-md">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Megaphone className="h-4 w-4 text-orange-500" />
-                          <span className="text-[10px] font-bold text-orange-500 uppercase bg-orange-50 px-2 py-0.5 rounded-full">Info</span>
-                        </div>
-                        <h4 className="font-bold text-slate-800 line-clamp-2">{ann.title}</h4>
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{ann.content}</p>
-                      </div>
-                      <p className="text-[10px] text-slate-400 text-right">{format(new Date(ann.created_at), 'd MMM yyyy')}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="w-[85vw] md:w-full h-[140px] rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 p-4 flex flex-col items-center justify-center text-center shrink-0">
-                    <Info className="h-8 w-8 text-slate-300 mb-2" />
-                    <p className="text-sm font-medium text-slate-500">Tidak ada pengumuman baru</p>
-                  </div>
-                )}
-              </div>
-            </div>
 
             {/* Article / News Section */}
             <div className="mx-2 mb-20">

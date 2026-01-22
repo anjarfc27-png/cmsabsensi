@@ -47,6 +47,12 @@ export default function AttendancePage() {
   // Camera hook
   const { stream, videoRef, startCamera, stopCamera } = useCamera();
 
+  // MediaPipe Hook
+  const { initialize, detectFace, getFaceDescriptor, compareFaces } = useMediaPipeFace();
+
+  // Face Enrollment State
+  const [enrolledDescriptor, setEnrolledDescriptor] = useState<Float32Array | null>(null);
+
   // Fix: Attach stream to video element when stream is available
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -82,7 +88,7 @@ export default function AttendancePage() {
     fetchData();
     // Pre-load MediaPipe if not native (PWA)
     if (!Capacitor.isNativePlatform()) {
-      initMediaPipe();
+      initialize();
     }
     return () => {
       stopCamera();
@@ -283,16 +289,18 @@ export default function AttendancePage() {
         try {
           if (!videoRef.current || videoRef.current.readyState < 2) return;
 
-          await detectFace(videoRef.current);
-          const currentDescriptor = await getDeepDescriptor(videoRef.current);
+          const result = await detectFace(videoRef.current);
+          if (result) {
+            const currentDescriptor = getFaceDescriptor(result);
 
-          if (currentDescriptor) {
-            const score = computeMatch(currentDescriptor, enrolledDescriptor);
-            console.log("Attendance Face Match:", score);
-            if (score > 0.40) { // Threshold
-              clearInterval(scanInterval);
-              resolve(true);
-              return;
+            if (currentDescriptor) {
+              const score = compareFaces(currentDescriptor, enrolledDescriptor);
+              console.log("Attendance Face Match:", score);
+              if (score > 0.40) { // Threshold
+                clearInterval(scanInterval);
+                resolve(true);
+                return;
+              }
             }
           }
         } catch (e) { console.error(e); }

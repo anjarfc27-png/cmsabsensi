@@ -164,53 +164,7 @@ export default function AttendanceMobileView({
                         </div>
                     </div>
 
-                    {/* 1. Hero Status Card - Centered Premium Design */}
-                    <Card className="border-none shadow-xl shadow-blue-500/20 rounded-[32px] overflow-hidden bg-blue-600 text-white mb-6 relative">
-                        {/* Decorative elements */}
-                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
-                        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/10 to-transparent" />
 
-                        <CardContent className="p-6 relative z-10 flex flex-col items-center text-center">
-                            <span className="text-xs font-medium text-blue-100/80 uppercase tracking-widest mb-2">STATUS PRESENSI</span>
-                            <h2 className="text-3xl font-black tracking-tight drop-shadow-sm mb-1">
-                                {!todayAttendance ? "BELUM ABSEN" : (!todayAttendance.clock_out ? "SUDAH MASUK" : "SELESAI")}
-                            </h2>
-                            <p className="text-sm font-medium text-blue-100/90 mb-6">
-                                {format(new Date(), 'EEEE, d MMMM yyyy', { locale: id })}
-                            </p>
-
-                            <div className="w-full bg-blue-700/30 rounded-2xl p-4 border border-blue-500/30 mb-6 flex flex-col items-center">
-                                <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-1">JAM SAAT INI</span>
-                                <span className="text-4xl font-mono font-bold tracking-tighter tabular-nums drop-shadow-sm">
-                                    {format(new Date(), 'HH:mm')}
-                                </span>
-                            </div>
-
-                            {!todayAttendance?.clock_out && (
-                                <Button
-                                    size="lg"
-                                    onClick={() => {
-                                        if (todayAttendance?.clock_out) return;
-                                        if (isFaceRequired) {
-                                            capturedPhoto ? handleSubmit() : openCameraForPhoto();
-                                        } else {
-                                            handleSubmit();
-                                        }
-                                    }}
-                                    disabled={loading || submitting || !!todaySchedule?.is_day_off}
-                                    className="w-full bg-white text-blue-600 hover:bg-blue-50 font-black text-lg rounded-2xl h-14 shadow-lg shadow-blue-900/20 transition-transform active:scale-95"
-                                >
-                                    {loading ? (
-                                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                    ) : (
-                                        <>
-                                            {!todayAttendance ? "ABSEN MASUK SEKARANG" : "ABSEN PULANG SEKARANG"}
-                                        </>
-                                    )}
-                                </Button>
-                            )}
-                        </CardContent>
-                    </Card>
 
                     {/* 2. Attendance Action Form (Inputs only) */}
                     {todayAttendance?.clock_out ? (
@@ -391,6 +345,29 @@ export default function AttendanceMobileView({
                                             )}
                                         </div>
                                     )}
+
+                                    {/* Action Button - Moved from top */}
+                                    <Button
+                                        size="lg"
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-2xl h-14 shadow-lg shadow-blue-600/20 mt-6"
+                                        onClick={() => {
+                                            if (todayAttendance?.clock_out) return;
+                                            if (isFaceRequired) {
+                                                capturedPhoto ? handleSubmit() : openCameraForPhoto();
+                                            } else {
+                                                handleSubmit();
+                                            }
+                                        }}
+                                        disabled={loading || submitting || !!todaySchedule?.is_day_off}
+                                    >
+                                        {loading ? (
+                                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                        ) : (
+                                            <>
+                                                {!todayAttendance ? "ABSEN MASUK" : "ABSEN PULANG"}
+                                            </>
+                                        )}
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
