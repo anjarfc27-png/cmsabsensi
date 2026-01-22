@@ -42,6 +42,9 @@ export default function LocationsPage() {
         radius_meters: '100'
     });
 
+    // State untuk Quick Paste input
+    const [quickPasteValue, setQuickPasteValue] = useState('');
+
     const [showMap, setShowMap] = useState(false);
 
     useEffect(() => {
@@ -81,7 +84,7 @@ export default function LocationsPage() {
         }
     };
 
-    const resetForm = () => {
+    const resetLocation = () => {
         setFormData({
             name: '',
             address: '',
@@ -89,8 +92,9 @@ export default function LocationsPage() {
             longitude: '',
             radius_meters: '100'
         });
+        setQuickPasteValue('');
         setEditingLocation(null);
-        setShowMap(false);
+        setDialogOpen(true);
     };
 
     const handleEdit = (location: OfficeLocation) => {
@@ -187,6 +191,9 @@ export default function LocationsPage() {
             latitude: lat,
             longitude: lng,
         }));
+
+        // Clear quick paste input after successful parse
+        setQuickPasteValue('');
 
         toast({
             title: '✅ Koordinat Ditemukan',
@@ -645,10 +652,11 @@ function LocationDialog({
                             <Input
                                 placeholder="Paste URL Google Maps atau Koordinat (cth: -6.2088, 106.8456)"
                                 className="bg-white text-xs font-mono"
-                                value="" // Always empty to act as a trigger field
+                                value={quickPasteValue}
                                 onChange={(e) => {
                                     // Handle manual typing/paste fallback
                                     const val = e.target.value;
+                                    setQuickPasteValue(val);
                                     if (parseCoordinates(val)) {
                                         // Parsed successfully
                                     }
@@ -657,10 +665,15 @@ function LocationDialog({
                                     // Handle direct paste for better control
                                     e.preventDefault();
                                     const text = e.clipboardData.getData('text');
+                                    setQuickPasteValue(text);
                                     if (parseCoordinates(text)) {
-                                        // Visual feedback handled in applyCoordinates
+                                        // Parsed successfully
                                     } else {
-                                        // Let toast handle error if needed
+                                        toast({
+                                            title: 'Format Tidak Dikenali',
+                                            description: 'Paste URL Google Maps atau koordinat yang valid.',
+                                            variant: 'destructive'
+                                        });
                                     }
                                 }}
                             />
