@@ -318,6 +318,16 @@ export default function AttendanceMobileView({
                                         />
                                     </div>
 
+                                    {/* Debug Indicator - Hanya untuk troubleshooting */}
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+                                        <p className="text-xs font-bold text-yellow-800">🔍 DEBUG INFO:</p>
+                                        <div className="text-[10px] text-yellow-700 space-y-1">
+                                            <p>Face Required: {isFaceRequired ? '✅ YA' : '❌ TIDAK'}</p>
+                                            <p>Captured Photo: {capturedPhoto ? '✅ ADA' : '❌ BELUM'}</p>
+                                            <p>Work Mode: {workMode}</p>
+                                        </div>
+                                    </div>
+
                                     {/* Photo Trigger - Only if Face Required */}
                                     {isFaceRequired && (
                                         <div className="space-y-2">
@@ -351,14 +361,8 @@ export default function AttendanceMobileView({
                                         size="lg"
                                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-2xl h-14 shadow-lg shadow-blue-600/20 mt-6"
                                         onClick={() => {
-                                            console.log('=== BUTTON CLICK DEBUG ===');
-                                            console.log('isFaceRequired:', isFaceRequired, 'type:', typeof isFaceRequired);
-                                            console.log('capturedPhoto:', !!capturedPhoto);
-                                            console.log('todayAttendance?.clock_out:', todayAttendance?.clock_out);
-                                            console.log('loading:', loading);
-                                            console.log('submitting:', submitting);
-                                            console.log('todaySchedule?.is_day_off:', todaySchedule?.is_day_off);
-                                            console.log('========================');
+                                            // Visual debugging untuk HP
+                                            alert(`DEBUG INFO:\nFace Required: ${isFaceRequired ? 'YA' : 'TIDAK'}\nCaptured Photo: ${capturedPhoto ? 'ADA' : 'BELUM'}\nWork Mode: ${workMode}`);
                                             
                                             if (todayAttendance?.clock_out) return;
                                             if (isFaceRequired) {
