@@ -136,6 +136,12 @@ export default function AttendancePage() {
       const office = officeLocations.find(l => l.id === selectedLocationId);
       if (office) {
         const dist = getDistanceFromLatLonInM(latitude, longitude, office.latitude, office.longitude);
+        console.log('Location validation:', {
+          officeName: office.name,
+          officeRadius: office.radius_meters,
+          calculatedDistance: dist,
+          isWithinRadius: dist <= office.radius_meters
+        });
         if (dist > office.radius_meters) {
           setIsLocationValid(false);
           setLocationErrorMsg(`Berada di luar jangkauan kantor (${Math.round(dist)}m). Maksimal ${office.radius_meters}m.`);
@@ -212,6 +218,7 @@ export default function AttendancePage() {
         .from('office_locations')
         .select('*')
         .eq('is_active', true);
+      console.log('Fetched office locations:', locationData);
       setOfficeLocations((locationData as OfficeLocation[]) || []);
       if (locationData && locationData.length > 0) {
         setSelectedLocationId(locationData[0].id);
