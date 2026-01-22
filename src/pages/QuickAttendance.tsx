@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { promptBiometricForAttendance } from '@/utils/biometricAuth';
 import {
     Loader2,
     MapPin,
@@ -307,7 +306,7 @@ export default function QuickAttendancePage() {
                         <div className="space-y-2">
                             <h2 className="text-2xl font-black text-slate-800 tracking-tight">Akses Terbatas</h2>
                             <p className="text-sm text-slate-500 font-bold leading-relaxed">
-                                Fitur Absensi Cepat hanya tersedia melalui <span className="text-blue-600 underline">Aplikasi Mobile</span> demi keamanan verifikasi sidik jari.
+                                Fitur Absensi Cepat hanya tersedia melalui <span className="text-blue-600 underline">Aplikasi Mobile</span> untuk pengalaman terbaik.
                             </p>
                         </div>
                         <Button
