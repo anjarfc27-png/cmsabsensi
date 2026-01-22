@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Loader2, Plus, Trash2, Users, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Profile {
     id: string;
@@ -174,11 +175,7 @@ export default function ManagerAssignments() {
         }
     };
 
-    const toggleEmployee = (empId: string) => {
-        setSelectedEmployees(prev =>
-            prev.includes(empId) ? prev.filter(id => id !== empId) : [...prev, empId]
-        );
-    };
+    const isMobile = useIsMobile();
 
     // Group assignments by manager
     const groupedAssignments = assignments.reduce((acc, assign) => {
@@ -200,6 +197,182 @@ export default function ManagerAssignments() {
             <DashboardLayout>
                 <div className="flex justify-center items-center min-h-screen">
                     <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    if (isMobile) {
+        return (
+            <DashboardLayout>
+                <div className="min-h-screen bg-slate-50 pb-24">
+                    {/* Unique Mobile Header Background */}
+                    <div className="bg-slate-900 text-white pb-8 pt-[calc(1rem+env(safe-area-inset-top))] px-4 rounded-b-[32px] shadow-lg mb-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="text-white hover:bg-white/20 -ml-2 h-8 w-8 rounded-full">
+                                    <ChevronLeft className="h-5 w-5" />
+                                </Button>
+                                <h1 className="text-lg font-bold">Struktur Atasan</h1>
+                            </div>
+                        </div>
+                        <p className="text-slate-400 text-xs mb-4 leading-relaxed">
+                            Petakan hirarki supervisi. Tentukan siapa manajer untuk setiap karyawan guna persetujuan cuti & absensi.
+                        </p>
+
+                        {/* Mobile Stats Scroll */}
+                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar snap-x">
+                            <div className="snap-center shrink-0 w-32 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Manajer</p>
+                                <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-blue-400" />
+                                    <span className="text-xl font-black">{managers.length}</span>
+                                </div>
+                            </div>
+                            <div className="snap-center shrink-0 w-32 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Karyawan</p>
+                                <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-purple-400" />
+                                    <span className="text-xl font-black">{employees.length}</span>
+                                </div>
+                            </div>
+                            <div className="snap-center shrink-0 w-32 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Assignments</p>
+                                <div className="flex items-center gap-2">
+                                    <UserCheck className="h-4 w-4 text-green-400" />
+                                    <span className="text-xl font-black">{assignments.length}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mobile List Content */}
+                    <div className="px-4 space-y-4">
+                        {Object.keys(groupedAssignments).length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 text-center opacity-60">
+                                <Users className="h-12 w-12 text-slate-300 mb-3" />
+                                <h3 className="text-sm font-bold text-slate-700">Belum Ada Struktur</h3>
+                                <p className="text-xs text-slate-500 mt-1 max-w-[200px]">Tap tombol + untuk mulai menghubungkan manajer dan karyawan.</p>
+                            </div>
+                        ) : (
+                            Object.entries(groupedAssignments).map(([managerId, data]) => (
+                                <div key={managerId} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3">
+                                    {/* Manager Header */}
+                                    <div className="flex items-start gap-3 border-b border-slate-50 pb-3">
+                                        <Avatar className="h-10 w-10 border border-slate-100">
+                                            <AvatarImage src={data.manager?.avatar_url} />
+                                            <AvatarFallback className="bg-blue-100 text-blue-600 font-bold text-xs">
+                                                {data.manager?.full_name?.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-sm text-slate-900 truncate">{data.manager?.full_name}</h4>
+                                            <p className="text-[10px] text-slate-500 truncate">{data.manager?.departments?.name || 'Department -'}</p>
+                                        </div>
+                                        <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-[10px]">
+                                            {data.employees.length} Bawahan
+                                        </Badge>
+                                    </div>
+
+                                    {/* Employees List (Compact) */}
+                                    <div className="space-y-2">
+                                        {data.employees.map((emp) => {
+                                            const assignment = assignments.find(
+                                                a => a.manager_id === managerId && a.employee_id === emp.id
+                                            );
+                                            return (
+                                                <div key={emp.id} className="flex items-center justify-between pl-2 pr-1 py-1 rounded-lg hover:bg-slate-50">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0" />
+                                                        <span className="text-xs font-medium text-slate-700 truncate">{emp.full_name}</span>
+                                                    </div>
+                                                    {assignment && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleDeleteAssignment(assignment.id)}
+                                                            className="h-6 w-6 text-slate-300 hover:text-red-500 -mr-1"
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Floating Add Button */}
+                    <div className="fixed bottom-6 right-6 z-40">
+                        <div className="absolute inset-0 bg-blue-500 rounded-full blur-lg opacity-30 animate-pulse"></div>
+                        <Button
+                            onClick={() => setDialogOpen(true)}
+                            className="relative h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl flex items-center justify-center transition-transform active:scale-95"
+                        >
+                            <Plus className="h-6 w-6" />
+                        </Button>
+                    </div>
+
+                    {/* Reuse existing Dialog but ensure it fits mobile */}
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogContent className="max-w-[90vw] max-h-[85vh] rounded-[24px] p-0 flex flex-col overflow-hidden">
+                            <DialogHeader className="p-5 pb-2 bg-slate-50 shrink-0">
+                                <DialogTitle className="text-lg">Tambah hirarki</DialogTitle>
+                                <DialogDescription className="text-xs">Hubungkan Manajer & Karyawan</DialogDescription>
+                            </DialogHeader>
+
+                            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                                {/* Select Manager */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pilih Manager</label>
+                                    <Select value={selectedManager} onValueChange={setSelectedManager}>
+                                        <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200">
+                                            <SelectValue placeholder="Siapa atasannya?" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {managers.map(manager => (
+                                                <SelectItem key={manager.id} value={manager.id} className="text-xs py-2">
+                                                    {manager.full_name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Select Employees */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between">
+                                        <span>Pilih Bawahan</span>
+                                        <span className="text-blue-600">{selectedEmployees.length} dipilih</span>
+                                    </label>
+                                    <div className="border border-slate-200 rounded-xl max-h-[250px] overflow-y-auto custom-scrollbar">
+                                        {employees.map(emp => (
+                                            <div
+                                                key={emp.id}
+                                                onClick={() => toggleEmployee(emp.id)}
+                                                className={`flex items-center gap-3 p-3 border-b border-slate-50 last:border-0 cursor-pointer h-12 transition-colors ${selectedEmployees.includes(emp.id) ? 'bg-blue-50/50' : 'bg-white'}`}
+                                            >
+                                                <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedEmployees.includes(emp.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'}`}>
+                                                    {selectedEmployees.includes(emp.id) && <UserCheck className="h-3 w-3 text-white" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`text-xs font-bold truncate ${selectedEmployees.includes(emp.id) ? 'text-blue-700' : 'text-slate-700'}`}>{emp.full_name}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <DialogFooter className="p-4 bg-white border-t border-slate-100 flex-row gap-2 shrink-0">
+                                <Button variant="ghost" onClick={() => setDialogOpen(false)} className="flex-1 rounded-xl h-11">Batal</Button>
+                                <Button onClick={handleAddAssignments} disabled={processing} className="flex-1 rounded-xl h-11 bg-blue-600">{processing ? '...' : 'Simpan'}</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </DashboardLayout>
         );
@@ -390,8 +563,8 @@ export default function ManagerAssignments() {
                                             key={emp.id}
                                             onClick={() => toggleEmployee(emp.id)}
                                             className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${selectedEmployees.includes(emp.id)
-                                                    ? 'bg-blue-50 border-2 border-blue-200'
-                                                    : 'bg-slate-50 border-2 border-transparent hover:border-slate-200'
+                                                ? 'bg-blue-50 border-2 border-blue-200'
+                                                : 'bg-slate-50 border-2 border-transparent hover:border-slate-200'
                                                 }`}
                                         >
                                             <Avatar className="h-10 w-10">

@@ -273,179 +273,194 @@ export default function EmployeesPage() {
         return (
             <DashboardLayout>
                 <div className="relative min-h-screen bg-slate-50/50">
-                    <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
+                    <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-br from-blue-600 to-indigo-600 rounded-b-[40px] z-0 shadow-lg" />
 
-                    <div className="relative z-10 space-y-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-8 max-w-7xl mx-auto">
-                        {/* Header */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-white">
-                            <div className="flex items-start gap-3">
-                                <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="text-white hover:bg-white/20 hover:text-white shrink-0 -ml-2 h-8 w-8">
+                    <div className="relative z-10 space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24">
+                        {/* Header & Actions */}
+                        <div className="flex items-center justify-between text-white mb-2">
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="text-white hover:bg-white/20 hover:text-white h-8 w-8 rounded-full -ml-2">
                                     <ChevronLeft className="h-5 w-5" />
                                 </Button>
+                                <h1 className="text-lg font-black tracking-tight drop-shadow-sm">SDM & Tim</h1>
+                            </div>
+                            <div className="flex gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-white bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm">
+                                            <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-xl">
+                                        <DropdownMenuLabel>Menu Admin</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => { setMasterTab('departments'); setIsMasterDataOpen(true); }}>
+                                            <Database className="mr-2 h-4 w-4" /> Data Master
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handleExportExcel}>
+                                            <Download className="mr-2 h-4 w-4" /> Export Excel
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+
+                        {/* Stats Scroll */}
+                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar snap-x">
+                            <div className="snap-center shrink-0 w-36 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 text-white flex flex-col justify-between h-24">
+                                <Users className="h-5 w-5 opacity-80" />
                                 <div>
-                                    <h1 className="text-xl md:text-2xl font-bold tracking-tight drop-shadow-md">Manajemen Karyawan</h1>
-                                    <p className="text-blue-50 font-medium opacity-90 mt-1 text-xs">Kelola akun dan status aktif seluruh personil.</p>
+                                    <p className="text-2xl font-black">{employees.length}</p>
+                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-wider">Total Personil</p>
+                                </div>
+                            </div>
+                            <div className="snap-center shrink-0 w-36 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 text-white flex flex-col justify-between h-24">
+                                <UserCheck className="h-5 w-5 opacity-80 text-green-300" />
+                                <div>
+                                    <p className="text-2xl font-black">{employees.filter(e => e.is_active).length}</p>
+                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-wider">Akun Aktif</p>
+                                </div>
+                            </div>
+                            <div className="snap-center shrink-0 w-36 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 text-white flex flex-col justify-between h-24">
+                                <Building2 className="h-5 w-5 opacity-80 text-orange-300" />
+                                <div>
+                                    <p className="text-2xl font-black">{departments.length}</p>
+                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-wider">Departemen</p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Content */}
-                        <Card className="border-none shadow-xl shadow-slate-200/50 bg-white/95 backdrop-blur-sm overflow-hidden rounded-2xl">
-                            <CardHeader className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center pb-4 border-b border-slate-100">
-                                <div>
-                                    <CardTitle className="text-lg">Daftar Personil</CardTitle>
-                                    <CardDescription>Total {filteredEmployees.length} karyawan ditemukan.</CardDescription>
-                                </div>
-                                <div className="relative w-full md:w-72">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                    <Input
-                                        placeholder="Cari nama atau email..."
-                                        className="pl-9 bg-slate-50 border-slate-200 rounded-xl focus:bg-white transition-all"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader className="bg-slate-50">
-                                            <TableRow>
-                                                <TableHead className="w-[250px] font-bold text-slate-700">Nama Lengkap</TableHead>
-                                                <TableHead className="font-bold text-slate-700">Posisi</TableHead>
-                                                <TableHead className="font-bold text-slate-700">Kontak</TableHead>
-                                                <TableHead className="font-bold text-slate-700 text-center">Status</TableHead>
-                                                <TableHead className="text-right font-bold text-slate-700">Aksi</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {loading ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="h-48 text-center">
-                                                        <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
-                                                            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                                                            <p className="text-xs">Memuat data...</p>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ) : filteredEmployees.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="h-48 text-center text-slate-500 italic">
-                                                        Tidak ada data karyawan yang ditemukan.
-                                                    </TableCell>
-                                                </TableRow>
-                                            ) : (
-                                                filteredEmployees.map((employee) => (
-                                                    <TableRow key={employee.id} className="hover:bg-slate-50/50 transition-colors">
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`h-10 w-10 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${employee.is_active ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-slate-300'}`}>
-                                                                    {employee.full_name?.charAt(0).toUpperCase() || '?'}
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className={`font-bold text-sm ${!employee.is_active && 'text-slate-400 line-through'}`}>
-                                                                        {employee.full_name}
-                                                                    </span>
-                                                                    <span className="text-[10px] text-slate-400 font-mono">
-                                                                        {employee.nik_ktp || 'No ID'}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-semibold text-slate-700">
-                                                                    {employee.job_position?.title || employee.position || '-'}
-                                                                </span>
-                                                                <span className="text-[10px] text-slate-500">
-                                                                    {employee.department?.name || 'Department -'}
-                                                                </span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex flex-col gap-0.5">
-                                                                <span className="text-xs text-slate-600">{employee.email}</span>
-                                                                <span className="text-[10px] text-slate-400">{employee.phone || '-'}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            {employee.is_active ? (
-                                                                <Badge className="bg-green-100 text-green-700 border-none px-3 py-1 text-[10px] shadow-none">
-                                                                    Aktif
-                                                                </Badge>
-                                                            ) : (
-                                                                <Badge variant="secondary" className="bg-slate-100 text-slate-500 px-3 py-1 text-[10px] shadow-none">
-                                                                    Non-Aktif
-                                                                </Badge>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700">
-                                                                        <MoreVertical className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end" className="w-48 rounded-xl p-1">
-                                                                    <DropdownMenuLabel>Aksi Akun</DropdownMenuLabel>
-                                                                    <DropdownMenuItem onClick={() => navigate(`/profile?id=${employee.id}`)} disabled>
-                                                                        Detail Profil (Coming Soon)
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator />
-                                                                    {employee.is_active ? (
-                                                                        <DropdownMenuItem onClick={() => handleToggleStatus(employee)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
-                                                                            <UserX className="mr-2 h-4 w-4" /> Nonaktifkan
-                                                                        </DropdownMenuItem>
-                                                                    ) : (
-                                                                        <DropdownMenuItem onClick={() => handleToggleStatus(employee)} className="text-green-600 focus:text-green-700 focus:bg-green-50">
-                                                                            <UserCheck className="mr-2 h-4 w-4" /> Aktifkan Kembali
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        {/* Main Content Card */}
+                        <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/50 overflow-hidden min-h-[60vh] flex flex-col">
+                            <Tabs defaultValue="list" className="w-full flex flex-col h-full">
+                                <div className="p-4 border-b border-slate-100 space-y-4">
+                                    <TabsList className="grid w-full grid-cols-2 p-1 bg-slate-100 rounded-xl">
+                                        <TabsTrigger value="list" className="rounded-lg font-bold text-xs">Daftar</TabsTrigger>
+                                        <TabsTrigger value="structure" className="rounded-lg font-bold text-xs">Struktur</TabsTrigger>
+                                    </TabsList>
 
-                        {/* Confirmation Dialog */}
-                        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                            <AlertDialogContent className="rounded-2xl">
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Konfirmasi Status Akun</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        {selectedEmployee?.is_active ? (
-                                            <span>
-                                                Apakah Anda yakin ingin <strong>menonaktifkan</strong> akun <strong>{selectedEmployee.full_name}</strong>?
-                                                <br /><br />
-                                                Akun yang dinonaktifkan tidak akan bisa login, namun data riwayat (absensi, cuti, dll) akan <strong>tetap tersimpan</strong> dan tidak dihapus.
-                                            </span>
+                                    {/* Search & Filter */}
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                            <Input
+                                                placeholder="Cari nama / email..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="pl-9 bg-slate-50 border-slate-200 rounded-xl text-xs h-10"
+                                            />
+                                        </div>
+                                        <Button variant="outline" size="icon" className="shrink-0 rounded-xl border-slate-200 text-slate-500 h-10 w-10">
+                                            <Filter className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <TabsContent value="list" className="flex-1 p-0 m-0 bg-slate-50/30">
+                                    <div className="p-4 space-y-3 pb-24">
+                                        {loading ? (
+                                            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                                <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                                                <p className="text-xs">Memuat data...</p>
+                                            </div>
+                                        ) : filteredEmployees.length === 0 ? (
+                                            <div className="text-center py-20 text-slate-400">
+                                                <p className="text-xs font-bold">Tidak ada data ditemukan</p>
+                                            </div>
                                         ) : (
-                                            <span>
-                                                Aktifkan kembali akun <strong>{selectedEmployee?.full_name}</strong>? Pengguna akan dapat login kembali.
-                                            </span>
+                                            filteredEmployees.map(emp => (
+                                                <div key={emp.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-start gap-3 active:scale-[0.98] transition-all" onClick={() => handleEditClick(emp)}>
+                                                    <Avatar className="h-12 w-12 border border-slate-100 rounded-2xl">
+                                                        <AvatarImage src={emp.avatar_url || ''} />
+                                                        <AvatarFallback className="rounded-2xl bg-slate-100 font-bold text-slate-500">{emp.full_name?.[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between items-start">
+                                                            <h4 className="font-bold text-slate-900 truncate">{emp.full_name}</h4>
+                                                            {emp.is_active ? (
+                                                                <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] mt-1.5" />
+                                                            ) : (
+                                                                <div className="h-2 w-2 rounded-full bg-slate-300 mt-1.5" />
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-blue-600 font-semibold truncate mb-1">{(emp as any).job_position?.title || 'Posisi Kosong'}</p>
+                                                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                                                            <span className="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 truncate max-w-[100px]">{(emp as any).department?.name || '-'}</span>
+                                                            <span>•</span>
+                                                            <span className="truncate flex-1">{emp.email}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
                                         )}
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="structure" className="flex-1 p-0 m-0 bg-slate-50/30">
+                                    <div className="p-4 space-y-6 pb-24">
+                                        {/* Managers */}
+                                        <div className="space-y-3">
+                                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Pimpinan (Manager)</h3>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {employees.filter(e => e.role === 'manager').map(mgr => (
+                                                    <div key={mgr.id} className="bg-white p-3 rounded-2xl border border-blue-100 shadow-sm flex flex-col items-center text-center gap-2" onClick={() => handleEditClick(mgr)}>
+                                                        <Avatar className="h-14 w-14 border-4 border-blue-50">
+                                                            <AvatarImage src={mgr.avatar_url || ''} />
+                                                            <AvatarFallback className="bg-blue-100 text-blue-600 font-bold">{mgr.full_name?.[0]}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="font-bold text-xs text-slate-900 line-clamp-1">{mgr.full_name}</p>
+                                                            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-tight line-clamp-1">{(mgr as any).job_position?.title}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {employees.filter(e => e.role === 'manager').length === 0 && (
+                                                    <div className="col-span-2 py-4 text-center text-[10px] text-slate-400 border border-dashed border-slate-200 rounded-xl">Belum ada manager</div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Staff */}
+                                        <div className="space-y-3">
+                                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Tim Staff</h3>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {employees.filter(e => e.role === 'employee').map(staff => (
+                                                    <div key={staff.id} className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-1.5" onClick={() => handleEditClick(staff)}>
+                                                        <Avatar className="h-10 w-10">
+                                                            <AvatarImage src={staff.avatar_url || ''} />
+                                                            <AvatarFallback className="bg-slate-50 text-slate-400 text-xs font-bold">{staff.full_name?.[0]}</AvatarFallback>
+                                                        </Avatar>
+                                                        <p className="font-bold text-[10px] text-slate-700 leading-tight line-clamp-2">{staff.full_name}</p>
+                                                        <div className={`h-1.5 w-1.5 rounded-full ${staff.is_active ? 'bg-green-500' : 'bg-slate-300'}`} />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
+                        </div>
+
+                        {/* Confirmation Dialog Mobile */}
+                        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                            <AlertDialogContent className="rounded-2xl w-[90%] mx-auto">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Konfirmasi Status</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Ubah status akun <b>{selectedEmployee?.full_name}</b>?
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+                                <AlertDialogFooter className="flex-row gap-2 justify-end">
+                                    <AlertDialogCancel className="mt-0 rounded-xl flex-1">Batal</AlertDialogCancel>
                                     <AlertDialogAction
                                         onClick={confirmToggleStatus}
-                                        className={`rounded-xl ${selectedEmployee?.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                                        className={`rounded-xl flex-1 ${selectedEmployee?.is_active ? 'bg-red-600' : 'bg-green-600'}`}
                                         disabled={actionLoading}
                                     >
-                                        {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        {selectedEmployee?.is_active ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}
+                                        {actionLoading ? <Loader2 className="animate-spin" /> : 'Ya, Ubah'}
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-
                     </div>
                 </div>
             </DashboardLayout>

@@ -22,13 +22,15 @@ import {
     FileUp,
     ExternalLink,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Camera
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Album, AlbumItem } from '@/types';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function AlbumDetailPage() {
     const { id: albumId } = useParams();
@@ -212,8 +214,207 @@ export default function AlbumDetailPage() {
         }
     };
 
+    const isMobile = useIsMobile();
+
     if (loading) return <DashboardLayout><div className="flex flex-col items-center justify-center py-40 gap-4"><Loader2 className="h-10 w-10 animate-spin text-blue-500" /><p className="font-bold text-slate-400">Memuat konten album...</p></div></DashboardLayout>;
     if (!album) return null;
+
+    if (isMobile) {
+        return (
+            <DashboardLayout>
+                <div className="min-h-screen bg-white pb-24">
+                    {/* Sticky Transparent Header with Back Button */}
+                    <div className="fixed top-0 left-0 right-0 z-40 p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex justify-between items-center pointer-events-none">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate('/albums')}
+                            className="bg-black/20 text-white hover:bg-black/30 backdrop-blur-md h-10 w-10 rounded-full pointer-events-auto shadow-lg"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        {canManage && (
+                            <Button
+                                size="icon"
+                                onClick={(e) => {
+                                    // Hacky way to trigger delete mode or menu? For now just place holder if needed
+                                    // Maybe settings?
+                                }}
+                                className="bg-transparent text-transparent w-10"
+                            />
+                        )}
+                    </div>
+
+                    {/* Immersive Hero Header */}
+                    <div className="relative h-[300px] w-full bg-slate-900 overflow-hidden rounded-b-[40px] shadow-2xl shadow-blue-900/20">
+                        {/* Dynamic Background based on first photo or gradient */}
+                        {items.find(i => i.file_type === 'photo') ? (
+                            <div className="absolute inset-0">
+                                <img src={items.find(i => i.file_type === 'photo')?.file_url} className="w-full h-full object-cover opacity-60 blur-sm scale-110" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/60 to-slate-900" />
+                            </div>
+                        ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-900" />
+                        )}
+
+                        <div className="absolute bottom-0 left-0 w-full p-6 pt-12 text-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Badge className={cn("text-[10px] uppercase font-bold border-none px-2 h-5", album.visibility === 'public' ? 'bg-blue-500/80' : 'bg-amber-500/80')}>
+                                    {album.visibility === 'public' ? 'Publik' : 'Internal'}
+                                </Badge>
+                                <span className="text-[10px] text-white/60 font-medium font-mono">{format(new Date(album.created_at), 'dd MMM yyyy')}</span>
+                            </div>
+                            <h1 className="text-3xl font-black leading-tight tracking-tight mb-2 drop-shadow-md">{album.title}</h1>
+                            {album.description && <p className="text-sm text-blue-100/80 font-medium line-clamp-2">{album.description}</p>}
+
+                            <div className="flex gap-4 mt-6 text-xs font-bold text-white/50 border-t border-white/10 pt-4">
+                                <div className="flex flex-col">
+                                    <span className="text-white">{items.filter(i => i.file_type === 'photo').length}</span>
+                                    <span>FOTO</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-white">{items.filter(i => i.file_type === 'video').length}</span>
+                                    <span>VIDEO</span>
+                                </div>
+                                <div className="flex flex-col ml-auto text-right">
+                                    <span className="text-white">{items.length}</span>
+                                    <span>TOTAL ITEM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sticky Filter Bar */}
+                    <div className="sticky top-[calc(env(safe-area-inset-top))] z-30 bg-white/95 backdrop-blur-xl border-b border-slate-100 flex items-center justify-around px-2 py-3 shadow-sm mt-[-20px] rounded-t-[20px] mx-2">
+                        {['all', 'photo', 'video'].map((type) => (
+                            <button
+                                key={type}
+                                onClick={() => setFilterType(type as any)}
+                                className={cn(
+                                    "px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all",
+                                    filterType === type
+                                        ? "bg-slate-900 text-white shadow-md shadow-slate-200"
+                                        : "text-slate-400 hover:bg-slate-50"
+                                )}
+                            >
+                                {type === 'all' ? 'Semua' : type === 'photo' ? 'Foto' : 'Video'}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Gallery Grid (Mobile Optimized) */}
+                    <div className="px-1 py-1 min-h-[50vh]">
+                        {filteredItems.length > 0 ? (
+                            <div className="grid grid-cols-3 gap-0.5">
+                                {filteredItems.map((item, index) => (
+                                    <div
+                                        key={item.id}
+                                        className="relative aspect-square bg-slate-100 overflow-hidden active:opacity-90"
+                                        onClick={() => setSelectedItem({ item, index })}
+                                    >
+                                        {item.file_type === 'photo' ? (
+                                            <img src={item.file_url} className="w-full h-full object-cover" loading="lazy" />
+                                        ) : (
+                                            <>
+                                                <video src={item.file_url} className="w-full h-full object-cover" />
+                                                <div className="absolute top-1 right-1">
+                                                    <div className="h-5 w-5 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                                                        <Video className="h-3 w-3 text-white" />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                        {/* Delete Button (Long press simulation via absolute positioned button for manager) */}
+                                        {canManage && (
+                                            <button
+                                                className="absolute bottom-1 right-1 h-6 w-6 bg-red-500/80 rounded-full flex items-center justify-center text-white"
+                                                onClick={(e) => handleDeleteItem(e, item)}
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-20 flex flex-col items-center justify-center text-slate-400">
+                                <ImageIcon className="h-12 w-12 opacity-20 mb-3" />
+                                <p className="text-xs font-bold text-center px-10">Belum ada media. Upload momen terbaik tim Anda di sini.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* FAB Upload - Lifted up to avoid bottom nav */}
+                    {canManage && (
+                        <div className="fixed bottom-24 right-6 z-50">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                multiple
+                                accept="image/*,video/*"
+                                onChange={handleFileUpload}
+                            />
+                            <Button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="h-14 w-14 rounded-full bg-blue-600 text-white shadow-xl shadow-blue-600/30 flex items-center justify-center animate-bounce duration-[2000ms]"
+                            >
+                                {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Camera className="h-6 w-6" />}
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Mobile Lightbox */}
+                    {selectedItem && (
+                        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-200">
+                            {/* Top Bar */}
+                            <div className="absolute top-0 left-0 right-0 p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex justify-between items-center z-20 bg-gradient-to-b from-black/60 to-transparent">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setSelectedItem(null)}
+                                    className="text-white hover:bg-white/10"
+                                >
+                                    <X className="h-6 w-6" />
+                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDownload(selectedItem.item)}
+                                        className="text-white hover:bg-white/10"
+                                    >
+                                        <Download className="h-5 w-5" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Media Viewer */}
+                            <div className="flex-1 flex items-center justify-center relative bg-black">
+                                {selectedItem.item.file_type === 'photo' ? (
+                                    <img src={selectedItem.item.file_url} className="w-full h-auto max-h-screen object-contain" />
+                                ) : (
+                                    <video src={selectedItem.item.file_url} controls autoPlay className="w-full h-auto max-h-screen" />
+                                )}
+
+                                {/* Nav Prev/Next overlay zones */}
+                                <div className="absolute inset-y-0 left-0 w-1/4 z-10" onClick={() => navigateLightbox('prev')} />
+                                <div className="absolute inset-y-0 right-0 w-1/4 z-10" onClick={() => navigateLightbox('next')} />
+                            </div>
+
+                            {/* Bottom Info */}
+                            <div className="p-6 pb-[calc(2rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 to-transparent text-white">
+                                <p className="font-bold text-sm truncate">{selectedItem.item.file_name}</p>
+                                <p className="text-[10px] text-white/60">{format(new Date(selectedItem.item.created_at), 'd MMM yyyy HH:mm')}</p>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     return (
         <DashboardLayout>

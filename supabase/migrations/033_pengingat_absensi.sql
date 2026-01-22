@@ -7,8 +7,10 @@ DECLARE
     v_now_time TIME;
     v_today DATE;
 BEGIN
-    v_now_time := CURRENT_TIME;
-    v_today := CURRENT_DATE;
+    -- Fix Check: Convert server time (UTC) to WIB (Asia/Jakarta)
+    -- This ensures comparison with shift times (stored as 08:00, etc) is correct
+    v_today := (now() AT TIME ZONE 'Asia/Jakarta')::date;
+    v_now_time := (now() AT TIME ZONE 'Asia/Jakarta')::time;
 
     -- 1. Check for Clock In Reminder (5 minutes before start)
     -- Logic: Find users who have a schedule today, haven't clocked in, and shift starts in ~5 mins

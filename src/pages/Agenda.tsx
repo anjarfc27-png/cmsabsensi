@@ -153,7 +153,10 @@ export default function AgendaPage() {
                 .from('agendas')
                 .select(`
                   *,
-                  participants:agenda_participants(*)
+                  participants:agenda_participants(
+                    user_id,
+                    profile:profiles(full_name, avatar_url)
+                  )
                 `)
                 .gte('start_time', `${queryStart}T00:00:00`)
                 .lte('start_time', `${queryEnd}T23:59:59`);
@@ -293,6 +296,26 @@ export default function AgendaPage() {
                     }));
                     const { error: partError } = await supabase.from('agenda_participants').insert(participantData);
                     if (partError) throw partError;
+
+                    // --- SEND NOTIFICATIONS TO PARTICIPANTS ---
+                    // Only send if it's a NEW agenda or significantly updated (logic simplified here)
+                    const notifTitle = isEditing ? 'Perubahan Jadwal Agenda' : 'Undangan Agenda Baru';
+                    const notifMessage = isEditing
+                        ? `Agenda "${form.title}" telah diperbarui. Cek jadwal terbaru.`
+                        : `Anda diundang ke agenda "${form.title}" pada ${format(new Date(form.date), 'dd MMMM yyyy', { locale: id })} pukul ${form.startTime}.`;
+
+                    const notifications = selectedParticipants.map(uid => ({
+                        user_id: uid,
+                        title: notifTitle,
+                        message: notifMessage,
+                        type: 'info', // or 'agenda' if you have that type
+                        is_read: false,
+                        created_at: new Date().toISOString()
+                        // link: '/agenda' // Optional if your notification table supports link
+                    }));
+
+                    // Fire and forget notification insert
+                    await supabase.from('notifications').insert(notifications);
                 }
             }
 
@@ -699,10 +722,12 @@ export default function AgendaPage() {
                                                                         <div className="text-[10px] p-2 text-slate-400 text-center">Belum ada peserta</div>
                                                                     ) : (
                                                                         agenda.participants?.map((p: any, idx: number) => {
-                                                                            // AMAN: Lookup manual ke state employees
-                                                                            const emp = employees.find(e => e.id === p.user_id);
-                                                                            const name = emp ? emp.full_name : 'User Tidak Dikenal';
-                                                                            const avatar = emp ? emp.avatar_url : null;
+                                                                            // USE JOINED PROFILE DATA FIRST, FALLBACK TO EMPLOYEES LOOKUP
+                                                                            const joinedProfile = p.profile;
+                                                                            const lookedUpEmp = employees.find(e => e.id === p.user_id);
+
+                                                                            const name = joinedProfile?.full_name || lookedUpEmp?.full_name || 'User Tidak Dikenal';
+                                                                            const avatar = joinedProfile?.avatar_url || lookedUpEmp?.avatar_url || null;
                                                                             const initial = name ? name[0] : '?';
 
                                                                             return (
@@ -1001,11 +1026,15 @@ export default function AgendaPage() {
                                                 <div className="flex items-center justify-between pt-3 border-t border-slate-100/50">
                                                     <div className="flex -space-x-2">
                                                         {agenda.participants?.slice(0, 4).map((p: any, i: number) => {
-                                                            const emp = employees.find(e => e.id === p.user_id);
+                                                            const joinedProfile = p.profile;
+                                                            const lookedUpEmp = employees.find(e => e.id === p.user_id);
+                                                            const name = joinedProfile?.full_name || lookedUpEmp?.full_name || '?';
+                                                            const avatar = joinedProfile?.avatar_url || lookedUpEmp?.avatar_url || '';
+
                                                             return (
                                                                 <Avatar key={i} className="h-7 w-7 border-2 border-white shadow-sm">
-                                                                    <AvatarImage src={emp?.avatar_url || ''} />
-                                                                    <AvatarFallback className="text-[8px] font-black bg-slate-100 text-slate-500">{emp?.full_name[0] || '?'}</AvatarFallback>
+                                                                    <AvatarImage src={avatar} />
+                                                                    <AvatarFallback className="text-[8px] font-black bg-slate-100 text-slate-500">{name[0] || '?'}</AvatarFallback>
                                                                 </Avatar>
                                                             );
                                                         })}
