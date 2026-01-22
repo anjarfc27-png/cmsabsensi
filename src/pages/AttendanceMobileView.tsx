@@ -164,53 +164,55 @@ export default function AttendanceMobileView({
                         </div>
                     </div>
 
-                    {/* 1. Status Info Card - Premium Restyling (Kept same) */}
-                    <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden bg-white/95 backdrop-blur-sm">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hari ini</span>
-                                    <span className="text-sm font-bold text-slate-700">{format(new Date(), 'EEEE, d MMMM yyyy', { locale: id })}</span>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Jam Berjalan</span>
-                                    <span className="text-xl font-black text-blue-600 tracking-tighter tabular-nums">{format(new Date(), 'HH:mm')}</span>
-                                </div>
+                    {/* 1. Hero Status Card - Centered Premium Design */}
+                    <Card className="border-none shadow-xl shadow-blue-500/20 rounded-[32px] overflow-hidden bg-blue-600 text-white mb-6 relative">
+                        {/* Decorative elements */}
+                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
+                        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/10 to-transparent" />
+
+                        <CardContent className="p-6 relative z-10 flex flex-col items-center text-center">
+                            <span className="text-xs font-medium text-blue-100/80 uppercase tracking-widest mb-2">STATUS PRESENSI</span>
+                            <h2 className="text-3xl font-black tracking-tight drop-shadow-sm mb-1">
+                                {!todayAttendance ? "BELUM ABSEN" : (!todayAttendance.clock_out ? "SUDAH MASUK" : "SELESAI")}
+                            </h2>
+                            <p className="text-sm font-medium text-blue-100/90 mb-6">
+                                {format(new Date(), 'EEEE, d MMMM yyyy', { locale: id })}
+                            </p>
+
+                            <div className="w-full bg-blue-700/30 rounded-2xl p-4 border border-blue-500/30 mb-6 flex flex-col items-center">
+                                <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-1">JAM SAAT INI</span>
+                                <span className="text-4xl font-mono font-bold tracking-tighter tabular-nums drop-shadow-sm">
+                                    {format(new Date(), 'HH:mm')}
+                                </span>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Jadwal Masuk</span>
-                                    <span className="text-sm font-black text-slate-800">{todaySchedule?.shift?.start_time?.substring(0, 5) || '--:--'}</span>
-                                </div>
-                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Jadwal Pulang</span>
-                                    <span className="text-sm font-black text-slate-800">{todaySchedule?.shift?.end_time?.substring(0, 5) || '--:--'}</span>
-                                </div>
-                            </div>
-
-                            {todayAttendance && (
-                                <div className="mt-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-blue-100 rounded-xl">
-                                            <Clock className="h-5 w-5 text-blue-600" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-blue-400 uppercase">Clock In</p>
-                                            <p className="text-sm font-black text-blue-700">{format(new Date(todayAttendance.clock_in), 'HH:mm:ss')}</p>
-                                        </div>
-                                    </div>
-                                    {todayAttendance.is_late && (
-                                        <Badge variant="destructive" className="rounded-full font-black text-[9px] px-2 py-0.5 animate-pulse">
-                                            TERLAMBAT {todayAttendance.late_minutes}m
-                                        </Badge>
+                            {!todayAttendance?.clock_out && (
+                                <Button
+                                    size="lg"
+                                    onClick={() => {
+                                        if (todayAttendance?.clock_out) return;
+                                        if (isFaceRequired) {
+                                            capturedPhoto ? handleSubmit() : openCameraForPhoto();
+                                        } else {
+                                            handleSubmit();
+                                        }
+                                    }}
+                                    disabled={loading || submitting || !!todaySchedule?.is_day_off}
+                                    className="w-full bg-white text-blue-600 hover:bg-blue-50 font-black text-lg rounded-2xl h-14 shadow-lg shadow-blue-900/20 transition-transform active:scale-95"
+                                >
+                                    {loading ? (
+                                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                    ) : (
+                                        <>
+                                            {!todayAttendance ? "ABSEN MASUK SEKARANG" : "ABSEN PULANG SEKARANG"}
+                                        </>
                                     )}
-                                </div>
+                                </Button>
                             )}
                         </CardContent>
                     </Card>
 
-                    {/* 2. Attendance Action Form */}
+                    {/* 2. Attendance Action Form (Inputs only) */}
                     {todayAttendance?.clock_out ? (
                         <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden bg-white/95 backdrop-blur-sm">
                             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -228,7 +230,7 @@ export default function AttendanceMobileView({
                                     <div className="p-2.5 bg-blue-50 rounded-2xl text-blue-600">
                                         <MapPin className="h-5 w-5" />
                                     </div>
-                                    <h3 className="font-black text-slate-800 tracking-tight text-lg">Data Kehadiran</h3>
+                                    <h3 className="font-black text-slate-800 tracking-tight text-lg">Lokasi & Bukti</h3>
                                 </div>
 
                                 {/* GPS Status Indicator & Validation (Kept Same) ... */}
@@ -389,38 +391,6 @@ export default function AttendanceMobileView({
                                             )}
                                         </div>
                                     )}
-
-                                    <Button
-                                        size="lg"
-                                        className={cn(
-                                            "w-full h-14 text-white font-bold text-lg shadow-xl transition-all rounded-2xl",
-                                            !todayAttendance
-                                                ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/25"
-                                                : (!todayAttendance.clock_out
-                                                    ? "bg-orange-500 hover:bg-orange-600 shadow-orange-500/25"
-                                                    : "bg-slate-400 cursor-not-allowed shadow-none"),
-                                            (loading || submitting || todaySchedule?.is_day_off) && "opacity-50 grayscale cursor-not-allowed transform-none shadow-none"
-                                        )}
-                                        onClick={() => {
-                                            if (todayAttendance?.clock_out) return;
-                                            if (isFaceRequired) {
-                                                capturedPhoto ? handleSubmit() : openCameraForPhoto();
-                                            } else {
-                                                handleSubmit(); // Direct submit without photo
-                                            }
-                                        }}
-                                        disabled={loading || submitting || !!todaySchedule?.is_day_off || !!todayAttendance?.clock_out}
-                                    >
-                                        {loading ? (
-                                            <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memuat...</>
-                                        ) : !todayAttendance ? (
-                                            <><LogIn className="mr-2 h-5 w-5" />{isFaceRequired ? "Scan Wajah & Masuk" : "Absen Masuk"}</>
-                                        ) : !todayAttendance.clock_out ? (
-                                            <><LogOut className="mr-2 h-5 w-5" />{isFaceRequired ? "Scan Wajah & Pulang" : "Absen Pulang"}</>
-                                        ) : (
-                                            <><CheckCircle2 className="mr-2 h-5 w-5" />Selesai Bekerja</>
-                                        )}
-                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -456,31 +426,4 @@ export default function AttendanceMobileView({
     );
 }
 
-<Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
-    <DialogContent className="max-w-md p-0 border-none bg-black text-white rounded-none sm:rounded-[40px] z-[100] h-full sm:h-auto">
-        <div className="relative aspect-[3/4] w-full bg-black">
-            {!stream ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-                    <Loader2 className="h-10 w-10 animate-spin text-white" />
-                    <p className="text-sm font-black uppercase tracking-[0.2em] text-white">Menyiapkan Kamera</p>
-                </div>
-            ) : (
-                <>
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                    <div className="absolute bottom-10 inset-x-0 flex justify-center items-center gap-12 z-40">
-                        <Button size="icon" variant="ghost" className="h-16 w-16 rounded-full text-white" onClick={() => { stopCamera(); setCameraOpen(false); }}>
-                            <X className="h-8 w-8" />
-                        </Button>
-                        <Button size="icon" className="h-20 w-20 rounded-full border-4 border-white bg-white/20 text-white" onClick={handleCapturePhoto}>
-                            <Fingerprint className="h-9 w-9" />
-                        </Button>
-                    </div>
-                </>
-            )}
-        </div>
-    </DialogContent>
-</Dialog>
-            </div >
-        </DashboardLayout >
-    );
-}
+
