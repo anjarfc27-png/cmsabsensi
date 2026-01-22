@@ -511,6 +511,16 @@ export default function AttendancePage() {
           return;
         }
 
+        // Check Late Clock-in Warning (after 6 PM)
+        const lateClockInThreshold = new Date();
+        lateClockInThreshold.setHours(18, 0, 0, 0); // 6 PM
+        if (now > lateClockInThreshold) {
+          if (!window.confirm("Ini sudah di luar jam kerja normal (lewat jam 6 sore). Apakah Anda yakin ingin melakukan absen masuk?")) {
+            setSubmitting(false);
+            return;
+          }
+        }
+
         // Add tolerance
         const lateThreshold = new Date(shiftStartDate.getTime() + (toleranceMinutes * 60000));
 
