@@ -180,7 +180,6 @@ export default function QuickAttendancePage() {
 
             const type = !existing ? 'clock_in' : 'clock_out';
 
-            const now = new Date();
             let isLate = false;
             let lateMinutes = 0;
 
