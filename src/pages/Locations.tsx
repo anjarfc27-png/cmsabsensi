@@ -42,9 +42,6 @@ export default function LocationsPage() {
         radius_meters: '100'
     });
 
-    // State untuk Quick Paste input
-    const [quickPasteValue, setQuickPasteValue] = useState('');
-
     const [showMap, setShowMap] = useState(false);
 
     useEffect(() => {
@@ -92,7 +89,6 @@ export default function LocationsPage() {
             longitude: '',
             radius_meters: '100'
         });
-        setQuickPasteValue('');
         setEditingLocation(null);
         setDialogOpen(true);
     };
@@ -131,69 +127,12 @@ export default function LocationsPage() {
         }
     };
 
-    // Helper untuk parse koordinat dari Google Maps paste
-    const parseCoordinates = (input: string) => {
-        if (!input) return false;
-
-        // 1. Cek URL Google Maps dengan pola @lat,lng
-        const urlMatch = input.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-        if (urlMatch) {
-            applyCoordinates(urlMatch[1], urlMatch[2]);
-            return true;
-        }
-
-        // 2. Cek URL Google Maps dengan query q=lat,lng
-        const queryMatch = input.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
-        if (queryMatch) {
-            applyCoordinates(queryMatch[1], queryMatch[2]);
-            return true;
-        }
-
-        // 3. Cek URL Google Maps dengan /lat,lng/
-        const pathMatch = input.match(/\/(-?\d+\.\d+),(-?\d+\.\d+)\//);
-        if (pathMatch) {
-            applyCoordinates(pathMatch[1], pathMatch[2]);
-            return true;
-        }
-
-        // 4. Cek URL Google Maps dengan 3D format (data=!3m)
-        const dataMatch = input.match(/3d(-?\d+\.\d+),(-?\d+\.\d+)/);
-        if (dataMatch) {
-            applyCoordinates(dataMatch[1], dataMatch[2]);
-            return true;
-        }
-
-        // 5. Cek format standar Lat, Lng dengan berbagai separator
-        const cleaned = input.replace(/lat(itude)?|long(itude)?|lng|lokasi|koordinat|[:=]/gi, ' ').trim();
-        const coordRegex = /(-?\d+\.\d+)[\s,;]+(-?\d+\.\d+)/;
-        const match = cleaned.match(coordRegex);
-
-        if (match) {
-            applyCoordinates(match[1], match[2]);
-            return true;
-        }
-
-        // 6. Cek format desimal dengan comma
-        const decimalRegex = /(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)/;
-        const decimalMatch = input.match(decimalRegex);
-
-        if (decimalMatch) {
-            applyCoordinates(decimalMatch[1], decimalMatch[2]);
-            return true;
-        }
-
-        return false;
-    };
-
     const applyCoordinates = (lat: string, lng: string) => {
         setFormData(prev => ({
             ...prev,
             latitude: lat,
             longitude: lng,
         }));
-
-        // Clear quick paste input after successful parse
-        setQuickPasteValue('');
 
         toast({
             title: '✅ Koordinat Ditemukan',
@@ -645,42 +584,6 @@ function LocationDialog({
                                 </Button>
                             </div>
                         )}
-
-                        {/* Quick Parse Input */}
-                        <div className="bg-slate-50 p-3 rounded-md border border-slate-200 space-y-2">
-                            <Label className="text-xs font-semibold text-slate-500 uppercase">Quick Paste</Label>
-                            <Input
-                                placeholder="Paste URL Google Maps atau Koordinat (cth: -6.2088, 106.8456)"
-                                className="bg-white text-xs font-mono"
-                                value={quickPasteValue}
-                                onChange={(e) => {
-                                    // Handle manual typing/paste fallback
-                                    const val = e.target.value;
-                                    setQuickPasteValue(val);
-                                    if (parseCoordinates(val)) {
-                                        // Parsed successfully
-                                    }
-                                }}
-                                onPaste={(e) => {
-                                    // Handle direct paste for better control
-                                    e.preventDefault();
-                                    const text = e.clipboardData.getData('text');
-                                    setQuickPasteValue(text);
-                                    if (parseCoordinates(text)) {
-                                        // Parsed successfully
-                                    } else {
-                                        toast({
-                                            title: 'Format Tidak Dikenali',
-                                            description: 'Paste URL Google Maps atau koordinat yang valid.',
-                                            variant: 'destructive'
-                                        });
-                                    }
-                                }}
-                            />
-                            <p className="text-[10px] text-slate-400">
-                                Tips: Copy URL lengkap dari Google Maps atau teks koordinat, lalu paste di sini. Sistem otomatis mengenali latitude & longitude.
-                            </p>
-                        </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
