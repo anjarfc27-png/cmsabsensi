@@ -103,6 +103,7 @@ interface AttendanceMobileViewProps {
     setPhotoPreview: (val: string | null) => void;
     capturedPhoto: Blob | null;
     verifying?: boolean;
+    isFaceRequired?: boolean;
 }
 
 export default function AttendanceMobileView({
@@ -137,12 +138,13 @@ export default function AttendanceMobileView({
     openCameraForPhoto,
     photoPreview,
     setPhotoPreview,
-    capturedPhoto
+    capturedPhoto,
+    isFaceRequired = true // Default true
 }: AttendanceMobileViewProps) {
     return (
         <DashboardLayout>
             <div className="relative min-h-screen bg-slate-50/50">
-                {/* Background Gradient - Matching Dashboard Theme */}
+                {/* ... (Kept existing header code) ... */}
                 <div className="absolute top-0 left-0 w-full h-[calc(110px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
                 {/* Floating Content */}
@@ -162,7 +164,7 @@ export default function AttendanceMobileView({
                         </div>
                     </div>
 
-                    {/* 1. Status Info Card - Premium Restyling */}
+                    {/* 1. Status Info Card - Premium Restyling (Kept same) */}
                     <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden bg-white/95 backdrop-blur-sm">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between mb-6">
@@ -229,7 +231,7 @@ export default function AttendanceMobileView({
                                     <h3 className="font-black text-slate-800 tracking-tight text-lg">Data Kehadiran</h3>
                                 </div>
 
-                                {/* GPS Status Indicator */}
+                                {/* GPS Status Indicator & Validation (Kept Same) ... */}
                                 {latitude && longitude ? (
                                     <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-center gap-3">
                                         <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -262,7 +264,6 @@ export default function AttendanceMobileView({
                                     </div>
                                 )}
 
-                                {/* Location Alert */}
                                 {!isLocationValid && workMode === 'wfo' && latitude && longitude && (
                                     <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 rounded-2xl">
                                         <AlertOctagon className="h-4 w-4" />
@@ -274,6 +275,7 @@ export default function AttendanceMobileView({
                                 )}
 
                                 <div className="space-y-4">
+                                    {/* Inputs for WorkMode and Map (Kept same) */}
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between px-1">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode & Lokasi</label>
@@ -324,20 +326,18 @@ export default function AttendanceMobileView({
                                                     </Marker>
                                                     {workMode === 'wfo' && selectedLocationId && (() => {
                                                         const office = officeLocations.find(l => l.id === selectedLocationId);
-                                                        if (office) {
-                                                            return (
-                                                                <>
-                                                                    <Marker position={[office.latitude, office.longitude] as [number, number]}>
-                                                                        <Popup>{office.name}</Popup>
-                                                                    </Marker>
-                                                                    <Circle
-                                                                        center={[office.latitude, office.longitude] as [number, number]}
-                                                                        radius={office.radius_meters || MAX_RADIUS_M}
-                                                                        pathOptions={{ fillColor: isLocationValid ? '#3b82f6' : '#ef4444', color: isLocationValid ? '#3b82f6' : '#ef4444', opacity: 0.1, weight: 1 }}
-                                                                    />
-                                                                </>
-                                                            )
-                                                        }
+                                                        if (office) return (
+                                                            <>
+                                                                <Marker position={[office.latitude, office.longitude] as [number, number]}>
+                                                                    <Popup>{office.name}</Popup>
+                                                                </Marker>
+                                                                <Circle
+                                                                    center={[office.latitude, office.longitude] as [number, number]}
+                                                                    radius={office.radius_meters || MAX_RADIUS_M}
+                                                                    pathOptions={{ fillColor: isLocationValid ? '#3b82f6' : '#ef4444', color: isLocationValid ? '#3b82f6' : '#ef4444', opacity: 0.1, weight: 1 }}
+                                                                />
+                                                            </>
+                                                        )
                                                     })()}
                                                 </MapContainer>
                                             )}
@@ -362,31 +362,33 @@ export default function AttendanceMobileView({
                                         />
                                     </div>
 
-                                    {/* Photo Trigger */}
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Verifikasi Biometrik</label>
-                                        {!photoPreview ? (
-                                            <div
-                                                onClick={openCameraForPhoto}
-                                                className="border-2 border-dashed border-slate-200 rounded-[24px] h-36 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 hover:border-blue-200 transition-all group"
-                                            >
-                                                <div className="h-12 w-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform mb-3">
-                                                    <Fingerprint className="h-6 w-6" />
+                                    {/* Photo Trigger - Only if Face Required */}
+                                    {isFaceRequired && (
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Verifikasi Biometrik</label>
+                                            {!photoPreview ? (
+                                                <div
+                                                    onClick={openCameraForPhoto}
+                                                    className="border-2 border-dashed border-slate-200 rounded-[24px] h-36 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 hover:border-blue-200 transition-all group"
+                                                >
+                                                    <div className="h-12 w-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform mb-3">
+                                                        <Fingerprint className="h-6 w-6" />
+                                                    </div>
+                                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Ambil Foto & Verifikasi</span>
                                                 </div>
-                                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Ambil Foto & Verifikasi</span>
-                                            </div>
-                                        ) : (
-                                            <div className="relative rounded-[24px] overflow-hidden h-48 bg-black shadow-lg group">
-                                                <img src={photoPreview} className="w-full h-full object-cover" alt="Preview" />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                                                <div className="absolute top-4 right-4">
-                                                    <Button size="icon" variant="secondary" className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none" onClick={() => setPhotoPreview(null)}>
-                                                        <RefreshCw className="h-4 w-4" />
-                                                    </Button>
+                                            ) : (
+                                                <div className="relative rounded-[24px] overflow-hidden h-48 bg-black shadow-lg group">
+                                                    <img src={photoPreview} className="w-full h-full object-cover" alt="Preview" />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                                    <div className="absolute top-4 right-4">
+                                                        <Button size="icon" variant="secondary" className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none" onClick={() => setPhotoPreview(null)}>
+                                                            <RefreshCw className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <Button
                                         size="lg"
@@ -401,16 +403,20 @@ export default function AttendanceMobileView({
                                         )}
                                         onClick={() => {
                                             if (todayAttendance?.clock_out) return;
-                                            capturedPhoto ? handleSubmit() : openCameraForPhoto();
+                                            if (isFaceRequired) {
+                                                capturedPhoto ? handleSubmit() : openCameraForPhoto();
+                                            } else {
+                                                handleSubmit(); // Direct submit without photo
+                                            }
                                         }}
                                         disabled={loading || submitting || !!todaySchedule?.is_day_off || !!todayAttendance?.clock_out}
                                     >
                                         {loading ? (
                                             <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memuat...</>
                                         ) : !todayAttendance ? (
-                                            <><LogIn className="mr-2 h-5 w-5" />Absen Masuk</>
+                                            <><LogIn className="mr-2 h-5 w-5" />{isFaceRequired ? "Scan Wajah & Masuk" : "Absen Masuk"}</>
                                         ) : !todayAttendance.clock_out ? (
-                                            <><LogOut className="mr-2 h-5 w-5" />Absen Pulang</>
+                                            <><LogOut className="mr-2 h-5 w-5" />{isFaceRequired ? "Scan Wajah & Pulang" : "Absen Pulang"}</>
                                         ) : (
                                             <><CheckCircle2 className="mr-2 h-5 w-5" />Selesai Bekerja</>
                                         )}
@@ -420,7 +426,7 @@ export default function AttendanceMobileView({
                         </Card>
                     )}
                 </div>
-
+                {/* Camera Dialog ... (Kept same) */}
                 <Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
                     <DialogContent className="max-w-md p-0 border-none bg-black text-white rounded-none sm:rounded-[40px] z-[100] h-full sm:h-auto">
                         <div className="relative aspect-[3/4] w-full bg-black">
@@ -447,5 +453,34 @@ export default function AttendanceMobileView({
                 </Dialog>
             </div>
         </DashboardLayout>
+    );
+}
+
+<Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
+    <DialogContent className="max-w-md p-0 border-none bg-black text-white rounded-none sm:rounded-[40px] z-[100] h-full sm:h-auto">
+        <div className="relative aspect-[3/4] w-full bg-black">
+            {!stream ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
+                    <Loader2 className="h-10 w-10 animate-spin text-white" />
+                    <p className="text-sm font-black uppercase tracking-[0.2em] text-white">Menyiapkan Kamera</p>
+                </div>
+            ) : (
+                <>
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                    <div className="absolute bottom-10 inset-x-0 flex justify-center items-center gap-12 z-40">
+                        <Button size="icon" variant="ghost" className="h-16 w-16 rounded-full text-white" onClick={() => { stopCamera(); setCameraOpen(false); }}>
+                            <X className="h-8 w-8" />
+                        </Button>
+                        <Button size="icon" className="h-20 w-20 rounded-full border-4 border-white bg-white/20 text-white" onClick={handleCapturePhoto}>
+                            <Fingerprint className="h-9 w-9" />
+                        </Button>
+                    </div>
+                </>
+            )}
+        </div>
+    </DialogContent>
+</Dialog>
+            </div >
+        </DashboardLayout >
     );
 }

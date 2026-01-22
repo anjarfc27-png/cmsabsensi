@@ -609,24 +609,26 @@ export default function Auth() {
   // -------------------------------------------------------------------------
   if (isMobile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white p-6 overflow-x-hidden relative">
-        <div className="w-full max-w-[480px] relative z-10">
-          {/* Logo */}
-          <div className="flex flex-col items-center gap-4 mb-6 mt-2 animate-in fade-in slide-in-from-top-8 duration-700">
-            <div className="w-full px-4">
+      <div className="h-[100dvh] flex flex-col items-center justify-center bg-white p-4 overflow-hidden relative">
+        <div className="w-full max-w-[480px] relative z-10 flex flex-col max-h-full">
+          {/* Logo - Compact & Protected Height */}
+          <div className="flex-shrink-0 flex flex-col items-center gap-2 mb-4 mt-2 animate-in fade-in slide-in-from-top-8 duration-700">
+            <div className="w-full flex justify-center px-4">
               <img
                 src="/logo.png"
                 alt="CMS Duta Solusi"
-                className="w-full h-auto object-contain max-w-xs mx-auto"
+                className="h-[60px] sm:h-[80px] w-auto object-contain transition-all"
               />
             </div>
           </div>
 
-          {/* Wrapper for Auth Form Content */}
-          {renderAuthForm()}
+          {/* Wrapper for Auth Form Content - Scrollable if needed but fit in screen */}
+          <div className="flex-1 w-full overflow-y-auto custom-scrollbar px-1">
+            {renderAuthForm()}
+          </div>
 
           {/* Footer */}
-          <p className="mt-8 text-xs text-slate-400 font-medium text-center">
+          <p className="flex-shrink-0 mt-4 text-[10px] text-slate-400 font-medium text-center pb-2">
             © 2026 CMS Duta Solusi. All rights reserved.
           </p>
         </div>

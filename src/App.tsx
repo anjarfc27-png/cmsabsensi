@@ -38,6 +38,7 @@ import Holidays from "./pages/Holidays";
 import Albums from "./pages/Albums";
 import AlbumDetail from "./pages/AlbumDetail";
 import ManagerAssignments from "./pages/ManagerAssignments";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -136,6 +137,7 @@ const App = () => {
                 <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
                 <Route path="/albums" element={<ProtectedRoute><Albums /></ProtectedRoute>} />
                 <Route path="/albums/:id" element={<ProtectedRoute><AlbumDetail /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin_hr']}><Settings /></ProtectedRoute>} />
                 <Route path="/coming-soon" element={<ProtectedRoute><ComingSoon /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>

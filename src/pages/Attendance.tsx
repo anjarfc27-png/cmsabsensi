@@ -71,9 +71,8 @@ export default function AttendancePage() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  const [enrolledDescriptor, setEnrolledDescriptor] = useState<Float32Array | null>(null);
-  const { initialize: initMediaPipe, detectFace } = useMediaPipeFace();
-  const { getDeepDescriptor, computeMatch } = useFaceSystem();
+  // NEW: Face Verification Setting
+  const [isFaceRequired, setIsFaceRequired] = useState(true);
 
   // GPS validation - STRICTER for security
   const MAX_RADIUS_M = 50; // Reduced from 100m to 50m
@@ -170,6 +169,17 @@ export default function AttendancePage() {
       if (!user) return;
       const today = format(new Date(), 'yyyy-MM-dd');
 
+      // 1. Fetch Setting: Face Verification Required?
+      const { data: settingData } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'require_face_verification')
+        .maybeSingle();
+
+      if (settingData) {
+        setIsFaceRequired(settingData.value);
+      }
+
       // Fetch Attendance
       const { data: attendanceData } = await supabase
         .from('attendances')
@@ -227,13 +237,20 @@ export default function AttendancePage() {
         toast({ title: 'Error', description: 'User tidak ditemukan', variant: 'destructive' });
         return;
       }
+
+      // If validation NOT REQUIRED, skip camera
+      if (!isFaceRequired) {
+        // Bypass logic handled in button click or handleSubmit
+        return;
+      }
+
       // Check for day off
       if (todaySchedule?.is_day_off) {
         toast({ title: 'Hari Libur', description: 'Hari ini adalah hari libur.', });
       }
 
-      // PWA: Check enrollment
-      if (!Capacitor.isNativePlatform() && !enrolledDescriptor) {
+      // PWA: Check enrollment only if Required
+      if (isFaceRequired && !Capacitor.isNativePlatform() && !enrolledDescriptor) {
         toast({
           title: 'Wajah Belum Terdaftar',
           description: 'Mohon daftarkan wajah Anda terlebih dahulu di menu Profil.',
@@ -304,19 +321,22 @@ export default function AttendancePage() {
         }
       } else {
         // PWA/WEB: Use Face Recognition via Camera
-        if (!enrolledDescriptor) {
-          toast({ title: 'Gagal', description: 'Anda belum mendaftarkan wajah. Silakan ke menu Profil > Registrasi Wajah.', variant: 'destructive' });
-          setVerifying(false);
-          return;
-        }
+        // Skip if not required (redundant check but safe)
+        if (isFaceRequired) {
+          if (!enrolledDescriptor) {
+            toast({ title: 'Gagal', description: 'Anda belum mendaftarkan wajah. Silakan ke menu Profil > Registrasi Wajah.', variant: 'destructive' });
+            setVerifying(false);
+            return;
+          }
 
-        toast({ title: 'Memindai Wajah...', description: 'Tahan posisi wajah Anda...', });
-        const isFaceValid = await performFaceScan();
+          toast({ title: 'Memindai Wajah...', description: 'Tahan posisi wajah Anda...', });
+          const isFaceValid = await performFaceScan();
 
-        if (!isFaceValid) {
-          toast({ title: 'Wajah Tidak Cocok', description: 'Wajah tidak dikenali. Pastikan pencahayaan cukup.', variant: 'destructive' });
-          setVerifying(false);
-          return;
+          if (!isFaceValid) {
+            toast({ title: 'Wajah Tidak Cocok', description: 'Wajah tidak dikenali. Pastikan pencahayaan cukup.', variant: 'destructive' });
+            setVerifying(false);
+            return;
+          }
         }
       }
 
@@ -365,8 +385,15 @@ export default function AttendancePage() {
   };
 
   const handleSubmit = async () => {
-    if (!user || latitude == null || longitude == null || !capturedPhoto) {
-      toast({ title: 'Data Kurang', description: 'Pastikan foto dan lokasi tersedia.', variant: 'destructive' });
+    // 1. Basic Validation
+    if (!user || latitude == null || longitude == null) {
+      toast({ title: 'Data Kurang', description: 'Pastikan lokasi tersedia.', variant: 'destructive' });
+      return;
+    }
+
+    // 2. Photo Validation (Conditiona)
+    if (isFaceRequired && !capturedPhoto) {
+      toast({ title: 'Foto Wajib', description: 'Pastikan Anda telah mengambil foto wajah.', variant: 'destructive' });
       return;
     }
 
@@ -399,11 +426,18 @@ export default function AttendancePage() {
     const type = !todayAttendance ? 'clock_in' : 'clock_out';
 
     try {
-      const fileName = `${user.id}/${format(new Date(), 'yyyy-MM-dd')}_${type}_${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage.from('attendance-photos').upload(fileName, capturedPhoto);
-      if (uploadError) throw uploadError;
+      let publicUrl = null;
 
-      const { data: { publicUrl } } = supabase.storage.from('attendance-photos').getPublicUrl(fileName);
+      // Only upload if photo exists
+      if (capturedPhoto) {
+        const fileName = `${user.id}/${format(new Date(), 'yyyy-MM-dd')}_${type}_${Date.now()}.jpg`;
+        const { error: uploadError } = await supabase.storage.from('attendance-photos').upload(fileName, capturedPhoto);
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage.from('attendance-photos').getPublicUrl(fileName);
+        publicUrl = data.publicUrl;
+      }
+
       const now = new Date();
       const today = format(now, 'yyyy-MM-dd');
 
@@ -444,7 +478,8 @@ export default function AttendancePage() {
 
         await supabase.from('attendances').insert({
           user_id: user.id, date: today, clock_in: now.toISOString(),
-          clock_in_latitude: latitude, clock_in_longitude: longitude, clock_in_photo_url: publicUrl,
+          clock_in_latitude: latitude, clock_in_longitude: longitude,
+          clock_in_photo_url: publicUrl, // NULLABLE in db
           clock_in_location_id: selectedLocationId || null, work_mode: workMode,
           status: 'present', is_late: isLate, late_minutes: lateMinutes, notes: notes.trim() || null
         });
@@ -539,7 +574,8 @@ export default function AttendancePage() {
     photoPreview,
     setPhotoPreview,
     capturedPhoto,
-    verifying
+    verifying,
+    isFaceRequired, // PASS TO VIEW
   };
 
   if (isMobile) {
