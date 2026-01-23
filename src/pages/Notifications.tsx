@@ -151,8 +151,8 @@ export default function NotificationsPage() {
     if (isMobile) {
         return (
             <DashboardLayout>
-                <div className="relative min-h-screen bg-slate-50/50 pb-20">
-                    <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[40px] z-0" />
+                <div className="relative min-h-screen bg-slate-50/50 dark:bg-slate-950 pb-20">
+                    <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-900 dark:to-cyan-900 rounded-b-[40px] z-0" />
 
                     <div className="relative z-10 max-w-2xl mx-auto px-4 pt-[calc(1rem+env(safe-area-inset-top))] space-y-6">
                         <div className="flex items-center justify-between text-white">
@@ -230,7 +230,7 @@ export default function NotificationsPage() {
                                         placeholder="Cari notifikasi..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 h-12 bg-white/80 backdrop-blur-sm border-none shadow-sm rounded-2xl focus-visible:ring-blue-500/30 transition-all"
+                                        className="pl-10 h-12 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-none shadow-sm rounded-2xl focus-visible:ring-blue-500/30 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                     />
                                     {searchTerm && (
                                         <button
@@ -247,7 +247,7 @@ export default function NotificationsPage() {
                                         variant={filterRead === 'all' ? 'default' : 'outline'}
                                         size="sm"
                                         onClick={() => setFilterRead('all')}
-                                        className={`rounded-full h-8 text-xs px-4 border-none shadow-sm ${filterRead === 'all' ? 'bg-blue-600' : 'bg-white text-slate-600'}`}
+                                        className={`rounded-full h-8 text-xs px-4 border-none shadow-sm ${filterRead === 'all' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                                     >
                                         Semua
                                     </Button>
@@ -255,7 +255,7 @@ export default function NotificationsPage() {
                                         variant={filterRead === 'unread' ? 'default' : 'outline'}
                                         size="sm"
                                         onClick={() => setFilterRead('unread')}
-                                        className={`rounded-full h-8 text-xs px-4 border-none shadow-sm relative ${filterRead === 'unread' ? 'bg-blue-600' : 'bg-white text-slate-600'}`}
+                                        className={`rounded-full h-8 text-xs px-4 border-none shadow-sm relative ${filterRead === 'unread' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                                     >
                                         Belum Dibaca
                                         {notifications.filter(n => !n.read).length > 0 && (
@@ -269,7 +269,7 @@ export default function NotificationsPage() {
                                             variant={filterType === cat.id ? 'default' : 'outline'}
                                             size="sm"
                                             onClick={() => setFilterType(cat.id)}
-                                            className={`rounded-full h-8 text-xs px-4 border-none shadow-sm flex-shrink-0 ${filterType === cat.id ? 'bg-indigo-600' : 'bg-white text-slate-600'}`}
+                                            className={`rounded-full h-8 text-xs px-4 border-none shadow-sm flex-shrink-0 ${filterType === cat.id ? 'bg-indigo-600 dark:bg-indigo-500 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                                         >
                                             {cat.label}
                                         </Button>
@@ -318,11 +318,11 @@ export default function NotificationsPage() {
                                 filteredNotifications.map((n) => (
                                     <Card
                                         key={n.id}
-                                        className={`border-none shadow-sm rounded-2xl transition-all active:scale-[0.98] ${!n.read ? 'bg-white ring-2 ring-blue-50' : 'bg-slate-50/50 opacity-80'}`}
+                                        className={`border-none shadow-sm rounded-2xl transition-all active:scale-[0.98] ${!n.read ? 'bg-white dark:bg-slate-800 ring-2 ring-blue-50 dark:ring-blue-900/30' : 'bg-slate-50/50 dark:bg-slate-900/50 opacity-80'}`}
                                     >
                                         <CardContent className="p-4">
                                             <div className="flex gap-4">
-                                                <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${!n.read ? 'bg-blue-50' : 'bg-white'}`}>
+                                                <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${!n.read ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-white dark:bg-slate-800'}`}>
                                                     {getIcon(n.type)}
                                                 </div>
                                                 <div className="flex-1 min-w-0" onClick={() => {
@@ -330,14 +330,14 @@ export default function NotificationsPage() {
                                                     if (n.link) navigate(n.link);
                                                 }}>
                                                     <div className="flex items-center justify-between">
-                                                        <h4 className={`text-sm tracking-tight ${!n.read ? 'font-black text-slate-900' : 'font-bold text-slate-600'}`}>
+                                                        <h4 className={`text-sm tracking-tight ${!n.read ? 'font-black text-slate-900 dark:text-white' : 'font-bold text-slate-600 dark:text-slate-400'}`}>
                                                             {n.title}
                                                         </h4>
                                                         <span className="text-[10px] text-slate-400 font-medium">
                                                             {format(new Date(n.created_at), 'dd/MM, HH:mm', { locale: id })}
                                                         </span>
                                                     </div>
-                                                    <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
                                                         {n.message}
                                                     </p>
                                                 </div>
@@ -372,13 +372,13 @@ export default function NotificationsPage() {
             <div className="max-w-7xl mx-auto space-y-8 px-4 py-8 min-h-screen">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Pusat Notifikasi</h1>
-                        <p className="text-slate-500 text-lg">Kelola semua pemberitahuan dan informasi penting Anda.</p>
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Pusat Notifikasi</h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-lg">Kelola semua pemberitahuan dan informasi penting Anda.</p>
                     </div>
                     {notifications.some(n => !n.read) && (
                         <Button
                             onClick={markAllAsRead}
-                            className="bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 shadow-sm font-bold gap-2 rounded-xl h-12 px-6"
+                            className="bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-sm font-bold gap-2 rounded-xl h-12 px-6"
                         >
                             <MailOpen className="h-5 w-5 text-blue-500" />
                             Tandai Semua Dibaca
@@ -389,9 +389,9 @@ export default function NotificationsPage() {
                 <div className="grid lg:grid-cols-12 gap-8 items-start">
                     {/* LEFT SIDEBAR: FILTERS */}
                     <div className="lg:col-span-4 sticky top-24 space-y-6">
-                        <Card className="rounded-[32px] border-none shadow-xl shadow-slate-200/40 bg-white overflow-hidden">
-                            <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6">
-                                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                        <Card className="rounded-[32px] border-none shadow-xl shadow-slate-200/40 dark:shadow-none bg-white dark:bg-slate-900 overflow-hidden">
+                            <CardHeader className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 p-6">
+                                <CardTitle className="text-lg font-bold flex items-center gap-2 text-slate-900 dark:text-white">
                                     <Filter className="h-5 w-5 text-blue-600" /> Filter & Pencarian
                                 </CardTitle>
                             </CardHeader>
@@ -442,7 +442,7 @@ export default function NotificationsPage() {
                                                 key={cat.id}
                                                 variant={filterType === cat.id ? 'secondary' : 'ghost'}
                                                 onClick={() => setFilterType(cat.id)}
-                                                className={`w-full justify-start h-10 rounded-xl font-medium ${filterType === cat.id ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                                                className={`w-full justify-start h-10 rounded-xl font-medium ${filterType === cat.id ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                                             >
                                                 <cat.icon className="mr-3 h-4 w-4 opacity-70" />
                                                 {cat.label}
@@ -488,24 +488,24 @@ export default function NotificationsPage() {
                                             markAsRead(n.id);
                                             if (n.link) navigate(n.link);
                                         }}
-                                        className={`group border-none shadow-sm hover:shadow-md transition-all rounded-2xl cursor-pointer overflow-hidden relative ${!n.read ? 'bg-white ring-1 ring-blue-100 shadow-blue-100' : 'bg-white/60 hover:bg-white'}`}
+                                        className={`group border-none shadow-sm hover:shadow-md transition-all rounded-2xl cursor-pointer overflow-hidden relative ${!n.read ? 'bg-white dark:bg-slate-800 ring-1 ring-blue-100 dark:ring-blue-900 shadow-blue-100 dark:shadow-none' : 'bg-white/60 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-800'}`}
                                     >
                                         {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500" />}
                                         <CardContent className="p-6 flex items-start gap-5">
-                                            <div className={`h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-colors ${!n.read ? 'bg-blue-50' : 'bg-slate-50 group-hover:bg-slate-100'}`}>
+                                            <div className={`h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-colors ${!n.read ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'}`}>
                                                 {getIcon(n.type)}
                                             </div>
                                             <div className="flex-1 min-w-0 pt-1">
                                                 <div className="flex items-start justify-between gap-4">
                                                     <div>
-                                                        <h4 className={`text-base leading-tight mb-1 ${!n.read ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
+                                                        <h4 className={`text-base leading-tight mb-1 ${!n.read ? 'font-black text-slate-900 dark:text-white' : 'font-bold text-slate-700 dark:text-slate-300'}`}>
                                                             {n.title}
                                                         </h4>
-                                                        <p className="text-slate-500 text-sm leading-relaxed">
+                                                        <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
                                                             {n.message}
                                                         </p>
                                                     </div>
-                                                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap bg-slate-50 px-2 py-1 rounded-lg">
+                                                    <span className="text-xs text-slate-400 dark:text-slate-500 font-medium whitespace-nowrap bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded-lg">
                                                         {format(new Date(n.created_at), 'd MMM, HH:mm', { locale: id })}
                                                     </span>
                                                 </div>

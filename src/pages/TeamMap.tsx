@@ -32,7 +32,7 @@ type AttendanceLocation = {
 
 export default function TeamMap() {
     const navigate = useNavigate();
-    const { user, role } = useAuth();
+    const { user, role, profile } = useAuth();
     const { toast } = useToast();
     const isMobile = useIsMobile();
 
@@ -48,12 +48,11 @@ export default function TeamMap() {
         // Auto refresh every 5 minutes
         const interval = setInterval(fetchLocations, 5 * 60 * 1000);
         return () => clearInterval(interval);
-    }, [user]);
+    }, [user, profile]); // Refetch when profile loads (for department filter)
 
     const fetchLocations = async () => {
         try {
             setLoading(true);
-            const { profile } = useAuth(); // Get fresh profile for dept filtering
             const today = new Date().toISOString().split('T')[0];
 
             // Fetch attendances for today

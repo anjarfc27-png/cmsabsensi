@@ -334,10 +334,10 @@ export default function Auth() {
 
   // Render form content directly to avoid re-creation on every render
   const renderAuthForm = () => (
-    <Card className={cn("border-0 shadow-2xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl rounded-3xl overflow-hidden animate-in zoom-in-95 fade-in duration-500", !isMobile && "shadow-none bg-transparent rounded-none")}>
+    <Card className={cn("border-0 shadow-2xl shadow-slate-200/50 dark:shadow-none bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl overflow-hidden animate-in zoom-in-95 fade-in duration-500", !isMobile && "shadow-none bg-transparent dark:bg-transparent rounded-none")}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="px-8 pt-8">
-          <TabsList className="grid w-full grid-cols-2 h-14 rounded-2xl bg-slate-100/80 p-1.5">
+          <TabsList className="grid w-full grid-cols-2 h-14 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 p-1.5">
             <TabsTrigger
               value="login"
               className="rounded-xl text-sm font-bold data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-300"
@@ -357,7 +357,7 @@ export default function Auth() {
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-6 pt-8 pb-4 px-8">
               <div className="space-y-2">
-                <Label htmlFor="login-email" className="text-slate-700 dark:text-slate-700 font-semibold text-sm">
+                <Label htmlFor="login-email" className="text-slate-700 dark:text-slate-300 font-semibold text-sm">
                   Email Perusahaan
                 </Label>
                 <div className="relative">
@@ -370,14 +370,14 @@ export default function Auth() {
                     onChange={(e) => setLoginEmail(e.target.value)}
                     disabled={isLoading}
                     required
-                    className="h-14 pl-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all text-base focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-slate-900 placeholder:text-slate-400"
+                    className="h-14 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all text-base focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="login-password" className="text-slate-700 dark:text-slate-700 font-semibold text-sm">
+                  <Label htmlFor="login-password" className="text-slate-700 dark:text-slate-300 font-semibold text-sm">
                     Password
                   </Label>
                   <a href="#" className="text-xs text-blue-600 hover:text-blue-700 font-semibold hover:underline">
@@ -394,7 +394,7 @@ export default function Auth() {
                     onChange={(e) => setLoginPassword(e.target.value)}
                     disabled={isLoading}
                     required
-                    className="h-14 pl-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all text-base focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-slate-900 placeholder:text-slate-400"
+                    className="h-14 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all text-base focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
               </div>
@@ -410,37 +410,33 @@ export default function Auth() {
                 <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <div className="relative py-4">
                     <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-slate-100"></span>
+                      <span className="w-full border-t border-slate-100 dark:border-slate-800"></span>
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white px-3 text-slate-400 font-bold tracking-widest">Atau Akses Cepat</span>
+                      <span className="bg-white dark:bg-slate-900 px-3 text-slate-400 font-bold tracking-widest">Atau Akses Cepat</span>
                     </div>
                   </div>
 
                   <Button
-                    type="button"
-                    onClick={handleBiometricLogin}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="w-full h-16 rounded-2xl border-2 border-blue-50 bg-blue-50/30 hover:bg-blue-50 hover:border-blue-200 transition-all group overflow-hidden relative"
+                    className="w-full h-16 rounded-2xl border-2 border-blue-50 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 transition-all group overflow-hidden relative"
                   >
                     <div className="absolute left-0 top-0 w-1 h-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="flex items-center gap-4 px-2">
                       <div className="relative">
                         {lastUser.avatar ? (
-                          <img src={lastUser.avatar} className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm" alt="Avatar" />
+                          <img src={lastUser.avatar} className="h-10 w-10 rounded-full object-cover border-2 border-white dark:border-slate-700 shadow-sm" alt="Avatar" />
                         ) : (
-                          <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs border-2 border-white shadow-sm">
+                          <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs border-2 border-white dark:border-slate-700 shadow-sm">
                             {lastUser.name.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-slate-100">
+                        <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-100 dark:border-slate-700">
                           <Fingerprint className="h-3.5 w-3.5 text-blue-600" />
                         </div>
                       </div>
                       <div className="text-left">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter leading-none mb-1">Masuk Sebagai</p>
-                        <p className="text-sm font-black text-slate-800">{lastUser.name}</p>
+                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">{lastUser.name}</p>
                       </div>
                       <div className="ml-auto flex items-center gap-2">
                         <Fingerprint className="h-5 w-5 text-blue-500 group-hover:animate-pulse" />
@@ -476,7 +472,7 @@ export default function Auth() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-slate-400 hover:text-blue-600 gap-2 text-xs font-semibold tracking-wide w-full hover:bg-slate-50"
+                  className="text-slate-400 hover:text-blue-600 gap-2 text-xs font-semibold tracking-wide w-full hover:bg-slate-50 dark:hover:bg-slate-800"
                   onClick={() => {
                     if (!lastUser) {
                       toast({
@@ -501,7 +497,7 @@ export default function Auth() {
           <form onSubmit={handleRegister}>
             <CardContent className="space-y-4 pt-8 pb-4 px-8">
               <div className="space-y-2">
-                <Label htmlFor="register-name" className="text-slate-700 dark:text-slate-700 font-semibold text-sm">
+                <Label htmlFor="register-name" className="text-slate-700 dark:text-slate-300 font-semibold text-sm">
                   Nama Lengkap
                 </Label>
                 <div className="relative">
@@ -514,13 +510,13 @@ export default function Auth() {
                     onChange={(e) => setRegisterName(e.target.value)}
                     disabled={isLoading || justRegistered}
                     required
-                    className="h-12 pl-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-slate-900 placeholder:text-slate-400"
+                    className="h-12 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="register-email" className="text-slate-700 dark:text-slate-700 font-semibold text-sm">
+                <Label htmlFor="register-email" className="text-slate-700 dark:text-slate-300 font-semibold text-sm">
                   Email Perusahaan
                 </Label>
                 <div className="relative">
@@ -533,13 +529,13 @@ export default function Auth() {
                     onChange={(e) => setRegisterEmail(e.target.value)}
                     disabled={isLoading || justRegistered}
                     required
-                    className="h-12 pl-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-slate-900 placeholder:text-slate-400"
+                    className="h-12 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="register-phone" className="text-slate-700 dark:text-slate-700 font-semibold text-sm">
+                <Label htmlFor="register-phone" className="text-slate-700 dark:text-slate-300 font-semibold text-sm">
                   No. WhatsApp
                 </Label>
                 <div className="relative">
@@ -553,14 +549,14 @@ export default function Auth() {
                     disabled={isLoading || justRegistered}
                     required
                     maxLength={15}
-                    className="h-12 pl-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-slate-900 placeholder:text-slate-400"
+                    className="h-12 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
 
               <div className="space-y-2">
-                <Label htmlFor="register-password" className="text-slate-700 dark:text-slate-700 font-semibold text-sm">
+                <Label htmlFor="register-password" className="text-slate-700 dark:text-slate-300 font-semibold text-sm">
                   Password
                 </Label>
                 <div className="relative">
@@ -573,7 +569,7 @@ export default function Auth() {
                     onChange={(e) => setRegisterPassword(e.target.value)}
                     disabled={isLoading || justRegistered}
                     required
-                    className="h-12 pl-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-slate-900 placeholder:text-slate-400"
+                    className="h-12 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
               </div>
@@ -609,7 +605,7 @@ export default function Auth() {
   // -------------------------------------------------------------------------
   if (isMobile) {
     return (
-      <div className="h-[100dvh] flex flex-col items-center justify-center bg-white p-4 overflow-hidden relative">
+      <div className="h-[100dvh] flex flex-col items-center justify-center bg-white dark:bg-slate-950 p-4 overflow-hidden relative">
         <div className="w-full max-w-[480px] relative z-10 flex flex-col max-h-full">
           {/* Logo - Compact & Protected Height */}
           <div className="flex-shrink-0 flex flex-col items-center gap-2 mb-4 mt-2 animate-in fade-in slide-in-from-top-8 duration-700">
@@ -652,7 +648,7 @@ export default function Auth() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 overflow-hidden bg-white">
       {/* Left Column: Brand & Logo */}
-      <div className="hidden lg:flex relative bg-slate-50 flex-col justify-center items-center p-12 overflow-hidden">
+      <div className="hidden lg:flex relative bg-slate-50 dark:bg-slate-900 flex-col justify-center items-center p-12 overflow-hidden">
         {/* Logo Besar */}
         <div className="relative z-10 w-full max-w-lg">
           <img
@@ -664,18 +660,18 @@ export default function Auth() {
       </div>
 
       {/* Right Column: Login Form */}
-      <div className="flex flex-col items-center justify-center p-8 bg-white relative">
+      <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-950 relative">
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Selamat Datang</h2>
-            <p className="text-slate-500">Silakan masuk ke akun Anda untuk melanjutkan.</p>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Selamat Datang</h2>
+            <p className="text-slate-500 dark:text-slate-400">Silakan masuk ke akun Anda untuk melanjutkan.</p>
           </div>
 
-          <div className="bg-white shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden border border-slate-100 p-2">
+          <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 p-2">
             {renderAuthForm()}
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-400 font-medium">
+          <div className="flex items-center justify-center gap-2 text-sm text-slate-400 dark:text-slate-500 font-medium">
             <Lock className="h-3 w-3" />
             <span>Enkripsi End-to-End & Keamanan Terjamin</span>
           </div>
