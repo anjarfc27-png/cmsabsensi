@@ -273,7 +273,7 @@ export default function Auth() {
     setIsLoading(true);
 
     // Send phone and NIK as metadata
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error } = await supabase.auth.signUp({
       email: registerEmail,
       password: registerPassword,
       options: {
@@ -291,7 +291,7 @@ export default function Auth() {
       if (error.message.includes('User already registered') || error.message.includes('unique constraint')) {
         message = 'Email sudah terdaftar. Silakan login';
       } else if (error.message.toLowerCase().includes('rate limit')) {
-        message = 'Terlalu banyak percobaan pengiriman email. Mohon tunggu beberapa saat sebelum mencoba lagi.';
+        message = 'Terlalu banyak percobaan (Rate Limit). Coba ganti koneksi internet (IP) atau tunggu 1 jam.';
       }
 
       toast({
@@ -301,12 +301,29 @@ export default function Auth() {
       });
       setIsLoading(false);
     } else {
-      toast({
-        title: 'Registrasi Berhasil! 📧',
-        description: 'Tautan konfirmasi telah dikirim. Cek Inbox/Spam email Anda, verifikasi, lalu Login.',
-        duration: 6000,
-        variant: 'default', // Gunakan default agar konsisten
-      });
+      // Cek apakah Auto-Login berhasil (Email Confirmation Disabled)
+      if (authData.session) {
+        toast({
+          title: 'Registrasi Berhasil! 🎉',
+          description: 'Akun Anda telah dibuat. Mengalihkan ke Dashboard...',
+          variant: 'default',
+        });
+        // Tidak perlu apa-apa, AuthContext listener akan mendeteksi session baru dan redirect otomatis
+      } else {
+        // Fallback: Jika tidak auto-login (misal karena config server), arahkan ke login manual
+        toast({
+          title: 'Registrasi Berhasil! 🎉',
+          description: 'Akun berhasil dibuat. Silakan Login.',
+          duration: 3000,
+          variant: 'default',
+        });
+
+        // Pindah ke tab login
+        setTimeout(() => {
+          setActiveTab('login');
+          setJustRegistered(false);
+        }, 1500);
+      }
 
       // Clear form
       setRegisterName('');
@@ -315,12 +332,6 @@ export default function Auth() {
       setRegisterPhone('');
       setJustRegistered(true);
       setIsLoading(false);
-
-      // Switch to login tab after 3 seconds (kasih waktu baca)
-      setTimeout(() => {
-        setActiveTab('login');
-        setJustRegistered(false);
-      }, 3000);
     }
   };
 
