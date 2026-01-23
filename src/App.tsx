@@ -90,6 +90,7 @@ const BackButtonHandler = () => {
 
 import { SplashScreen } from "@/components/layout/SplashScreen";
 import { useState } from "react";
+import { Toaster } from "@/components/ui/toaster";
 
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -97,6 +98,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <Toaster />
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
