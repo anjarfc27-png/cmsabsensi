@@ -15,6 +15,7 @@ import { Loader2, Plus, Clock, CalendarDays, Moon, Sun, Trash2, Edit, ChevronLef
 import { Shift, EmployeeSchedule, Profile } from '@/types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { format as formatTz } from 'date-fns-tz';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
@@ -93,8 +94,10 @@ export default function ShiftsPage() {
     };
 
     const fetchSchedules = async (date: Date) => {
-        const start = format(startOfMonth(date), 'yyyy-MM-dd');
-        const end = format(endOfMonth(date), 'yyyy-MM-dd');
+        const TIMEZONE = 'Asia/Jakarta';
+        // Ensure start/end of month are calculated in WIB
+        const start = formatTz(startOfMonth(date), 'yyyy-MM-dd', { timeZone: TIMEZONE });
+        const end = formatTz(endOfMonth(date), 'yyyy-MM-dd', { timeZone: TIMEZONE });
 
         try {
             let query = (supabase.from('employee_schedules') as any)
@@ -202,11 +205,15 @@ export default function ShiftsPage() {
             const dates = eachDayOfInterval({ start: startOfMonth(selectedDate), end: endOfMonth(selectedDate) });
             const bulkData: any[] = [];
 
+            // TIMEZONE FIX: Asia/Jakarta
+            const TIMEZONE = 'Asia/Jakarta';
+
             employees.forEach(emp => {
                 dates.forEach(date => {
                     const dayName = format(date, 'EEE');
                     const isWeekend = dayName === 'Sat' || dayName === 'Sun';
-                    const dateStr = format(date, 'yyyy-MM-dd');
+                    // Force date string in WIB
+                    const dateStr = formatTz(date, 'yyyy-MM-dd', { timeZone: TIMEZONE });
 
                     bulkData.push({
                         user_id: emp.id,

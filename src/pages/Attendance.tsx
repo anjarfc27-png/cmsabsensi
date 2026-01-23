@@ -9,6 +9,7 @@ import { useCamera } from '@/hooks/useCamera';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { promptBiometricForAttendance } from '@/utils/biometricAuth';
 import { format } from 'date-fns';
+import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz';
 import { Capacitor } from '@capacitor/core';
 import { useMediaPipeFace } from '@/hooks/useMediaPipeFace';
 import { useFaceSystem } from '@/hooks/useFaceSystem';
@@ -197,7 +198,9 @@ export default function AttendancePage() {
   const fetchData = async () => {
     try {
       if (!user) return;
-      const today = format(new Date(), 'yyyy-MM-dd');
+      // Use Jakarta timezone for fetching today's data
+      const TIMEZONE = 'Asia/Jakarta';
+      const today = formatTz(new Date(), 'yyyy-MM-dd', { timeZone: TIMEZONE });
 
       // 1. Fetch Setting: Face Verification Required?
       const { data: settingData } = await supabase
@@ -481,8 +484,15 @@ export default function AttendancePage() {
         publicUrl = data.publicUrl;
       }
 
-      const now = new Date();
-      const today = format(now, 'yyyy-MM-dd');
+      // Remove these local definitions as we redefine them with timezone awareness below
+      // const now = new Date();
+      // const today = format(now, 'yyyy-MM-dd');
+
+      // TIMEZONE FIX: Force everything to be calculated in WIB (Asia/Jakarta)
+      const TIMEZONE = 'Asia/Jakarta';
+      const now = new Date(); // UTC Timestamp (Single Source of Truth)
+      // Ensure 'today' is based on Jakarta Date
+      const today = formatTz(now, 'yyyy-MM-dd', { timeZone: TIMEZONE });
 
       if (type === 'clock_in') {
         // Determine Shift Start
@@ -496,28 +506,50 @@ export default function AttendancePage() {
           advanceMinutes = todaySchedule.shift.clock_in_advance_minutes ?? 30;
         }
 
-        // Parse Shift Start to Date
-        const [h, m, s] = scheduleStartStr.split(':').map(Number);
-        const shiftStartDate = new Date(now);
-        shiftStartDate.setHours(h, m, s, 0);
+        // FIXED: Construct shift date based on Jakarta Timezone
+        // "2023-10-27T08:00:00" -> UTC Date of that Jakarta time
+        const shiftStartString = `${today}T${scheduleStartStr}`;
+        const shiftStartDate = fromZonedTime(shiftStartString, TIMEZONE);
 
         // Check Early Clock-in Barrier
         const earliestAllowed = new Date(shiftStartDate.getTime() - (advanceMinutes * 60000));
+
         if (now < earliestAllowed) {
           toast({
             title: 'Terlalu Awal!',
-            description: `Anda baru bisa absen masuk jam ${format(earliestAllowed, 'HH:mm')}.`,
+            // Show the allowed time in WIB
+            description: `Anda baru bisa absen masuk jam ${formatTz(earliestAllowed, 'HH:mm', { timeZone: TIMEZONE })} WIB.`,
             variant: 'destructive'
           });
           setSubmitting(false);
           return;
         }
 
-        // Check Late Clock-in Warning (after 6 PM)
-        const lateClockInThreshold = new Date();
-        lateClockInThreshold.setHours(18, 0, 0, 0); // 6 PM
-        if (now > lateClockInThreshold) {
-          if (!window.confirm("Ini sudah di luar jam kerja normal (lewat jam 6 sore). Apakah Anda yakin ingin melakukan absen masuk?")) {
+        // FIXED: Shift End Time Logic (Strict Block)
+        // Prevent users from Clocking In if the shift has already ended.
+        let shiftEndTime = null;
+        if (todaySchedule?.shift?.end_time) {
+          const shiftEndString = `${today}T${todaySchedule.shift.end_time}`;
+          shiftEndTime = fromZonedTime(shiftEndString, TIMEZONE);
+        }
+
+        // BARRIER: Cannot Clock In AFTER Shift Ends!
+        if (shiftEndTime && now > shiftEndTime) {
+          toast({
+            title: 'Absen Masuk Ditolak!',
+            description: `Jam kerja telah berakhir (${todaySchedule?.shift?.end_time.slice(0, 5)} WIB). Anda tidak bisa absen masuk setelah jam pulang.`,
+            variant: 'destructive',
+            duration: 4000
+          });
+          setSubmitting(false);
+          return;
+        }
+
+        // Check Late Clock-in Warning (after 6 PM Jakarta time) - Fallback Warning only
+        const lateClockInThreshold = fromZonedTime(`${today}T18:00:00`, TIMEZONE);
+
+        if (now > lateClockInThreshold && !shiftEndTime) {
+          if (!window.confirm("Ini sudah di luar jam kerja normal (lewat jam 18:00 WIB). Apakah Anda yakin ingin melakukan absen masuk?")) {
             setSubmitting(false);
             return;
           }
@@ -544,22 +576,16 @@ export default function AttendancePage() {
           duration: 3000
         });
       } else {
-        // --- EARLY CLOCK OUT CHECK ---
-        let earlyWarningConfirmed = true;
-        if (todaySchedule?.shift?.end_time) {
-          const [h, m, s] = todaySchedule.shift.end_time.split(':').map(Number);
-          const shiftEndDate = new Date(now);
-          shiftEndDate.setHours(h, m, s, 0);
+        // --- RELAXED CLOCK OUT ---
+        // User requested "Clock Out terserah", so we remove the strict warnings about leaving early.
+        // We only block if it's technically a different day (handled by fetching today's attendance only).
 
-          // 1 Hour before logic
-          const oneHourBefore = new Date(shiftEndDate.getTime() - (60 * 60000));
-
-          // If now is BEFORE (OneHourBefore), it means way too early
-          if (now < oneHourBefore) {
-            if (!window.confirm("Ini belum jam pulang, apakah anda yakin ingin melakukan absen pulang?")) {
-              setSubmitting(false);
-              return;
-            }
+        // Optional: Simple confirmation if VERY early (e.g. before 12 PM) just to prevent accidental clicks
+        const noonThreshold = fromZonedTime(`${today}T12:00:00`, TIMEZONE);
+        if (now < noonThreshold) {
+          if (!window.confirm("Ini masih pagi (sebelum jam 12:00). Yakin mau absen pulang sekarang?")) {
+            setSubmitting(false);
+            return;
           }
         }
         // -----------------------------

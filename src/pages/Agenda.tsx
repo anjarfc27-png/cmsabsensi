@@ -67,6 +67,7 @@ import {
     parseISO
 } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz';
 import { cn } from '@/lib/utils';
 import { Agenda, AgendaParticipant, Profile } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -240,8 +241,20 @@ export default function AgendaPage() {
 
         try {
             setCreating(true);
-            const start = new Date(`${form.date}T${form.startTime}`).toISOString();
-            const end = new Date(`${form.date}T${form.endTime}`).toISOString();
+
+            // TIMEZONE FIX: Force Asia/Jakarta
+            const TIMEZONE = 'Asia/Jakarta';
+
+            // Combine date and time, then treat it as Jakarta Time
+            const startStr = `${form.date}T${form.startTime}:00`;
+            const endStr = `${form.date}T${form.endTime}:00`;
+
+            // Convert "Jakarta Time String" -> "UTC Date Object"
+            const startDate = fromZonedTime(startStr, TIMEZONE);
+            const endDate = fromZonedTime(endStr, TIMEZONE);
+
+            const start = startDate.toISOString();
+            const end = endDate.toISOString();
 
             let resultAgendaId = currentAgendaId;
 
@@ -302,7 +315,7 @@ export default function AgendaPage() {
                     const notifTitle = isEditing ? 'Perubahan Jadwal Agenda' : 'Undangan Agenda Baru';
                     const notifMessage = isEditing
                         ? `Agenda "${form.title}" telah diperbarui. Cek jadwal terbaru.`
-                        : `Anda diundang ke agenda "${form.title}" pada ${format(new Date(form.date), 'dd MMMM yyyy', { locale: id })} pukul ${form.startTime}.`;
+                        : `Anda diundang ke agenda "${form.title}" pada ${format(new Date(form.date), 'dd MMMM yyyy', { locale: id })} pukul ${form.startTime} WIB.`;
 
                     const notifications = selectedParticipants.map(uid => ({
                         user_id: uid,

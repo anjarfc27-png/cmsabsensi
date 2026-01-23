@@ -1,7 +1,8 @@
 
-import { RefObject } from 'react';
+import { RefObject, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { format as formatTz } from 'date-fns-tz';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -59,6 +60,28 @@ function MapController({ lat, long }: { lat: number; long: number }) {
         map.flyTo([lat, long], 16);
     }
     return null;
+}
+
+// --- Clock Component ---
+function WibClock() {
+    const [time, setTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    return (
+        <div className="flex flex-col items-end">
+            <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/10 shadow-lg">
+                <Clock className="w-3.5 h-3.5 text-white" />
+                <span className="text-xs font-black text-white tracking-widest tabular-nums font-mono">
+                    {formatTz(time, 'HH:mm:ss', { timeZone: 'Asia/Jakarta' })}
+                </span>
+            </div>
+            <span className="text-[9px] font-bold text-blue-50/80 mt-1 uppercase tracking-wider mr-1">WIB Timezone</span>
+        </div>
+    );
 }
 
 interface AttendanceMobileViewProps {
@@ -120,6 +143,8 @@ export default function AttendanceMobileView({
     setSelectedLocationId,
     notes,
     setNotes,
+    loading,
+    submitting,
     handleSubmit,
     // Camera props
     cameraOpen,
@@ -142,19 +167,22 @@ export default function AttendanceMobileView({
 
                 {/* Floating Content */}
                 <div className="relative z-10 max-w-2xl mx-auto space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24 md:px-0">
-                    <div className="flex items-center gap-3 text-white mb-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate('/dashboard')}
-                            className="text-white hover:bg-white/20 hover:text-white shrink-0 -ml-1 h-10 w-10 rounded-full"
-                        >
-                            <ChevronLeft className="h-6 w-6" />
-                        </Button>
-                        <div>
-                            <h1 className="text-xl font-black tracking-tight drop-shadow-sm">Presensi</h1>
-                            <p className="text-[10px] text-blue-50 font-bold opacity-80 uppercase tracking-widest leading-none">Record your activity</p>
+                    <div className="flex items-center justify-between text-white mb-4 px-1">
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => navigate('/dashboard')}
+                                className="text-white hover:bg-white/20 hover:text-white shrink-0 -ml-1 h-10 w-10 rounded-full"
+                            >
+                                <ChevronLeft className="h-6 w-6" />
+                            </Button>
+                            <div>
+                                <h1 className="text-xl font-black tracking-tight drop-shadow-sm">Presensi</h1>
+                                <p className="text-[10px] text-blue-50 font-bold opacity-80 uppercase tracking-widest leading-none">Record your activity</p>
+                            </div>
                         </div>
+                        <WibClock />
                     </div>
 
                     {/* 2. Attendance Action Form (Inputs only) */}
