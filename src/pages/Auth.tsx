@@ -285,8 +285,10 @@ export default function Auth() {
     });
 
     if (error) {
-      let message = 'Terjadi kesalahan saat registrasi';
-      if (error.message.includes('User already registered')) {
+      console.error('Registration Error:', error);
+      let message = error.message || 'Terjadi kesalahan saat registrasi';
+
+      if (error.message.includes('User already registered') || error.message.includes('unique constraint')) {
         message = 'Email sudah terdaftar. Silakan login';
       }
 
