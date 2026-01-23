@@ -244,7 +244,7 @@ export default function Approvals() {
                     await supabase.from('notifications').insert({
                         user_id: actionDialog.requestId,
                         title: 'Akun Diaktifkan',
-                        message: 'Selamat! Akun Anda telah diaktifkan oleh admin. Silakan login untuk mengakses aplikasi.',
+                        message: 'Selamat! Akun Anda telah diaktifkan oleh admin. cms absensi untuk mengakses aplikasi.',
                         type: 'system',
                         is_read: false
                     });

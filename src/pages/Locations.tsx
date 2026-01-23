@@ -81,7 +81,7 @@ export default function LocationsPage() {
         }
     };
 
-    const resetLocation = () => {
+    const resetForm = () => {
         setFormData({
             name: '',
             address: '',
@@ -325,7 +325,7 @@ export default function LocationsPage() {
                             setShowMap={setShowMap}
                             handleSubmit={handleSubmit}
                             submitting={submitting}
-                            parseCoordinates={parseCoordinates}
+                            submitting={submitting}
                             resetForm={resetForm}
                         />
                     </div>
@@ -509,7 +509,7 @@ export default function LocationsPage() {
                     setShowMap={setShowMap}
                     handleSubmit={handleSubmit}
                     submitting={submitting}
-                    parseCoordinates={parseCoordinates}
+                    submitting={submitting}
                     resetForm={resetForm}
                 />
             </div>
@@ -519,7 +519,7 @@ export default function LocationsPage() {
 
 // Extracted Dialog Component to keep main file clean and reusable across views
 function LocationDialog({
-    open, onOpenChange, editingLocation, formData, setFormData, showMap, setShowMap, handleSubmit, submitting, parseCoordinates, resetForm
+    open, onOpenChange, editingLocation, formData, setFormData, showMap, setShowMap, handleSubmit, submitting, resetForm
 }: any) {
     return (
         <Dialog open={open} onOpenChange={(val) => {
