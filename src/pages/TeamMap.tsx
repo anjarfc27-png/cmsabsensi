@@ -119,79 +119,143 @@ export default function TeamMap() {
     // ----------------------------------------------------------------------
     // MOBILE VIEW (PRESERVED)
     // ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // MOBILE VIEW (Revamped & Detailed)
+    // ----------------------------------------------------------------------
     if (isMobile) {
         return (
             <DashboardLayout>
-                <div className="relative min-h-screen bg-slate-50/50 pb-20">
-                    <div className="absolute top-0 left-0 w-full h-[140px] bg-gradient-to-r from-blue-600 to-cyan-500 rounded-b-[30px] z-0 shadow-md" />
+                <div className="relative min-h-screen bg-slate-50/50 pb-24">
+                    {/* Header Gradient */}
+                    <div className="absolute top-0 left-0 w-full h-[180px] bg-gradient-to-br from-blue-700 via-blue-600 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
 
-                    <div className="relative z-10 max-w-full mx-auto px-4 pt-4">
+                    <div className="relative z-10 max-w-full mx-auto px-5 pt-8 pt-[calc(2rem+env(safe-area-inset-top))]">
+                        {/* Title & Stats */}
                         <div className="flex items-center justify-between gap-2 text-white mb-6">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => navigate('/dashboard')}
-                                    className="text-white hover:bg-white/20 -ml-2 h-8 w-8"
+                                    className="bg-white/10 text-white hover:bg-white/20 h-10 w-10 rounded-xl backdrop-blur-md"
                                 >
-                                    <ChevronLeft className="h-5 w-5" />
+                                    <ChevronLeft className="h-6 w-6" />
                                 </Button>
                                 <div>
-                                    <h1 className="text-lg font-bold leading-tight">Pantau Tim</h1>
-                                    <p className="text-[10px] text-blue-50 opacity-90">
-                                        {format(new Date(), 'dd MMM', { locale: id })} • {locations.length} Hadir
+                                    <h1 className="text-xl font-black leading-tight tracking-tight">Pantau Tim</h1>
+                                    <p className="text-xs text-blue-100 opacity-90 font-medium">
+                                        <span className="font-bold">{locations.length}</span> Karyawan Hadir
                                     </p>
                                 </div>
                             </div>
-                            <Button size="sm" variant="secondary" onClick={fetchLocations} disabled={loading} className="h-8 shadow-sm bg-white/10 text-white hover:bg-white/20 border-none backdrop-blur-sm">
-                                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={fetchLocations}
+                                disabled={loading}
+                                className="h-9 px-3 shadow-lg bg-white text-blue-700 hover:bg-blue-50 border-none font-bold rounded-xl"
+                            >
+                                <RefreshCw className={`h-3.5 w-3.5 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                                <span className="text-xs">Refresh</span>
                             </Button>
                         </div>
 
-                        {locations.length === 0 && !loading ? (
-                            <Card className="bg-white border-dashed shadow-sm">
+                        {/* Search Bar */}
+                        <div className="relative mb-6">
+                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                <Search className="h-4 w-4 text-slate-400" />
+                            </div>
+                            <Input
+                                type="text"
+                                placeholder="Cari nama atau jabatan..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 h-12 rounded-2xl border-none shadow-lg bg-white/95 backdrop-blur-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-400"
+                            />
+                        </div>
+
+                        {/* Content List */}
+                        {loading && locations.length === 0 ? (
+                            <div className="space-y-3">
+                                <div className="h-24 bg-white rounded-2xl animate-pulse shadow-sm" />
+                                <div className="h-24 bg-white rounded-2xl animate-pulse shadow-sm" />
+                                <div className="h-24 bg-white rounded-2xl animate-pulse shadow-sm" />
+                            </div>
+                        ) : filteredLocations.length === 0 ? (
+                            <Card className="bg-white border-dashed border-2 border-slate-200 shadow-none mt-4">
                                 <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                                    <div className="h-10 w-10 bg-slate-50 rounded-full flex items-center justify-center mb-3">
-                                        <MapPin className="h-5 w-5 text-slate-300" />
+                                    <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                        <MapPin className="h-8 w-8 text-slate-300" />
                                     </div>
-                                    <p className="text-sm text-slate-500 font-medium">Belum ada lokasi.</p>
+                                    <p className="text-base font-bold text-slate-700">Tidak ada data ditemukan</p>
+                                    <p className="text-sm text-slate-400 mt-1">Coba kata kunci lain atau tunggu update.</p>
                                 </CardContent>
                             </Card>
                         ) : (
-                            <div className="grid grid-cols-2 gap-3">
-                                {locations.map((loc) => (
-                                    <Card key={loc.id} className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="p-3 space-y-3">
-                                            <div className="flex flex-col items-center text-center">
-                                                <Avatar className="h-10 w-10 border-2 border-white shadow-sm mb-2">
-                                                    <AvatarImage src={loc.profiles.avatar_url || ''} />
-                                                    <AvatarFallback className="text-[10px]">{loc.profiles.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                                </Avatar>
-                                                <h3 className="text-xs font-bold text-slate-900 line-clamp-1 w-full" title={loc.profiles.full_name}>
-                                                    {loc.profiles.full_name}
-                                                </h3>
-                                                <p className="text-[10px] text-slate-500 line-clamp-1">{loc.profiles.position || 'Staff'}</p>
-                                            </div>
-
-                                            <div className="bg-slate-50 rounded-lg p-2 text-center space-y-1">
-                                                <div className="text-[10px] font-medium text-slate-600 flex items-center justify-center gap-1">
-                                                    <Clock className="h-3 w-3 text-blue-500" />
-                                                    {format(new Date(loc.clock_in), 'HH:mm')}
+                            <div className="space-y-4">
+                                {filteredLocations.map((loc) => (
+                                    <div
+                                        key={loc.id}
+                                        className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 relative overflow-hidden"
+                                    >
+                                        <div className="flex items-start gap-4 reltive z-10">
+                                            <Avatar className="h-14 w-14 border-4 border-slate-50 shadow-sm">
+                                                <AvatarImage src={loc.profiles.avatar_url || ''} />
+                                                <AvatarFallback className="bg-blue-100 text-blue-700 font-black text-lg">
+                                                    {loc.profiles.full_name.substring(0, 2).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1 min-w-0 pt-1">
+                                                <div className="flex items-start justify-between">
+                                                    <h3 className="font-bold text-slate-900 text-base truncate pr-2">
+                                                        {loc.profiles.full_name}
+                                                    </h3>
+                                                    <Badge variant="secondary" className="bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 border-green-100">
+                                                        Hadir
+                                                    </Badge>
                                                 </div>
-                                                <a
-                                                    href={`https://www.google.com/maps?q=${loc.clock_in_latitude},${loc.clock_in_longitude}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="block w-full text-center bg-blue-600 text-white text-[10px] font-bold py-1.5 rounded-md hover:bg-blue-700 transition-colors"
-                                                >
-                                                    Lihat Peta
-                                                </a>
+                                                <p className="text-xs font-medium text-slate-500 mb-2 truncate">
+                                                    {loc.profiles.position || 'Staff Karyawan'}
+                                                </p>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-lg text-blue-700">
+                                                        <Clock className="h-3.5 w-3.5" />
+                                                        <span className="text-xs font-bold">{format(new Date(loc.clock_in), 'HH:mm')}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </Card>
+
+                                        <div className="pt-3 border-t border-slate-50 flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="flex-1 h-10 rounded-xl text-xs font-bold border-slate-200 hover:bg-slate-50"
+                                                onClick={() => {
+                                                    const text = `Halo ${loc.profiles.full_name}, posisi anda dimana?`;
+                                                    // This is a placeholder, actual implementation would need phone number
+                                                    toast({ description: "Fitur Chat WhatsApp akan segera hadir!" });
+                                                }}
+                                            >
+                                                Hubungi
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="flex-1 h-10 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
+                                                onClick={() => window.open(`https://www.google.com/maps?q=${loc.clock_in_latitude},${loc.clock_in_longitude}`, '_blank')}
+                                            >
+                                                <Navigation className="h-3.5 w-3.5 mr-2" />
+                                                Lihat Peta
+                                            </Button>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         )}
+
+                        <p className="text-center text-[10px] text-slate-400 font-medium mt-8 mb-4">
+                            Data diperbarui: {format(lastUpdated, 'HH:mm:ss')} • Auto-refresh 5 menit
+                        </p>
                     </div>
                 </div>
             </DashboardLayout>

@@ -10,9 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
+
 export default function Settings() {
     const { toast } = useToast();
     const { user, role } = useAuth();
+    const isMobile = useIsMobile();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -81,29 +84,29 @@ export default function Settings() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+            <div className={`p-4 md:p-8 max-w-4xl mx-auto space-y-6 ${isMobile ? 'pt-[calc(6rem+env(safe-area-inset-top))] pb-24' : ''}`}>
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900">Pengaturan Sistem</h1>
                     <p className="text-slate-500">Konfigurasi global untuk aplikasi Absensi.</p>
                 </div>
 
-                <Card>
+                <Card className="border-none shadow-lg">
                     <CardHeader>
-                        <div className="flex items-center gap-2">
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                                <Camera className="h-5 w-5 text-blue-600" />
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-blue-50 rounded-xl">
+                                <Camera className="h-6 w-6 text-blue-600" />
                             </div>
                             <div>
-                                <CardTitle className="text-lg">Metode Validasi Absensi</CardTitle>
+                                <CardTitle className="text-lg font-bold text-slate-900">Metode Validasi Absensi</CardTitle>
                                 <CardDescription>Atur keamanan saat karyawan melakukan Clock In/Out.</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="flex items-center justify-between space-x-2 border p-4 rounded-xl bg-slate-50">
+                        <div className="flex items-center justify-between space-x-2 border border-slate-100 p-4 rounded-2xl bg-slate-50/50">
                             <div className="space-y-1">
-                                <Label className="text-base font-semibold">Wajib Verifikasi Wajah</Label>
-                                <p className="text-sm text-slate-500 max-w-[80%]">
+                                <Label className="text-base font-bold text-slate-800">Wajib Verifikasi Wajah</Label>
+                                <p className="text-xs text-slate-500 leading-relaxed max-w-[85%]">
                                     Jika aktif, kamera akan menyala dan karyawan harus scan wajah.
                                     Jika non-aktif, karyawan hanya perlu konfirmasi lokasi GPS.
                                 </p>
@@ -111,12 +114,12 @@ export default function Settings() {
                             <Switch
                                 checked={requireFaceVerification}
                                 onCheckedChange={setRequireFaceVerification}
-                                className="data-[state=checked]:bg-blue-600 scale-125 mr-2"
+                                className="data-[state=checked]:bg-blue-600 scale-125 mr-1"
                             />
                         </div>
 
-                        <div className="flex justify-end pt-4 border-t">
-                            <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 min-w-[140px] shadow-lg shadow-blue-200">
+                        <div className="flex justify-end pt-4 border-t border-slate-50">
+                            <Button onClick={handleSave} disabled={saving} className="w-full md:w-auto h-12 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
                                 {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan...</> : "Simpan Perubahan"}
                             </Button>
                         </div>
