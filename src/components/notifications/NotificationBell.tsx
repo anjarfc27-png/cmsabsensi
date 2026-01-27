@@ -122,29 +122,12 @@ export function NotificationBell({ iconClassName }: NotificationBellProps) {
       if (error) throw error;
       if (systemNotifs) allNotifications = [...systemNotifs] as Notification[];
 
-      // 2. Fetch "Action Items" for HR (Onboarding Verifications)
-      // Only if role is admin_hr
+      // 2. Fetch "Action Items" (REMOVED: Auto-approve workflow enabled, no manual verification needed)
+      /*
       if (activeRole === 'admin_hr' || activeRole === 'super_admin') {
-        const { count, error: countError } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('onboarding_status', 'pending_verification');
-
-        if (!countError && count && count > 0) {
-          // Add a synthetic notification at the top
-          const onboardingNotif: Notification = {
-            id: 'action-onboarding',
-            title: 'Verifikasi Karyawan Baru',
-            message: `${count} karyawan menunggu verifikasi data.`,
-            type: 'onboarding',
-            read: false,
-            created_at: new Date().toISOString(),
-            link: '/employees',
-            is_action_required: true
-          };
-          allNotifications.unshift(onboardingNotif);
-        }
-      }
+         // Logic removed to suppress notifications
+      } 
+      */
 
       setNotifications(allNotifications);
 

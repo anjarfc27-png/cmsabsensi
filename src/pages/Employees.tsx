@@ -491,17 +491,7 @@ export default function EmployeesPage() {
                         <Button variant="outline" className="rounded-xl border-slate-200" onClick={handleExportExcel}>
                             <FileSpreadsheet className="mr-2 h-4 w-4" /> Unduh Excel
                         </Button>
-                        <Button
-                            variant="secondary"
-                            onClick={() => navigate('/approvals')}
-                            className="bg-amber-100/50 hover:bg-amber-100 text-amber-700 rounded-xl font-bold border border-amber-200"
-                        >
-                            <UserCheck className="mr-2 h-4 w-4" />
-                            Konfirmasi Pendaftaran
-                            {employees.filter(e => !e.is_active).length > 0 && (
-                                <Badge className="ml-2 bg-amber-500 hover:bg-amber-600 text-white border-0 h-5 px-1.5 min-w-[20px]">{employees.filter(e => !e.is_active).length}</Badge>
-                            )}
-                        </Button>
+
                     </div>
                 </div>
 
@@ -616,66 +606,90 @@ export default function EmployeesPage() {
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            filteredEmployees.map((employee) => (
-                                                <TableRow key={employee.id} className="group hover:bg-blue-50/30 transition-colors cursor-pointer" onClick={() => handleEditClick(employee)}>
-                                                    <TableCell className="pl-6 py-4">
-                                                        <div className="flex items-center gap-4">
-                                                            <Avatar className="h-12 w-12 border-2 border-white shadow-md group-hover:scale-105 transition-transform">
-                                                                <AvatarImage src={employee.avatar_url || ''} />
-                                                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-sm">
-                                                                    {employee.full_name?.substring(0, 2).toUpperCase()}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                            <div>
-                                                                <p className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{employee.full_name}</p>
-                                                                <p className="text-xs text-slate-500 font-mono mt-0.5">{employee.nik_ktp || 'Belum ada NIK'}</p>
-                                                                {employee.role === 'admin_hr' && profile?.role !== 'manager' && (
-                                                                    <Badge className="mt-1 bg-purple-100 text-purple-700 border-none text-[9px] px-1.5 h-4">ADMIN</Badge>
-                                                                )}
-                                                                {employee.role === 'super_admin' && (
-                                                                    <Badge className="mt-1 bg-slate-800 text-white border-none text-[9px] px-1.5 h-4">SUPER ADMIN</Badge>
-                                                                )}
+                                            filteredEmployees.map((employee) => {
+                                                // STRICT PERMISSION CHECK
+                                                const isTargetSuperAdmin = employee.role === 'super_admin';
+                                                const amISuperAdmin = role === 'super_admin';
+
+                                                // Rules:
+                                                // 1. Super Admin can edit everyone.
+                                                // 2. Admin HR can edit everyone EXCEPT Super Admin.
+                                                // 3. Manager can ONLY edit Employees (not other Managers or Admins).
+                                                const canEdit = amISuperAdmin ||
+                                                    (role === 'admin_hr' && !isTargetSuperAdmin) ||
+                                                    (role === 'manager' && employee.role === 'employee');
+
+                                                return (
+                                                    <TableRow
+                                                        key={employee.id}
+                                                        className={`group transition-colors ${canEdit ? 'hover:bg-blue-50/30 cursor-pointer' : 'opacity-75 cursor-not-allowed bg-slate-50/50'}`}
+                                                        onClick={() => canEdit && handleEditClick(employee)}
+                                                    >
+                                                        <TableCell className="pl-6 py-4">
+                                                            <div className="flex items-center gap-4">
+                                                                <Avatar className="h-12 w-12 border-2 border-white shadow-md group-hover:scale-105 transition-transform">
+                                                                    <AvatarImage src={employee.avatar_url || ''} />
+                                                                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-sm">
+                                                                        {employee.full_name?.substring(0, 2).toUpperCase()}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <div>
+                                                                    <p className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{employee.full_name}</p>
+                                                                    <p className="text-xs text-slate-500 font-mono mt-0.5">{employee.nik_ktp || 'Belum ada NIK'}</p>
+                                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                                        {employee.role === 'super_admin' && (
+                                                                            <Badge className="bg-slate-900 text-white border-none text-[9px] px-1.5 h-4 hover:bg-slate-800">SUPER ADMIN</Badge>
+                                                                        )}
+                                                                        {employee.role === 'admin_hr' && (
+                                                                            <Badge className="bg-purple-100 text-purple-700 border-none text-[9px] px-1.5 h-4 hover:bg-purple-200">ADMIN HR</Badge>
+                                                                        )}
+                                                                        {employee.role === 'manager' && (
+                                                                            <Badge className="bg-cyan-100 text-cyan-700 border-none text-[9px] px-1.5 h-4 hover:bg-cyan-200">MANAGER</Badge>
+                                                                        )}
+                                                                        {employee.role === 'employee' && (
+                                                                            <Badge className="bg-slate-100 text-slate-500 border-none text-[9px] px-1.5 h-4 hover:bg-slate-200">STAFF</Badge>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <Briefcase className="h-3.5 w-3.5 text-slate-400" />
-                                                                <span className="text-sm font-semibold text-slate-700">{(employee as any).job_position?.title || '-'}</span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="space-y-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Briefcase className="h-3.5 w-3.5 text-slate-400" />
+                                                                    <span className="text-sm font-semibold text-slate-700">{(employee as any).job_position?.title || '-'}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                                                                    <span className="text-xs text-slate-500">{(employee as any).department?.name || '-'}</span>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <Building2 className="h-3.5 w-3.5 text-slate-400" />
-                                                                <span className="text-xs text-slate-500">{(employee as any).department?.name || '-'}</span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="space-y-1">
+                                                                <div className="flex items-center gap-2 text-xs text-slate-600">
+                                                                    <Mail className="h-3 w-3 text-slate-400" />
+                                                                    {employee.email}
+                                                                </div>
+                                                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                                    <Phone className="h-3 w-3 text-slate-400" />
+                                                                    {employee.phone || '-'}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2 text-xs text-slate-600">
-                                                                <Mail className="h-3 w-3 text-slate-400" />
-                                                                {employee.email}
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                                                <Phone className="h-3 w-3 text-slate-400" />
-                                                                {employee.phone || '-'}
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge
-                                                            className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border-0 ${employee.is_active
-                                                                ? 'bg-green-100 text-green-700'
-                                                                : 'bg-red-50 text-red-600'
-                                                                }`}
-                                                        >
-                                                            {employee.is_active ? 'AKTIF' : 'NON-AKTIF'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="pr-6 text-right">
-                                                        <div className="flex justify-end items-center gap-2">
-                                                            {(role === 'super_admin' || role === 'admin_hr' || (role === 'manager' && employee.role === 'employee')) && (
-                                                                (employee.role !== 'super_admin' || role === 'super_admin') && (
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge
+                                                                className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border-0 ${employee.is_active
+                                                                    ? 'bg-green-100 text-green-700'
+                                                                    : 'bg-red-50 text-red-600'
+                                                                    }`}
+                                                            >
+                                                                {employee.is_active ? 'AKTIF' : 'NON-AKTIF'}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="pr-6 text-right">
+                                                            <div className="flex justify-end items-center gap-2">
+                                                                {canEdit && (
                                                                     <>
                                                                         <Button
                                                                             variant="secondary"
@@ -714,12 +728,12 @@ export default function EmployeesPage() {
                                                                             </DropdownMenuContent>
                                                                         </DropdownMenu>
                                                                     </>
-                                                                )
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })
                                         )}
                                     </TableBody>
                                 </Table>
@@ -900,31 +914,47 @@ export default function EmployeesPage() {
                             <TabsContent value="account" className="space-y-4">
                                 <div className="space-y-2">
                                     <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Role Akses</Label>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                         {(() => {
-                                            const availableRoles = ['employee', 'manager', 'admin_hr'];
-                                            if (profile?.role === 'super_admin') {
-                                                availableRoles.push('super_admin');
-                                            }
-                                            return availableRoles.map((role) => (
+                                            const availableRoles = ['employee', 'manager', 'admin_hr', 'super_admin'];
+
+                                            // Filter roles based on permissions
+                                            const displayedRoles = availableRoles.filter(r => {
+                                                // Only Super Admin can assign Super Admin role
+                                                if (r === 'super_admin') {
+                                                    return profile?.role === 'super_admin' || editForm.role === 'super_admin';
+                                                }
+                                                return true;
+                                            });
+
+                                            return displayedRoles.map((role) => (
                                                 <div
                                                     key={role}
                                                     onClick={() => setEditForm({ ...editForm, role: role as any })}
-                                                    className={`cursor-pointer border-2 rounded-xl p-3 text-center transition-all ${editForm.role === role
-                                                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                                        : 'border-slate-100 bg-white text-slate-500 hover:border-blue-200'
+                                                    className={`cursor-pointer border-2 rounded-xl p-3 text-center transition-all flex flex-col items-center justify-center min-h-[60px] ${editForm.role === role
+                                                        ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                                                        : 'border-slate-100 bg-white text-slate-500 hover:border-blue-200 hover:bg-slate-50'
                                                         }`}
                                                 >
-                                                    <p className="text-xs font-black uppercase">{role.replace('_', ' ')}</p>
+                                                    <p className="text-[10px] font-black uppercase tracking-wide leading-tight">
+                                                        {role === 'admin_hr' ? 'HRD / Admin' : role.replace('_', ' ')}
+                                                    </p>
                                                 </div>
                                             ));
                                         })()}
                                     </div>
-                                    <p className="text-[10px] text-slate-400 mt-2">
-                                        * <b>Employee</b>: Akses standar (Absen, Cuti). <br />
-                                        * <b>Manager</b>: Approval cuti tim, melihat laporan. <br />
-                                        * <b>Admin HR</b>: Akses penuh sistem (Pengaturan, Data Karyawan, Gaji).
-                                    </p>
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mt-3">
+                                        <p className="text-[10px] text-slate-500 leading-relaxed">
+                                            <span className="font-bold text-slate-700">• Employee:</span> Akses standar (Absen, Cuti, Lihat Jadwal).<br />
+                                            <span className="font-bold text-slate-700">• Manager:</span> Approval cuti tim, pantau lokasi tim, lihat laporan operasional.<br />
+                                            <span className="font-bold text-slate-700">• HRD / Admin:</span> Akses pengelolaan data karyawan, payroll, dan pengaturan shift.<br />
+                                            {profile?.role === 'super_admin' && (
+                                                <>
+                                                    <span className="font-bold text-red-600">• Super Admin:</span> Akses mutlak ke seluruh sistem, audit log, dan konfigurasi kritis.<br />
+                                                </>
+                                            )}
+                                        </p>
+                                    </div>
                                 </div>
                             </TabsContent>
                         </Tabs>

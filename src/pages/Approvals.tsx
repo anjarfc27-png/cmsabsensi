@@ -383,19 +383,19 @@ export default function Approvals() {
         return item.type === filterType;
     });
 
-    const handleExportHistory = () => {
-        const headers = ['No', 'Karyawan', 'Tipe', 'Tanggal Pengajuan', 'Status', 'Keterangan', 'Alasan Tolak'];
+    const handleExportHistory = async () => {
+        const headers = ['No', 'Status', 'Karyawan', 'Tipe', 'Tanggal Pengajuan', 'Alasan/Keterangan', 'Catatan Penolakan'];
         const rows = filteredHistory.map((req, index) => [
             String(index + 1),
+            req.status === 'approved' ? '✅ DISETUJUI' : '❌ DITOLAK',
             req.profiles?.full_name || '-',
             req.type === 'leave' ? `Cuti (${req.leave_type})` : req.type === 'overtime' ? 'Lembur' : req.type === 'correction' ? 'Koreksi' : 'Klaim',
-            format(new Date(req.created_at), 'dd MMM yyyy HH:mm', { locale: id }),
-            req.status === 'approved' ? 'DISETUJUI' : 'DITOLAK',
+            format(new Date(req.created_at), 'dd/MM/yyyy HH:mm', { locale: id }),
             req.reason || '-',
             req.rejection_reason || '-'
         ]);
 
-        downloadExcel(headers, rows, {
+        await downloadExcel(headers, [headers, ...rows], {
             filename: `Laporan_Approval_${format(new Date(), 'dd-MM-yyyy')}`,
             title: 'LAPORAN RIWAYAT PERSETUJUAN',
             generatedBy: profile?.full_name || 'System'
@@ -721,7 +721,7 @@ export default function Approvals() {
                                                                                 {req.hours && <p className="text-xs text-slate-500 mt-0.5 ml-6">{req.hours} Jam ({req.start_time} - {req.end_time})</p>}
                                                                             </td>
                                                                             <td className="px-6 py-4">
-                                                                                <div className="max-w-[200px] truncate" title={req.reason}>
+                                                                                <div className="min-w-[250px] whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
                                                                                     {req.reason}
                                                                                 </div>
                                                                                 {(req.attachment_url || req.proof_url) && (
@@ -826,7 +826,7 @@ export default function Approvals() {
                                                             )}
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <div className="max-w-[200px] truncate" title={req.reason}>
+                                                            <div className="min-w-[250px] whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
                                                                 {req.reason}
                                                             </div>
                                                             {req.status === 'rejected' && req.rejection_reason && (

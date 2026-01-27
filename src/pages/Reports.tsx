@@ -28,11 +28,14 @@ type AttendanceRow = {
   date: string;
   clock_in: string | null;
   clock_out: string | null;
-  work_mode: 'wfo' | 'wfh' | 'field';
+  work_mode: 'wfo' | 'wfh' | 'field' | 'leave' | 'overtime';
   is_late: boolean | null;
   late_minutes: number | null;
   work_hours_minutes: number | null;
-  status: 'present' | 'late' | 'absent' | 'leave' | 'sick';
+  status: 'present' | 'late' | 'absent' | 'leave' | 'sick' | 'overtime';
+  leave_type?: string;
+  overtime_hours?: number;
+  reason?: string;
 };
 
 type ProfileRow = {
@@ -72,7 +75,7 @@ export default function ReportsPage() {
   const fetchReport = async () => {
     setLoading(true);
     try {
-      // Role-based data isolation
+      // Build Queries
       let attQuery = supabase
         .from('attendances')
         .select('*, profiles:user_id!inner(department_id)')
@@ -80,32 +83,55 @@ export default function ReportsPage() {
         .lte('date', endDate)
         .order('date', { ascending: false });
 
+      let leaveQuery = supabase
+        .from('leave_requests')
+        .select('*, profiles:user_id!inner(department_id)')
+        .eq('status', 'approved')
+        .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
+
+      let overtimeQuery = supabase
+        .from('overtime_requests')
+        .select('*, profiles:user_id!inner(department_id)')
+        .eq('status', 'approved')
+        .gte('date', startDate)
+        .lte('date', endDate);
+
       let profQuery = supabase
         .from('profiles')
         .select('id, full_name, employee_id, department:departments(name), role, avatar_url, department_id')
         .order('full_name', { ascending: true });
 
+      // Apply Role Filters
       if (role === 'manager' && profile?.department_id) {
-        // Manager only sees their department
         attQuery = attQuery.eq('profiles.department_id', profile.department_id);
+        leaveQuery = leaveQuery.eq('profiles.department_id', profile.department_id);
+        overtimeQuery = overtimeQuery.eq('profiles.department_id', profile.department_id);
         profQuery = profQuery.eq('department_id', profile.department_id);
       } else if (role !== 'admin_hr' && role !== 'super_admin') {
-        // Regular employee only sees own data
         attQuery = attQuery.eq('user_id', profile?.id);
+        leaveQuery = leaveQuery.eq('user_id', profile?.id);
+        overtimeQuery = overtimeQuery.eq('user_id', profile?.id);
         profQuery = profQuery.eq('id', profile?.id);
       }
 
-      const [attRes, profRes] = await Promise.all([
+      const [attRes, leaveRes, overtimeRes, profRes] = await Promise.all([
         attQuery,
+        leaveQuery,
+        overtimeQuery,
         profQuery,
       ]);
 
       if (attRes.error) throw attRes.error;
+      if (leaveRes.error) throw leaveRes.error;
+      if (overtimeRes.error) throw overtimeRes.error;
       if (profRes.error) throw profRes.error;
 
-      const attData = (attRes.data as AttendanceRow[]) || [];
+      const rawAttData = (attRes.data as any[]) || [];
+      const leaveData = (leaveRes.data as any[]) || [];
+      const overtimeData = (overtimeRes.data as any[]) || [];
       const rawProfData = (profRes.data as any[]) || [];
 
+      // 1. Map Profiles
       const profData: ProfileRow[] = rawProfData.map(p => ({
         id: p.id,
         full_name: p.full_name,
@@ -115,7 +141,86 @@ export default function ReportsPage() {
         avatar_url: p.avatar_url
       }));
 
-      setAttendances(attData);
+      // 2. Process Attendances
+      const combinedData: AttendanceRow[] = rawAttData.map(a => ({
+        ...a,
+        status: a.is_late ? 'late' : 'present'
+      }));
+
+      // 3. Process Overtime (Attach to existing or create new)
+      overtimeData.forEach(ot => {
+        const existing = combinedData.find(a => a.user_id === ot.user_id && a.date === ot.date);
+        if (existing) {
+          existing.overtime_hours = ot.hours;
+        } else {
+          combinedData.push({
+            id: ot.id,
+            user_id: ot.user_id,
+            date: ot.date,
+            clock_in: null,
+            clock_out: null,
+            work_mode: 'overtime',
+            is_late: false,
+            late_minutes: 0,
+            work_hours_minutes: 0,
+            status: 'overtime',
+            overtime_hours: ot.hours,
+            reason: ot.reason
+          });
+        }
+      });
+
+      // 4. Process Leaves (Expand date range)
+      leaveData.forEach(lv => {
+        let current = new Date(lv.start_date);
+        const end = new Date(lv.end_date);
+        const reportStart = new Date(startDate);
+        const reportEnd = new Date(endDate);
+
+        while (current <= end) {
+          const dateStr = format(current, 'yyyy-MM-dd');
+
+          // Only add if within report period
+          if (current >= reportStart && current <= reportEnd) {
+            // Check if user actually attended this day (attendance takes precedence)
+            const attendanceIdx = combinedData.findIndex(a => a.user_id === lv.user_id && a.date === dateStr);
+
+            if (attendanceIdx === -1) {
+              combinedData.push({
+                id: lv.id + dateStr,
+                user_id: lv.user_id,
+                date: dateStr,
+                clock_in: null,
+                clock_out: null,
+                work_mode: 'leave',
+                is_late: false,
+                late_minutes: 0,
+                work_hours_minutes: 0,
+                status: lv.leave_type === 'sick' ? 'sick' : 'leave',
+                leave_type: lv.leave_type,
+                reason: lv.reason
+              });
+            } else {
+              // Mark existing attendance as "Attendance on Leave Day" (optional)
+              combinedData[attendanceIdx].leave_type = lv.leave_type;
+            }
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      });
+
+      // 5. Final Sorting: Name (A-Z) then Date (A-Z)
+      const sortedData = combinedData.sort((a, b) => {
+        const pA = profData.find(p => p.id === a.user_id);
+        const pB = profData.find(p => p.id === b.user_id);
+        const nameA = pA?.full_name || '';
+        const nameB = pB?.full_name || '';
+
+        if (nameA !== nameB) return nameA.localeCompare(nameB);
+        return a.date.localeCompare(b.date);
+      });
+
+      setAttendances(sortedData);
       setProfiles(profData);
 
       // Extract Unique Departments
@@ -163,15 +268,40 @@ export default function ReportsPage() {
 
   const stats = useMemo(() => {
     if (filteredAttendances.length === 0) return null;
+
+    const attendancesOnly = filteredAttendances.filter(a => a.clock_in);
     const totalLate = filteredAttendances.filter(a => a.is_late).length;
-    const latePercent = Math.round((totalLate / filteredAttendances.length) * 100);
-    const avgWorkMinutes = Math.round(filteredAttendances.reduce((acc, a) => acc + (a.work_hours_minutes || 0), 0) / filteredAttendances.length);
+    const latePercent = Math.round((totalLate / (attendancesOnly.length || 1)) * 100);
+    const totalWorkMinutes = filteredAttendances.reduce((acc, a) => acc + (a.work_hours_minutes || 0), 0);
+    const avgWorkMinutes = Math.round(totalWorkMinutes / (attendancesOnly.length || 1));
+
+    // Detailed breakdowns
+    const byMode = {
+      wfo: filteredAttendances.filter(a => a.work_mode === 'wfo').length,
+      wfh: filteredAttendances.filter(a => a.work_mode === 'wfh').length,
+      field: filteredAttendances.filter(a => a.work_mode === 'field').length
+    };
+
+    const byStatus = {
+      present: filteredAttendances.filter(a => a.status === 'present').length,
+      late: totalLate,
+      sick: filteredAttendances.filter(a => a.status === 'sick').length,
+      leave: filteredAttendances.filter(a => a.status === 'leave').length,
+      overtime: filteredAttendances.filter(a => a.status === 'overtime').length
+    };
+
+    const totalOvertimeHours = filteredAttendances.reduce((acc, a) => acc + (a.overtime_hours || 0), 0);
 
     return {
       total: filteredAttendances.length,
+      totalPresent: attendancesOnly.length,
       late: totalLate,
       latePercent,
-      avgHours: (avgWorkMinutes / 60).toFixed(1)
+      avgHours: (avgWorkMinutes / 60).toFixed(1),
+      totalWorkHours: (totalWorkMinutes / 60).toFixed(1),
+      totalOvertimeHours,
+      byMode,
+      byStatus
     };
   }, [filteredAttendances]);
 
@@ -197,26 +327,108 @@ export default function ReportsPage() {
   // Helper: Prepare Export Data
   const getExportData = () => {
     const headers = ['Tanggal', 'ID Karyawan', 'Nama', 'Departemen', 'Jabatan', 'Clock In', 'Clock Out', 'Mode', 'Terlambat', 'Menit Terlambat', 'Status', 'Durasi Kerja (Menit)'];
+    const isAdmin = role === 'super_admin' || role === 'admin_hr';
 
-    const rows = filteredAttendances.map((a) => {
-      const p = profileMap.get(a.user_id);
-      return [
-        a.date,
-        p?.employee_id || '-',
-        p?.full_name || '-',
-        p?.department || '-',
-        p?.role || '-',
-        a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '-',
-        a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '-',
-        a.work_mode.toUpperCase(),
-        a.is_late ? 'YA' : 'TIDAK',
-        String(a.late_minutes ?? 0),
-        a.status.toUpperCase(),
-        String(a.work_hours_minutes ?? 0)
-      ];
+    if (!isAdmin) {
+      // Standard behavior for Manager/Employee
+      const rows = filteredAttendances.map((a) => {
+        const p = profileMap.get(a.user_id);
+        return [
+          a.date,
+          p?.employee_id || '-',
+          p?.full_name || '-',
+          p?.department || '-',
+          p?.role || '-',
+          a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '-',
+          a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '-',
+          a.work_mode.toUpperCase(),
+          a.is_late ? '⚠️ YA' : 'TIDAK',
+          String(a.late_minutes ?? 0),
+          a.status === 'present' ? 'HADIR' : a.status === 'late' ? 'TERLAMBAT' : a.status.toUpperCase(),
+          String(a.work_hours_minutes ?? 0)
+        ];
+      });
+      return { headers, rows: [headers, ...rows] };
+    }
+
+    // ADVANCED BEHAVIOR FOR ADMINS (Grouped by Dept)
+    const allRows: any[][] = [];
+    const depts = Array.from(new Set(filteredAttendances.map(a => profileMap.get(a.user_id)?.department || 'Tanpa Departemen')));
+
+    depts.forEach(deptName => {
+      // Add Dept Header
+      allRows.push(['', '', '', '', '', '', '', '', '', '', '', '']); // Spacer
+      allRows.push([`>>> DEPARTEMEN: ${deptName.toUpperCase()}`, '', '', '', '', '', '', '', '', '', '', '']);
+      allRows.push(headers); // Re-add headers for each dept table section
+
+      const deptAttendances = filteredAttendances.filter(a => (profileMap.get(a.user_id)?.department || 'Tanpa Departemen') === deptName);
+
+      deptAttendances.forEach(a => {
+        const p = profileMap.get(a.user_id);
+        allRows.push([
+          a.date,
+          p?.employee_id || '-',
+          p?.full_name || '-',
+          p?.department || '-',
+          p?.role || '-',
+          a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '-',
+          a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '-',
+          a.work_mode.toUpperCase(),
+          a.is_late ? '⚠️ YA' : 'TIDAK',
+          String(a.late_minutes ?? 0),
+          a.status === 'present' ? 'HADIR' :
+            a.status === 'late' ? 'TERLAMBAT' :
+              a.status === 'sick' ? 'SAKIT' :
+                a.status === 'leave' ? `CUTI (${a.leave_type})` :
+                  a.status === 'overtime' ? 'LEMBUR' : a.status.toUpperCase(),
+          a.overtime_hours ? `OT: ${a.overtime_hours}j` : String(a.work_hours_minutes ?? 0)
+        ]);
+      });
+
+      // Dept Summary
+      const deptLate = deptAttendances.filter(a => a.is_late).length;
+      allRows.push(['', '', '', `TOTAL DATA ${deptName}:`, String(deptAttendances.length), '', '', '', 'TOTAL TERLAMBAT:', String(deptLate), '', '']);
+      allRows.push(['', '', '', '', '', '', '', '', '', '', '', '']); // Multi-spacer
+      allRows.push(['', '', '', '', '', '', '', '', '', '', '', '']);
     });
 
-    return { headers, rows };
+    // GRAND TOTAL SECTION
+    allRows.push(['']);
+    allRows.push(['====================================================================================================']);
+    allRows.push(['RINGKASAN AKHIR LAPORAN (KONSOLIDASI SELURUH DEPARTEMEN)']);
+    allRows.push(['====================================================================================================']);
+
+    // 1. STATISTIK KEHADIRAN (Attendance Stats)
+    allRows.push(['I. STATISTIK KEHADIRAN & ABSENSI']);
+    allRows.push(['   • Total Baris Data:', String(stats?.total || 0)]);
+    allRows.push(['   • Total Absensi Masuk (Hadir/Lambat):', String(stats?.totalPresent || 0)]);
+    allRows.push(['   • Total Terlambat:', String(stats?.late || 0), `(${stats?.latePercent || 0}% dari total absensi)`]);
+    allRows.push(['   • Rata-rata Jam Kerja per Hari:', `${stats?.avgHours || 0} Jam`]);
+    allRows.push(['']);
+
+    // 2. BREAKDOWN STATUS (Status Breakdown)
+    allRows.push(['II. RINCIAN STATUS & KETIDAKHADIRAN']);
+    allRows.push(['   • Hadir Tepat Waktu:', String(stats?.byStatus.present || 0)]);
+    allRows.push(['   • Hadir Terlambat:', String(stats?.byStatus.late || 0)]);
+    allRows.push(['   • Izin Sakit (Approved):', String(stats?.byStatus.sick || 0)]);
+    allRows.push(['   • Cuti / Izin Lainnya:', String(stats?.byStatus.leave || 0)]);
+    allRows.push(['']);
+
+    // 3. BREAKDOWN MODE KERJA (Work Mode Breakdown)
+    allRows.push(['III. RINCIAN TEMPAT KERJA']);
+    allRows.push(['   • Bekerja dari Kantor (WFO):', String(stats?.byMode.wfo || 0)]);
+    allRows.push(['   • Bekerja dari Rumah (WFH):', String(stats?.byMode.wfh || 0)]);
+    allRows.push(['   • Bekerja di Lapangan (FIELD):', String(stats?.byMode.field || 0)]);
+    allRows.push(['']);
+
+    // 4. PRODUKTIVITAS (Productivity)
+    allRows.push(['IV. PRODUKTIVITAS & LEMBUR']);
+    allRows.push(['   • Akumulasi Jam Kerja Seluruhnya:', `${stats?.totalWorkHours || 0} Jam`]);
+    allRows.push(['   • Akumulasi Lembur (Overtime):', `${stats?.totalOvertimeHours || 0} Jam`]);
+    allRows.push(['']);
+    allRows.push(['====================================================================================================']);
+
+    return { headers: headers, rows: allRows };
   };
 
   const exportCsv = () => {
@@ -230,9 +442,9 @@ export default function ReportsPage() {
     toast({ title: 'Berhasil', description: 'Laporan CSV berhasil di-generate.' });
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     const { headers, rows } = getExportData();
-    downloadExcel(headers, rows, {
+    await downloadExcel(headers, rows, {
       filename: `Report_Absensi_${startDate}_${endDate}`,
       title: 'Laporan Kehadiran Karyawan',
       period: `${startDate} s/d ${endDate}`,
@@ -328,18 +540,20 @@ export default function ReportsPage() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Departemen</Label>
-                          <select
-                            className="w-full h-10 rounded-xl bg-slate-50 border-none px-3 text-xs font-bold text-slate-700 outline-none shadow-inner"
-                            value={selectedDept}
-                            onChange={(e) => setSelectedDept(e.target.value)}
-                          >
-                            <option value="all">Semua Dept</option>
-                            {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                        </div>
-                        <div className="space-y-1">
+                        {role !== 'manager' && (
+                          <div className="space-y-1">
+                            <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Departemen</Label>
+                            <select
+                              className="w-full h-10 rounded-xl bg-slate-50 border-none px-3 text-xs font-bold text-slate-700 outline-none shadow-inner"
+                              value={selectedDept}
+                              onChange={(e) => setSelectedDept(e.target.value)}
+                            >
+                              <option value="all">Semua Dept</option>
+                              {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        <div className={cn("space-y-1", role === 'manager' && "col-span-2")}>
                           <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Role</Label>
                           <select
                             className="w-full h-10 rounded-xl bg-slate-50 border-none px-3 text-xs font-bold text-slate-700 outline-none shadow-inner"
@@ -347,7 +561,7 @@ export default function ReportsPage() {
                             onChange={(e) => setSelectedRole(e.target.value)}
                           >
                             <option value="all">Semua Role</option>
-                            <option value="staff">Staff</option>
+                            <option value="employee">Staff</option>
                             <option value="manager">Manager</option>
                             <option value="admin_hr">Admin HR</option>
                           </select>
@@ -449,6 +663,24 @@ export default function ReportsPage() {
                             </div>
                           </div>
 
+                          <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Metode Kerja</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {['all', 'wfo', 'wfh', 'field'].map((m) => (
+                              <Button
+                                key={m}
+                                variant={workModeFilter === m ? 'default' : 'outline'}
+                                size="sm"
+                                className={cn(
+                                  "rounded-full text-[10px] font-bold uppercase h-8 px-4",
+                                  workModeFilter === m ? "bg-blue-600 shadow-lg shadow-blue-100" : "text-slate-500 hover:bg-slate-50"
+                                )}
+                                onClick={() => setWorkModeFilter(m as any)}
+                              >
+                                {m === 'all' ? 'Semua' : m === 'wfo' ? 'Kantor' : m === 'wfh' ? 'Rumah' : 'Lapangan'}
+                              </Button>
+                            ))}
+                          </div>
+
                           <div className="grid grid-cols-3 gap-2 bg-slate-50/50 p-2.5 rounded-2xl border border-slate-100/50">
                             <div className="text-center border-r border-slate-200/50">
                               <p className="text-[8px] font-black text-slate-400 uppercase mb-0.5">Masuk</p>
@@ -468,12 +700,27 @@ export default function ReportsPage() {
 
                           <div className="flex items-center justify-between px-1">
                             <div className="flex items-center gap-2">
-                              {a.is_late ? (
-                                <Badge variant="destructive" className="text-[9px] h-5 px-2 bg-red-50 text-red-600 border-none font-black uppercase">
-                                  Terlambat {a.late_minutes}m
+                              {a.status === 'leave' || a.status === 'sick' ? (
+                                <Badge className={cn(
+                                  "text-[9px] h-5 px-2 text-white border-none font-black uppercase",
+                                  a.status === 'sick' ? "bg-amber-500" : "bg-orange-500"
+                                )}>
+                                  {a.leave_type === 'sick' ? 'SAKIT' : `CUTI: ${a.leave_type}`}
                                 </Badge>
+                              ) : a.status === 'overtime' ? (
+                                <Badge className="text-[9px] h-5 px-2 bg-purple-600 text-white border-none font-black uppercase">Lembur {a.overtime_hours}j</Badge>
+                              ) : a.is_late ? (
+                                <div className="flex gap-1">
+                                  <Badge variant="destructive" className="text-[9px] h-5 px-2 bg-red-50 text-red-600 border-none font-black uppercase">
+                                    Terlambat {a.late_minutes}m
+                                  </Badge>
+                                  {a.overtime_hours && <Badge className="text-[9px] h-5 px-2 bg-purple-100 text-purple-700 border-none font-black uppercase">OT {a.overtime_hours}j</Badge>}
+                                </div>
                               ) : (
-                                <Badge className="text-[9px] h-5 px-2 bg-emerald-50 text-emerald-600 border-none font-black uppercase">Tepat Waktu</Badge>
+                                <div className="flex gap-1">
+                                  <Badge className="text-[9px] h-5 px-2 bg-emerald-50 text-emerald-600 border-none font-black uppercase">Tepat Waktu</Badge>
+                                  {a.overtime_hours && <Badge className="text-[9px] h-5 px-2 bg-purple-100 text-purple-700 border-none font-black uppercase">OT {a.overtime_hours}j</Badge>}
+                                </div>
                               )}
                             </div>
                             <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest italic">{a.status}</span>
@@ -570,24 +817,33 @@ export default function ReportsPage() {
 
               <div className="space-y-3">
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Organisasi</Label>
-                <select
-                  className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm transition-all focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none"
-                  value={selectedDept}
-                  onChange={(e) => setSelectedDept(e.target.value)}
-                >
-                  <option value="all">Semua Departemen</option>
-                  {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <select
-                  className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm transition-all focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none"
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                >
-                  <option value="all">Semua Jabatan</option>
-                  <option value="staff">Staff</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin_hr">Admin HR</option>
-                </select>
+                {role !== 'manager' ? (
+                  <>
+                    <select
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm transition-all focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none"
+                      value={selectedDept}
+                      onChange={(e) => setSelectedDept(e.target.value)}
+                    >
+                      <option value="all">Semua Departemen</option>
+                      {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <select
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm transition-all focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none"
+                      value={selectedRole}
+                      onChange={(e) => setSelectedRole(e.target.value)}
+                    >
+                      <option value="all">Semua Jabatan</option>
+                      <option value="employee">Staff</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin_hr">Admin HR</option>
+                    </select>
+                  </>
+                ) : (
+                  <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Terverifikasi Untuk</p>
+                    <p className="text-xs font-bold text-blue-700">Departemen Anda</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -667,13 +923,13 @@ export default function ReportsPage() {
               <div className="flex-1 overflow-auto custom-scrollbar">
                 <Table>
                   <TableHeader className="bg-slate-50 sticky top-0 z-10">
-                    <TableRow>
-                      <TableHead className="font-bold text-slate-500 uppercase text-xs pl-6">Karyawan</TableHead>
-                      <TableHead className="font-bold text-slate-500 uppercase text-xs">Tanggal</TableHead>
-                      <TableHead className="font-bold text-slate-500 uppercase text-xs">Jam Masuk</TableHead>
-                      <TableHead className="font-bold text-slate-500 uppercase text-xs">Jam Pulang</TableHead>
-                      <TableHead className="font-bold text-slate-500 uppercase text-xs">Durasi</TableHead>
-                      <TableHead className="font-bold text-slate-500 uppercase text-xs">Status</TableHead>
+                    <TableRow className="bg-slate-100/50">
+                      <TableHead className="w-[150px] pl-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Tanggal</TableHead>
+                      <TableHead className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">Jam Masuk</TableHead>
+                      <TableHead className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">Jam Pulang</TableHead>
+                      <TableHead className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">Metode</TableHead>
+                      <TableHead className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">Durasi Kerja</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status / Keterangan</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -688,50 +944,78 @@ export default function ReportsPage() {
                       </TableRow>
                     ) : filteredAttendances.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-40 text-center text-slate-400">
-                          Tidak ada data yang cocok dengan filter.
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          <EmptyState title="Tidak ada data" description="Coba ubah filter jika diperlukan" />
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredAttendances.map((a) => {
-                        const profile = profileMap.get(a.user_id);
+                      filteredAttendances.map((a, index) => {
+                        const p = profileMap.get(a.user_id);
+                        const prevA = index > 0 ? filteredAttendances[index - 1] : null;
+                        const isNewPerson = !prevA || prevA.user_id !== a.user_id;
+
                         return (
-                          <TableRow key={a.id} className="hover:bg-blue-50/50 transition-colors border-slate-50">
-                            <TableCell className="pl-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9 border border-slate-200">
-                                  <AvatarImage src={profile?.avatar_url} />
-                                  <AvatarFallback className="bg-slate-100 text-slate-500 text-xs font-bold">{profile?.full_name?.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-bold text-sm text-slate-700">{profile?.full_name}</p>
-                                  <p className="text-xs text-slate-400">{profile?.department || 'Umum'} • {profile?.role}</p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-medium text-slate-600 text-sm">
-                              {format(new Date(a.date), 'EEE, d MMM yyyy', { locale: id })}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="bg-slate-50 font-mono text-xs">{a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '--:--'}</Badge>
-                                <span className="text-[10px] uppercase font-bold text-slate-400">{a.work_mode}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="bg-slate-50 font-mono text-xs">{a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '--:--'}</Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-slate-600 font-medium">
-                              {a.work_hours_minutes ? `${Math.floor(a.work_hours_minutes / 60)}j ${a.work_hours_minutes % 60}m` : '-'}
-                            </TableCell>
-                            <TableCell>
-                              {a.is_late ? (
-                                <Badge className="bg-red-50 text-red-600 hover:bg-red-100 border-0">Terlambat {a.late_minutes}m</Badge>
-                              ) : (
-                                <Badge className="bg-green-50 text-green-600 hover:bg-green-100 border-0">Tepat Waktu</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
+                          <>
+                            {isNewPerson && (
+                              <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                                <TableCell colSpan={8} className="py-2.5">
+                                  <div className="flex items-center gap-3">
+                                    <Avatar className="h-7 w-7 border-2 border-white shadow-sm">
+                                      <AvatarImage src={p?.avatar_url || ''} />
+                                      <AvatarFallback className="bg-blue-600 text-white text-[10px] font-bold">
+                                        {p?.full_name?.substring(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black text-slate-800 uppercase tracking-tight">{p?.full_name}</span>
+                                      <span className="text-[10px] font-bold text-slate-400 leading-none">{p?.employee_id || 'No ID'} • {p?.department || '-'}</span>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            <TableRow key={a.id} className="group hover:bg-slate-50/50 transition-colors border-slate-100">
+                              <TableCell className="font-bold text-slate-600 pl-6">
+                                {format(new Date(a.date), 'dd MMM yyyy', { locale: id })}
+                              </TableCell>
+                              <TableCell className="text-center font-bold text-slate-700">
+                                {a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '-'}
+                              </TableCell>
+                              <TableCell className="text-center font-bold text-slate-700">
+                                {a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '-'}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline" className="text-[10px] font-black uppercase tracking-tighter border-slate-200 text-slate-500 italic">
+                                  {a.work_mode === 'wfo' ? 'Kantor' : a.work_mode === 'wfh' ? 'Rumah' : a.work_mode === 'field' ? 'Lapangan' : a.work_mode}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center font-medium text-slate-600 text-xs">
+                                {a.work_hours_minutes ? `${Math.floor(a.work_hours_minutes / 60)}j ${a.work_hours_minutes % 60}m` : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {a.status === 'leave' || a.status === 'sick' ? (
+                                  <Badge className={cn(
+                                    "border-0 text-white font-bold",
+                                    a.status === 'sick' ? "bg-amber-500" : "bg-orange-500"
+                                  )}>
+                                    {a.leave_type === 'sick' ? 'SAKIT' : `CUTI: ${a.leave_type?.toUpperCase()}`}
+                                  </Badge>
+                                ) : a.status === 'overtime' ? (
+                                  <Badge className="bg-purple-600 text-white border-0 font-bold">LEMBUR {a.overtime_hours}j</Badge>
+                                ) : a.is_late ? (
+                                  <div className="flex flex-col gap-1">
+                                    <Badge className="bg-red-50 text-red-600 hover:bg-red-100 border-0">Terlambat {a.late_minutes}m</Badge>
+                                    {a.overtime_hours && <Badge className="bg-purple-100 text-purple-700 border-0">OT: {a.overtime_hours}j</Badge>}
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col gap-1">
+                                    <Badge className="bg-green-50 text-green-600 hover:bg-green-100 border-0">Tepat Waktu</Badge>
+                                    {a.overtime_hours && <Badge className="bg-purple-100 text-purple-700 border-0">OT: {a.overtime_hours}j</Badge>}
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          </>
                         );
                       })
                     )}
