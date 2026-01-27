@@ -73,7 +73,7 @@ import { Agenda, AgendaParticipant, Profile } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function AgendaPage() {
-    const { user, profile } = useAuth();
+    const { user, profile, role } = useAuth();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
     const { toast } = useToast();
@@ -106,7 +106,7 @@ export default function AgendaPage() {
 
     const [employeeSearch, setEmployeeSearch] = useState('');
 
-    const canManage = ['admin_hr', 'manager', 'super_admin'].includes(profile?.role || '');
+    const canManage = ['admin_hr', 'manager', 'super_admin'].includes(role || '');
 
     const filteredEmployees = useMemo(() => {
         if (!employeeSearch) return employees;
@@ -127,8 +127,10 @@ export default function AgendaPage() {
     }, [filteredEmployees]);
 
     useEffect(() => {
-        fetchAgendas();
-    }, [selectedMonth]);
+        if (role) {
+            fetchAgendas();
+        }
+    }, [selectedMonth, role]);
 
     useEffect(() => {
         if (createOpen && canManage) {
@@ -156,7 +158,7 @@ export default function AgendaPage() {
                   *,
                   participants:agenda_participants(
                     user_id,
-                    profile:profiles(full_name, avatar_url)
+                    profile:user_id(full_name, avatar_url)
                   )
                 `)
                 .gte('start_time', `${queryStart}T00:00:00`)
