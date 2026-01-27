@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, Loader2, Plus, Trash2, Users, UserCheck } from 'lucide-react';
+import { ChevronLeft, Loader2, Plus, Trash2, Users, UserCheck, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -101,6 +101,78 @@ export default function ManagerAssignments() {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleAutoAssign = async () => {
+        const confirmMsg = "Fitur ini akan otomatis memasangkan Manager dengan Karyawan yang berada di DEPARTEMEN yang sama.\n\nLanjutkan?";
+        if (!confirm(confirmMsg)) return;
+
+        setProcessing(true);
+        try {
+            const newAssignments: { manager_id: string; employee_id: string }[] = [];
+            let count = 0;
+
+            managers.forEach(mgr => {
+                if (!mgr.department_id) return;
+
+                // Cari karyawan di departemen yang sama
+                const departmentStaff = employees.filter(emp => emp.department_id === mgr.department_id);
+
+                departmentStaff.forEach(staff => {
+                    // Cek apakah sudah ada assignment (hindari duplikat)
+                    const exists = assignments.some(
+                        a => a.manager_id === mgr.id && a.employee_id === staff.id
+                    );
+
+                    // Cek juga di list antrian insert (manager double di dept sama)
+                    const queued = newAssignments.some(
+                        a => a.manager_id === mgr.id && a.employee_id === staff.id
+                    );
+
+                    // Logic: Jika di departemen itu ada >1 manager, staff akan di-assign ke SEMUA manager (bisa dihapus manual nanti)
+                    // Atau kita bisa batasi 1 staff 1 manager. Untuk aman, kita assign saja, user bisa hapus.
+                    if (!exists && !queued) {
+                        newAssignments.push({
+                            manager_id: mgr.id,
+                            employee_id: staff.id
+                        });
+                        count++;
+                    }
+                });
+            });
+
+            if (count === 0) {
+                toast({
+                    title: "Sudah Optimal",
+                    description: "Tidak ditemukan pasangan Manager-Karyawan baru berdasarkan departemen.",
+                });
+                return;
+            }
+
+            const { error } = await supabase
+                .from('manager_assignments')
+                .insert(newAssignments);
+
+            if (error) throw error;
+
+            toast({
+                title: "Auto-Assign Berhasil",
+                description: `${count} koneksi atasan-bawahan baru telah dibuat otomatis!`,
+                className: "bg-green-600 text-white border-none"
+            });
+
+            fetchData();
+
+        } catch (error: any) {
+            console.error('Auto assign error:', error);
+            toast({
+                title: 'Gagal Auto-Assign',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setProcessing(false);
         }
     };
 
@@ -207,7 +279,7 @@ export default function ManagerAssignments() {
             <DashboardLayout>
                 <div className="min-h-screen bg-slate-50 pb-24">
                     {/* Unique Mobile Header Background */}
-                    <div className="bg-slate-900 text-white pb-8 pt-[calc(1rem+env(safe-area-inset-top))] px-4 rounded-b-[32px] shadow-lg mb-4">
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-6 pt-[calc(1rem+env(safe-area-inset-top))] px-4 rounded-b-[32px] shadow-lg mb-6">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="text-white hover:bg-white/20 -ml-2 h-8 w-8 rounded-full">
@@ -215,37 +287,38 @@ export default function ManagerAssignments() {
                                 </Button>
                                 <h1 className="text-lg font-bold">Struktur Atasan</h1>
                             </div>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={handleAutoAssign}
+                                className="bg-white/20 hover:bg-white/30 text-white border-0 h-8 px-3 text-xs font-bold rounded-lg backdrop-blur-sm"
+                            >
+                                <Zap className="h-3.5 w-3.5 mr-1.5" /> Auto
+                            </Button>
                         </div>
-                        <p className="text-slate-400 text-xs mb-4 leading-relaxed">
-                            Petakan hirarki supervisi. Tentukan siapa manajer untuk setiap karyawan guna persetujuan cuti & absensi.
+                        <p className="text-blue-50 text-xs mb-6 leading-relaxed opacity-90">
+                            Petakan hirarki supervisi. Tentukan siapa manajer untuk setiap karyawan.
                         </p>
 
-                        {/* Mobile Stats Scroll */}
-                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar snap-x">
-                            <div className="snap-center shrink-0 w-32 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Manajer</p>
-                                <div className="flex items-center gap-2">
-                                    <Users className="h-4 w-4 text-blue-400" />
-                                    <span className="text-xl font-black">{managers.length}</span>
-                                </div>
+                        {/* Mobile Stats Grid - Compact */}
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/20 flex flex-col items-center justify-center text-center h-20">
+                                <Users className="h-4 w-4 text-white opacity-90 mb-1" />
+                                <p className="text-xl font-black">{managers.length}</p>
+                                <p className="text-[9px] font-bold opacity-80 uppercase">Manajer</p>
                             </div>
-                            <div className="snap-center shrink-0 w-32 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Karyawan</p>
-                                <div className="flex items-center gap-2">
-                                    <Users className="h-4 w-4 text-purple-400" />
-                                    <span className="text-xl font-black">{employees.length}</span>
-                                </div>
+                            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/20 flex flex-col items-center justify-center text-center h-20">
+                                <Users className="h-4 w-4 text-white opacity-90 mb-1" />
+                                <p className="text-xl font-black">{employees.length}</p>
+                                <p className="text-[9px] font-bold opacity-80 uppercase">Karyawan</p>
                             </div>
-                            <div className="snap-center shrink-0 w-32 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Assignments</p>
-                                <div className="flex items-center gap-2">
-                                    <UserCheck className="h-4 w-4 text-green-400" />
-                                    <span className="text-xl font-black">{assignments.length}</span>
-                                </div>
+                            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/20 flex flex-col items-center justify-center text-center h-20">
+                                <UserCheck className="h-4 w-4 text-green-300 mb-1" />
+                                <p className="text-xl font-black">{assignments.length}</p>
+                                <p className="text-[9px] font-bold opacity-80 uppercase">Assign</p>
                             </div>
                         </div>
                     </div>
-
                     {/* Mobile List Content */}
                     <div className="px-4 space-y-4">
                         {Object.keys(groupedAssignments).length === 0 ? (
@@ -306,7 +379,7 @@ export default function ManagerAssignments() {
                     </div>
 
                     {/* Floating Add Button */}
-                    <div className="fixed bottom-6 right-6 z-40">
+                    <div className="fixed bottom-24 right-6 z-40">
                         <div className="absolute inset-0 bg-blue-500 rounded-full blur-lg opacity-30 animate-pulse"></div>
                         <Button
                             onClick={() => setDialogOpen(true)}
@@ -399,13 +472,24 @@ export default function ManagerAssignments() {
                             </div>
                         </div>
                     </div>
-                    <Button
-                        onClick={() => setDialogOpen(true)}
-                        className="bg-blue-600 hover:bg-blue-700 h-11 px-6 rounded-xl font-bold gap-2"
-                    >
-                        <Plus className="h-5 w-5" />
-                        Tambah Assignment
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="secondary"
+                            onClick={handleAutoAssign}
+                            disabled={processing}
+                            className="bg-purple-100/50 hover:bg-purple-100 text-purple-700 h-11 px-4 rounded-xl font-bold border border-purple-200"
+                        >
+                            <Zap className="h-4 w-4 mr-2" />
+                            Auto Assign
+                        </Button>
+                        <Button
+                            onClick={() => setDialogOpen(true)}
+                            className="bg-blue-600 hover:bg-blue-700 h-11 px-6 rounded-xl font-bold gap-2"
+                        >
+                            <Plus className="h-5 w-5" />
+                            Tambah Assignment
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}

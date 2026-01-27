@@ -38,7 +38,6 @@ import Holidays from "./pages/Holidays";
 import Albums from "./pages/Albums";
 import AlbumDetail from "./pages/AlbumDetail";
 import AuditLogs from './pages/AuditLogs';
-import ManagerAssignments from "./pages/ManagerAssignments";
 import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
@@ -129,7 +128,6 @@ const App = () => {
                 <Route path="/payroll-report" element={<ProtectedRoute allowedRoles={['super_admin', 'admin_hr']}><PayrollReport /></ProtectedRoute>} />
                 <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
                 <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
-                <Route path="/manager-assignments" element={<ProtectedRoute allowedRoles={['super_admin', 'admin_hr']}><ManagerAssignments /></ProtectedRoute>} />
                 <Route path="/approvals" element={<ProtectedRoute allowedRoles={['super_admin', 'admin_hr', 'manager']}><Approvals /></ProtectedRoute>} />
                 <Route path="/payroll/:id" element={<ProtectedRoute allowedRoles={['super_admin', 'admin_hr']}><PayrollDetail /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

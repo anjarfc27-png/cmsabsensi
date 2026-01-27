@@ -618,7 +618,6 @@ export default function Dashboard() {
                   <MenuGridItem href="/shifts" icon={Clock} label="Jadwal Shift" color="text-pink-600" bg="bg-white border border-slate-200" roles={['super_admin', 'admin_hr', 'manager']} />
                   <MenuGridItem href="/reports" icon={BarChart3} label="Laporan" color="text-slate-600" bg="bg-white border border-slate-200" roles={['super_admin', 'admin_hr', 'manager']} />
                   <MenuGridItem href="/locations" icon={MapPin} label="Lokasi" color="text-rose-600" bg="bg-white border border-slate-200" roles={['super_admin', 'admin_hr']} />
-                  <MenuGridItem href="/manager-assignments" icon={UserCheck} label="Atasan" color="text-violet-600" bg="bg-white border border-slate-200" roles={['super_admin', 'admin_hr']} />
                   <MenuGridItem href="/holidays" icon={CalendarDays} label="Libur" color="text-red-600" bg="bg-white border border-slate-200" roles={['super_admin', 'admin_hr']} />
                 </div>
 
@@ -999,12 +998,7 @@ export default function Dashboard() {
                       <ClipboardCheck className="h-6 w-6" />
                       <span className="text-xs font-bold">Approval</span>
                     </Button>
-                    {profile?.role === 'admin_hr' && (
-                      <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-slate-100 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600 transition-all shadow-sm" onClick={() => navigate('/manager-assignments')}>
-                        <UserCheck className="h-6 w-6" />
-                        <span className="text-xs font-bold">Atasan</span>
-                      </Button>
-                    )}
+
                     <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-slate-100 hover:border-pink-200 hover:bg-pink-50 hover:text-pink-600 transition-all shadow-sm" onClick={() => navigate('/shifts')}>
                       <Clock className="h-6 w-6" />
                       <span className="text-xs font-bold">Shift</span>

@@ -273,7 +273,7 @@ export default function EmployeesPage() {
         return (
             <DashboardLayout>
                 <div className="relative min-h-screen bg-slate-50/50">
-                    <div className="absolute top-0 left-0 w-full h-[calc(180px+env(safe-area-inset-top))] bg-gradient-to-br from-blue-600 to-indigo-600 rounded-b-[40px] z-0 shadow-lg" />
+                    <div className="absolute top-0 left-0 w-full h-[calc(220px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 rounded-b-[40px] z-0 shadow-lg" />
 
                     <div className="relative z-10 space-y-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-24">
                         {/* Header & Actions */}
@@ -304,28 +304,22 @@ export default function EmployeesPage() {
                             </div>
                         </div>
 
-                        {/* Stats Scroll */}
-                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar snap-x">
-                            <div className="snap-center shrink-0 w-36 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 text-white flex flex-col justify-between h-24">
-                                <Users className="h-5 w-5 opacity-80" />
-                                <div>
-                                    <p className="text-2xl font-black">{employees.length}</p>
-                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-wider">Total Personil</p>
-                                </div>
+                        {/* Stats Grid - Compact 3 Columns */}
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 text-white flex flex-col items-center justify-center text-center h-20">
+                                <Users className="h-4 w-4 opacity-80 mb-1" />
+                                <p className="text-xl font-black leading-none">{employees.length}</p>
+                                <p className="text-[9px] font-bold opacity-80 uppercase tracking-tighter mt-0.5">Personil</p>
                             </div>
-                            <div className="snap-center shrink-0 w-36 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 text-white flex flex-col justify-between h-24">
-                                <UserCheck className="h-5 w-5 opacity-80 text-green-300" />
-                                <div>
-                                    <p className="text-2xl font-black">{employees.filter(e => e.is_active).length}</p>
-                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-wider">Akun Aktif</p>
-                                </div>
+                            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 text-white flex flex-col items-center justify-center text-center h-20">
+                                <UserCheck className="h-4 w-4 opacity-80 text-green-300 mb-1" />
+                                <p className="text-xl font-black leading-none">{employees.filter(e => e.is_active).length}</p>
+                                <p className="text-[9px] font-bold opacity-80 uppercase tracking-tighter mt-0.5">Aktif</p>
                             </div>
-                            <div className="snap-center shrink-0 w-36 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 text-white flex flex-col justify-between h-24">
-                                <Building2 className="h-5 w-5 opacity-80 text-orange-300" />
-                                <div>
-                                    <p className="text-2xl font-black">{departments.length}</p>
-                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-wider">Departemen</p>
-                                </div>
+                            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 text-white flex flex-col items-center justify-center text-center h-20">
+                                <Building2 className="h-4 w-4 opacity-80 text-orange-300 mb-1" />
+                                <p className="text-xl font-black leading-none">{departments.length}</p>
+                                <p className="text-[9px] font-bold opacity-80 uppercase tracking-tighter mt-0.5">Divisi</p>
                             </div>
                         </div>
 

@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, ShieldAlert, FileText, Calendar, Filter } from 'lucide-react';
+import { Loader2, Search, ShieldAlert, FileText, Calendar, Filter, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -17,20 +18,21 @@ import { cn } from '@/lib/utils';
 // Placeholder type until we have a real table
 interface AuditLog {
     id: string;
+    created_at: string;
+    user_id: string;
     action: string;
     table_name: string;
     record_id: string;
     old_data: any;
     new_data: any;
-    changed_by: string;
-    created_at: string;
-    profiles?: {
+    profiles: {
         full_name: string;
         email: string;
-    }
+    };
 }
 
 export default function AuditLogs() {
+    const navigate = useNavigate();
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -45,27 +47,29 @@ export default function AuditLogs() {
             // Note: asking Supabase for a table that might not exist yet.
             // If it fails, we fall back to empty state.
             const { data, error } = await supabase
-                .from('audit_logs' as any)
-                .select('*, profiles:changed_by(full_name, email)')
+                .from('audit_logs')
+                .select(`
+                    *,
+                    profiles:user_id (
+                        full_name,
+                        email
+                    )
+                `)
                 .order('created_at', { ascending: false })
                 .limit(50);
 
-            if (error) {
-                console.warn('Audit logs table might not exist or permission denied:', error);
-                setLogs([]);
-            } else {
-                setLogs(data || []);
-            }
-        } catch (err) {
-            console.error(err);
+            if (error) throw error;
+            setLogs(data || []);
+        } catch (error) {
+            console.error('Error fetching audit logs:', error);
         } finally {
             setLoading(false);
         }
     };
 
     const filteredLogs = logs.filter(log =>
-        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
         log.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
         log.table_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -73,13 +77,30 @@ export default function AuditLogs() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 pt-[calc(6rem+env(safe-area-inset-top))] md:pt-8 min-h-screen pb-24">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Audit Logs</h1>
-                        <p className="text-slate-500 font-medium text-xs md:text-sm">Monitor perubahan data dan aktivitas sistem.</p>
+            <div className={`max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8 min-h-screen pb-24 ${isMobile ? 'pt-[calc(1rem+env(safe-area-inset-top))]' : 'pt-8'}`}>
+
+                {/* Header Section */}
+                <div className="flex flex-col gap-4 mb-6">
+                    {/* Title Row with Back Button for Mobile */}
+                    <div className="flex items-center gap-3">
+                        {isMobile && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => navigate('/dashboard')}
+                                className="-ml-3 h-10 w-10 text-slate-500 hover:text-slate-900"
+                            >
+                                <ChevronLeft className="h-6 w-6" />
+                            </Button>
+                        )}
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Audit Logs</h1>
+                            <p className="text-slate-500 font-medium text-xs md:text-sm">Monitor perubahan data dan aktivitas.</p>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
+
+                    {/* Filter Row */}
+                    <div className="flex gap-2 w-full">
                         <div className="relative w-full md:w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
@@ -89,8 +110,8 @@ export default function AuditLogs() {
                                 className="pl-9 bg-white h-10 rounded-xl border-slate-200"
                             />
                         </div>
-                        <Button variant="outline" onClick={fetchLogs} className="h-10 rounded-xl">
-                            <Filter className="mr-2 h-4 w-4" /> Filter
+                        <Button variant="outline" onClick={fetchLogs} className="h-10 rounded-xl px-3 shrink-0">
+                            <Filter className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Filter</span>
                         </Button>
                     </div>
                 </div>

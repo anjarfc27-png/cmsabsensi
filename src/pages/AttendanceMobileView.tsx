@@ -252,7 +252,7 @@ export default function AttendanceMobileView({
                                 {/* Camera / Photo Trigger Section (NEW: Integrated Here) */}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">
-                                        {isFaceRequired ? "Foto Wajah (Wajib)" : "Foto Wajah (Opsional)"}
+                                        {isFaceRequired ? "Foto Wajah (Wajib)" : "Foto Wajah (Segera Hadir)"}
                                     </label>
 
                                     {photoPreview ? (
@@ -274,19 +274,19 @@ export default function AttendanceMobileView({
                                         </div>
                                     ) : (
                                         <div
-                                            onClick={openCameraForPhoto}
                                             className={cn(
-                                                "h-24 w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95",
+                                                "h-24 w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all",
                                                 isFaceRequired
-                                                    ? "border-blue-300 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-400"
-                                                    : "border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300"
+                                                    ? "border-blue-300 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-400 cursor-pointer active:scale-95"
+                                                    : "border-slate-200 bg-slate-50/50 cursor-not-allowed opacity-60"
                                             )}
+                                            onClick={isFaceRequired ? openCameraForPhoto : undefined}
                                         >
                                             <div className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-1">
                                                 <Camera className={cn("h-5 w-5", isFaceRequired ? "text-blue-500" : "text-slate-400")} />
                                             </div>
                                             <p className={cn("text-xs font-bold", isFaceRequired ? "text-blue-600" : "text-slate-500 dark:text-slate-500")}>
-                                                {isFaceRequired ? "Ambil Foto Sekarang" : "Ambil Foto (Opsional)"}
+                                                {isFaceRequired ? "Ambil Foto Sekarang" : "Segera Hadir"}
                                             </p>
                                         </div>
                                     )}
