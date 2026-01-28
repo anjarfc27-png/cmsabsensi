@@ -205,14 +205,24 @@ export function NotificationBell({ iconClassName }: NotificationBellProps) {
         <DropdownMenuLabel className="flex items-center justify-between pb-2 border-b border-slate-100">
           <span className="font-bold text-slate-800">Notifikasi</span>
           {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto p-0 text-xs text-blue-600 hover:text-blue-700"
-              onClick={markAllAsRead}
-            >
-              Tandai semua dibaca
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 text-xs text-slate-400 hover:text-slate-600 font-medium"
+                onClick={() => setNotifications([])}
+              >
+                Bersihkan
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 text-xs text-blue-600 hover:text-blue-700 font-bold"
+                onClick={markAllAsRead}
+              >
+                Tandai semua dibaca
+              </Button>
+            </div>
           )}
         </DropdownMenuLabel>
 

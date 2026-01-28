@@ -114,21 +114,21 @@ export default function ReimbursementPage() {
 
             if (error) throw error;
 
-            // Notify HR
+            // Notify HR & Super Admin
             try {
-                const { data: hrUsers } = await supabase
+                const { data: adminUsers } = await supabase
                     .from('profiles')
                     .select('id')
-                    .eq('role', 'admin_hr');
+                    .in('role', ['admin_hr', 'super_admin']);
 
-                if (hrUsers && hrUsers.length > 0) {
-                    const notifications = hrUsers.map(hr => ({
-                        user_id: hr.id,
+                if (adminUsers && adminUsers.length > 0) {
+                    const notifications = adminUsers.map(admin => ({
+                        user_id: admin.id,
                         title: 'Pengajuan Reimbursement Baru',
                         message: `${user?.email} mengajukan klaim ${getTypeLabel(formData.type)} sebesar ${formatCurrency(Number(formData.amount))}`,
                         type: 'reimbursement',
-                        link: '/approvals', // Assuming approvals page will handle this eventually
-                        is_read: false
+                        link: '/approvals',
+                        read: false
                     }));
 
                     await supabase.from('notifications').insert(notifications);
@@ -136,6 +136,7 @@ export default function ReimbursementPage() {
             } catch (notifError) {
                 console.error('Failed to send notification to HR:', notifError);
             }
+
 
             toast({ title: 'Berhasil', description: 'Pengajuan reimbursement berhasil dikirim' });
             setDialogOpen(false);

@@ -741,64 +741,105 @@ export default function EmployeesPage() {
                         </TabsContent>
 
                         <TabsContent value="chart" className="mt-0">
-                            <div className="space-y-8 py-4">
-                                {/* Leaders Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 px-2">
-                                        <div className="h-1 w-8 bg-blue-600 rounded-full" />
-                                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Pimpinan Unit (Manager)</h3>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {employees.filter(e => e.role === 'manager').map(mgr => (
-                                            <div key={mgr.id} className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[32px] p-6 text-white shadow-xl shadow-blue-200 relative overflow-hidden group hover:scale-[1.02] transition-all cursor-pointer" onClick={() => handleEditClick(mgr)}>
-                                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/20 transition-colors" />
-                                                <div className="flex items-center gap-4 relative z-10">
-                                                    <Avatar className="h-16 w-16 border-4 border-white/20 shadow-2xl">
-                                                        <AvatarImage src={mgr.avatar_url || ''} />
-                                                        <AvatarFallback className="bg-white text-blue-600 font-black text-xl">
-                                                            {mgr.full_name?.substring(0, 2).toUpperCase()}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <div className="min-w-0">
-                                                        <p className="font-black text-lg truncate leading-none mb-1">{mgr.full_name}</p>
-                                                        <p className="text-blue-100 text-xs font-bold truncate opacity-80 uppercase tracking-tighter">{(mgr as any).job_position?.title || 'Manager'}</p>
-                                                        <Badge variant="secondary" className="mt-2 bg-white/20 text-white border-none text-[9px] px-2 h-5 font-black uppercase">UNIT HEAD</Badge>
-                                                    </div>
+                            <div className="space-y-12 py-6">
+                                {/* Group by Department */}
+                                {Object.entries(
+                                    employees.reduce((acc, emp) => {
+                                        const deptName = (emp as any).department?.name || 'Non-Departmental / Umum';
+                                        if (!acc[deptName]) {
+                                            acc[deptName] = { managers: [], staff: [] };
+                                        }
+                                        if (emp.role === 'manager') {
+                                            acc[deptName].managers.push(emp);
+                                        } else if (emp.role !== 'admin_hr') { // Exclude Admin HR as per original logic
+                                            acc[deptName].staff.push(emp);
+                                        }
+                                        return acc;
+                                    }, {} as Record<string, { managers: Profile[], staff: Profile[] }>)
+                                ).sort((a, b) => a[0].localeCompare(b[0])).map(([deptName, group]) => (
+                                    <div key={deptName} className="space-y-6">
+
+                                        {/* Department Header */}
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-12 w-1.5 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full" />
+                                            <div>
+                                                <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">{deptName}</h3>
+                                                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">{group.managers.length + group.staff.length} Personil</p>
+                                            </div>
+                                            <div className="flex-1 h-px bg-slate-100/80 ml-4" />
+                                        </div>
+
+                                        {/* Managers Section */}
+                                        {group.managers.length > 0 && (
+                                            <div className="space-y-3 pl-6">
+                                                <h4 className="text-xs font-black text-blue-900/40 uppercase tracking-widest flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                                    Pimpinan Unit (Manager)
+                                                </h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    {group.managers.map(mgr => (
+                                                        <div key={mgr.id} className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[32px] p-6 text-white shadow-xl shadow-blue-200 relative overflow-hidden group hover:scale-[1.02] transition-all cursor-pointer" onClick={() => handleEditClick(mgr)}>
+                                                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/20 transition-colors" />
+                                                            <div className="flex items-center gap-4 relative z-10">
+                                                                <Avatar className="h-16 w-16 border-4 border-white/20 shadow-2xl">
+                                                                    <AvatarImage src={mgr.avatar_url || ''} />
+                                                                    <AvatarFallback className="bg-white text-blue-600 font-black text-xl">
+                                                                        {mgr.full_name?.substring(0, 2).toUpperCase()}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <div className="min-w-0">
+                                                                    <p className="font-black text-lg truncate leading-none mb-1">{mgr.full_name}</p>
+                                                                    <p className="text-blue-100 text-xs font-bold truncate opacity-80 uppercase tracking-tighter">{(mgr as any).job_position?.title || 'Manager'}</p>
+                                                                    <Badge variant="secondary" className="mt-2 bg-white/20 text-white border-none text-[9px] px-2 h-5 font-black uppercase">UNIT HEAD</Badge>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </div>
-                                        ))}
-                                        {employees.filter(e => e.role === 'manager').length === 0 && (
-                                            <div className="col-span-full py-12 text-center border-2 border-dashed border-slate-100 rounded-[32px]">
-                                                <p className="text-slate-400 font-medium italic">Belum ada manajer yang terdaftar di unit ini.</p>
+                                        )}
+
+                                        {/* Staff Section */}
+                                        {group.staff.length > 0 && (
+                                            <div className="space-y-3 pl-6">
+                                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-slate-300" />
+                                                    Anggota Tim (Staff)
+                                                </h4>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                                    {group.staff.map(staff => (
+                                                        <div key={staff.id} className="bg-white border border-slate-100 rounded-[24px] p-4 shadow-sm hover:shadow-md transition-all group flex flex-col items-center text-center cursor-pointer" onClick={() => handleEditClick(staff)}>
+                                                            <Avatar className="h-16 w-16 mb-3 border-2 border-slate-50 group-hover:scale-105 transition-transform">
+                                                                <AvatarImage src={staff.avatar_url || ''} />
+                                                                <AvatarFallback className="bg-slate-100 text-slate-400 font-black text-lg">
+                                                                    {staff.full_name?.substring(0, 2).toUpperCase()}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <p className="font-bold text-slate-900 text-sm truncate w-full">{staff.full_name}</p>
+                                                            <p className="text-[10px] text-slate-500 font-medium truncate w-full uppercase tracking-tighter mt-0.5">{(staff as any).job_position?.title || 'Staff'}</p>
+                                                            <div className="mt-3 flex gap-1">
+                                                                <div className={`h-1.5 w-1.5 rounded-full ${staff.is_active ? 'bg-emerald-500' : 'bg-red-400'}`} title={staff.is_active ? "Aktif" : "Non-Aktif"} />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Empty State for Department */}
+                                        {group.managers.length === 0 && group.staff.length === 0 && (
+                                            <div className="py-8 text-center border-2 border-dashed border-slate-100 rounded-2xl mx-6">
+                                                <p className="text-slate-400 text-xs italic">Belum ada personil di departemen ini.</p>
                                             </div>
                                         )}
                                     </div>
-                                </div>
+                                ))}
 
-                                {/* Team Members Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 px-2">
-                                        <div className="h-1 w-8 bg-slate-300 rounded-full" />
-                                        <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">Anggota Tim (Staff)</h3>
+                                {employees.length === 0 && (
+                                    <div className="text-center py-20">
+                                        <p className="text-slate-400 font-bold">Belum ada data karyawan.</p>
                                     </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                        {employees.filter(e => e.role !== 'manager' && e.role !== 'admin_hr').map(staff => (
-                                            <div key={staff.id} className="bg-white border border-slate-100 rounded-[24px] p-4 shadow-sm hover:shadow-md transition-all group flex flex-col items-center text-center cursor-pointer" onClick={() => handleEditClick(staff)}>
-                                                <Avatar className="h-16 w-16 mb-3 border-2 border-slate-50 group-hover:scale-105 transition-transform">
-                                                    <AvatarImage src={staff.avatar_url || ''} />
-                                                    <AvatarFallback className="bg-slate-100 text-slate-400 font-black text-lg">
-                                                        {staff.full_name?.substring(0, 2).toUpperCase()}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <p className="font-bold text-slate-900 text-sm truncate w-full">{staff.full_name}</p>
-                                                <p className="text-[10px] text-slate-500 font-medium truncate w-full uppercase tracking-tighter mt-0.5">{(staff as any).job_position?.title || 'Staff'}</p>
-                                                <div className="mt-3 flex gap-1">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" title="Aktif" />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         </TabsContent>
                     </Tabs>

@@ -205,7 +205,31 @@ export default function LeavePage() {
 
             if (error) throw error;
 
+            // Notify HR & Super Admin (Manual Fallback)
+            try {
+                const { data: adminUsers } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .in('role', ['admin_hr', 'super_admin']);
+
+                if (adminUsers && adminUsers.length > 0) {
+                    const notifications = adminUsers.map(admin => ({
+                        user_id: admin.id,
+                        title: 'Pengajuan Cuti Baru',
+                        message: `${user?.email} mengajukan cuti ${getLeaveTypeLabel(leaveType)} (${format(startDate, 'd MMMM', { locale: id })} - ${format(endDate, 'd MMMM', { locale: id })})`,
+                        type: 'leave',
+                        link: '/approvals',
+                        read: false
+                    }));
+
+                    await supabase.from('notifications').insert(notifications);
+                }
+            } catch (notifError) {
+                console.error('Failed to send notification to HR:', notifError);
+            }
+
             toast({
+
                 title: 'Berhasil!',
                 description: 'Pengajuan cuti telah dikirim dan menunggu persetujuan.',
             });

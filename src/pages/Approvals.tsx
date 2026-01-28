@@ -256,8 +256,9 @@ export default function Approvals() {
                         title: 'Akun Diaktifkan',
                         message: 'Selamat! Akun Anda telah diaktifkan oleh admin. cms absensi untuk mengakses aplikasi.',
                         type: 'system',
-                        is_read: false
+                        read: false
                     });
+
                 } else {
                     const { error } = await supabase
                         .from('profiles')
@@ -337,8 +338,9 @@ export default function Approvals() {
                         message: message,
                         type: notifType,
                         link: notifLink,
-                        is_read: false
+                        read: false
                     });
+
                 }
             } catch (notifError) {
                 console.error('Failed to send notification:', notifError);

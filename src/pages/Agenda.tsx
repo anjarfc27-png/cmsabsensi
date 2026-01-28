@@ -324,7 +324,8 @@ export default function AgendaPage() {
                         title: notifTitle,
                         message: notifMessage,
                         type: 'info', // or 'agenda' if you have that type
-                        is_read: false,
+                        read: false,
+
                         created_at: new Date().toISOString()
                         // link: '/agenda' // Optional if your notification table supports link
                     }));

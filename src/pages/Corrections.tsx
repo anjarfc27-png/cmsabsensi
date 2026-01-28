@@ -132,21 +132,21 @@ export default function CorrectionsPage() {
 
       if (error) throw error;
 
-      // Notify HR
+      // Notify HR & Super Admin
       try {
-        const { data: hrUsers } = await supabase
+        const { data: adminUsers } = await supabase
           .from('profiles')
           .select('id')
-          .eq('role', 'admin_hr');
+          .in('role', ['admin_hr', 'super_admin']);
 
-        if (hrUsers && hrUsers.length > 0) {
-          const notifications = hrUsers.map(hr => ({
-            user_id: hr.id,
+        if (adminUsers && adminUsers.length > 0) {
+          const notifications = adminUsers.map(admin => ({
+            user_id: admin.id,
             title: 'Pengajuan Koreksi Absensi',
             message: `Karyawan ${user.email} mengajukan koreksi untuk tgl ${format(new Date(form.date), 'd MMM yyyy', { locale: id })}`,
             type: 'correction',
             link: '/approvals',
-            is_read: false
+            read: false // Explicitly set read to false as per schema
           }));
 
           await supabase.from('notifications').insert(notifications);
@@ -154,6 +154,7 @@ export default function CorrectionsPage() {
       } catch (notifError) {
         console.error('Failed to send notification to HR:', notifError);
       }
+
 
       toast({ title: 'Pengajuan Berhasil', description: 'Permintaan koreksi absensi telah dikirim ke atasan.' });
       setDialogOpen(false);

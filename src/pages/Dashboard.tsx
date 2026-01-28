@@ -779,6 +779,56 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        {/* TODAY'S AGENDA POPUP (Mobile) */}
+        <Dialog open={agendaPopupOpen} onOpenChange={setAgendaPopupOpen}>
+          <DialogContent className="max-w-md p-0 overflow-hidden border-none rounded-[32px] bg-white shadow-2xl">
+            <div className="relative">
+              {/* Header with Background */}
+              <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+                <div className="absolute right-0 top-0 h-32 w-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+                <div className="relative z-10 flex flex-col items-center text-center">
+                  <div className="h-20 w-20 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md mb-4 shadow-xl">
+                    <Calendar className="h-10 w-10 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tight mb-2">Jangan Lupa Agenda Hari Ini!</h2>
+                  <p className="text-indigo-100 text-sm font-medium">Anda memiliki {todayAgendas.length} agenda yang harus dihadiri hari ini.</p>
+                </div>
+              </div>
+
+              {/* Content List */}
+              <div className="p-6 space-y-4 max-h-[350px] overflow-y-auto scrollbar-hide bg-slate-50/50">
+                {todayAgendas.map((act) => (
+                  <Card key={act.id} className="border-none shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group" onClick={() => { setAgendaPopupOpen(false); navigate('/agenda'); }}>
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 flex flex-col items-center justify-center shrink-0 border border-indigo-100">
+                        <span className="text-xs font-black tabular-nums">{format(new Date(act.time), 'HH:mm')}</span>
+                        <span className="text-[8px] font-bold uppercase tracking-tighter">WIB</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">{act.title}</h4>
+                        <p className="text-xs text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3" />
+                          <span className="truncate">{act.location || 'Lokasi tidak ditentukan'}</span>
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:translate-x-1 transition-all" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 bg-white border-t border-slate-100">
+                <Button
+                  className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-base shadow-xl shadow-indigo-200 transition-all active:scale-95"
+                  onClick={() => setAgendaPopupOpen(false)}
+                >
+                  SIAP, SAYA MENGERTI
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     );
   }

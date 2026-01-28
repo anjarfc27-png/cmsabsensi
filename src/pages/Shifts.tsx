@@ -80,7 +80,7 @@ export default function ShiftsPage() {
 
     const fetchEmployees = async () => {
         try {
-            let query = supabase.from('profiles').select('*, job_position:job_positions(*)').eq('is_active', true);
+            let query = supabase.from('profiles').select('*, job_position:job_positions(*), department:departments(*)').eq('is_active', true);
 
             if (profile?.role === 'manager' && profile?.department_id) {
                 query = query.eq('department_id', profile.department_id);
@@ -329,11 +329,12 @@ export default function ShiftsPage() {
     // Filter employees
     const filteredEmployees = employees.filter(e => {
         const matchesSearch = e.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesDept = departmentFilter === 'all' || e.department === departmentFilter;
+        const deptName = (e.department as any)?.name || '';
+        const matchesDept = departmentFilter === 'all' || deptName === departmentFilter;
         return matchesSearch && matchesDept;
     });
 
-    const uniqueDepartments = Array.from(new Set(employees.map(e => e.department).filter(Boolean)));
+    const uniqueDepartments = Array.from(new Set(employees.map(e => (e.department as any)?.name).filter(Boolean)));
 
     // ----------------------------------------------------------------------
     // MOBILE VIEW (PRESERVED)
@@ -814,7 +815,7 @@ function RosterTable({ employees, schedules, selectedDate, handleCellClick }: an
                                 <div className="min-w-0">
                                     <div className="text-xs font-bold text-slate-700 truncate max-w-[120px]">{employee.full_name}</div>
                                     <div className="text-[10px] text-slate-400 font-medium truncate max-w-[120px] uppercase">
-                                        {employee.job_position?.title || employee.department || 'Staff'}
+                                        {employee.job_position?.title || employee.department?.name || 'Staff'}
                                     </div>
                                 </div>
                             </div>

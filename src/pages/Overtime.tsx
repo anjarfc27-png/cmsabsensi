@@ -106,15 +106,15 @@ export default function OvertimePage() {
 
             if (overtimeError) throw overtimeError;
 
-            // Create notification for HR
-            const { data: hrUsers } = await supabase
+            // Notify HR & Super Admin
+            const { data: adminUsers } = await supabase
                 .from('profiles')
                 .select('id')
-                .eq('role', 'admin_hr');
+                .in('role', ['admin_hr', 'super_admin']);
 
-            if (hrUsers && hrUsers.length > 0) {
-                const notifications = hrUsers.map(hr => ({
-                    user_id: hr.id,
+            if (adminUsers && adminUsers.length > 0) {
+                const notifications = adminUsers.map(admin => ({
+                    user_id: admin.id,
                     title: 'Pengajuan Lembur Baru',
                     message: `Pengajuan lembur dari karyawan untuk ${format(date, 'd MMMM yyyy', { locale: id })} (${hoursNum} jam)`,
                     type: 'overtime',
@@ -124,6 +124,7 @@ export default function OvertimePage() {
 
                 await supabase.from('notifications').insert(notifications);
             }
+
 
             toast({
                 title: "Berhasil!",
