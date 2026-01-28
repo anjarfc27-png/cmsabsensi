@@ -53,7 +53,11 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', 'lucide-react'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', 'lucide-react', 'sonner', 'vaul'],
+          'vendor-utils': ['date-fns', 'date-fns-tz', 'zod', 'react-hook-form', '@tanstack/react-query'],
+          'vendor-maps': ['leaflet', 'react-leaflet'],
+          'vendor-charts': ['recharts'],
+          'vendor-excel': ['xlsx', 'exceljs'],
           'vendor-pdf': ['jspdf', 'jspdf-autotable'],
           'vendor-ai': ['@mediapipe/tasks-vision', 'face-api.js'],
           'vendor-supabase': ['@supabase/supabase-js'],
