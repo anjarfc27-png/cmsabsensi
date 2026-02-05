@@ -1,0 +1,28 @@
+flowchart TD
+    Start([Mulai]) --> CheckAuth{User Login?}
+    CheckAuth -- Tidak --> RedirectLogin[Ke Halaman Login]
+    CheckAuth -- Ya --> AccessPage[Akses Halaman Absensi]
+    
+    AccessPage --> CheckGPS{GPS Aktif?}
+    CheckGPS -- Tidak --> RequestGPS[Minta Izin GPS] --> AccessPage
+    CheckGPS -- Ya --> FetchData{Ambil Data?}
+    
+    FetchData --> CheckMock{Fake GPS?}
+    CheckMock -- Ya --> BlockAccess1[Blokir Akses]
+    CheckMock -- Tidak --> CheckRadius{Dalam Radius?}
+    
+    CheckRadius -- Tidak --> BlockAccess2[Tombol Absen Disabled]
+    CheckRadius -- Ya --> ClickAbsen[Klik Tombol Absen]
+    
+    ClickAbsen --> OpenCamera[Buka Kamera]
+    OpenCamera --> FaceScan{Scan Wajah}
+    
+    FaceScan -- Tidak Cocok --> Retry[Coba Lagi (Max 3x)]
+    FaceScan -- Cocok (Score > 0.4) --> Liveness{Liveness Check}
+    
+    Liveness -- Gagal (Mata Diam) --> Retry
+    Liveness -- Sukses (Kedip) --> SubmitData[Kirim Data ke Server]
+    
+    SubmitData --> BackendProcess{Validasi Server}
+    BackendProcess --> DBInsert[(Simpan ke Database)]
+    DBInsert --> Success[Tampilkan Sukses] --> End([Selesai])

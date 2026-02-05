@@ -634,7 +634,7 @@ export default function Dashboard() {
 
 
             {/* Article / News Section */}
-            <div className="mx-2 mb-20">
+            <div className="mx-2 mb-20" data-tour="news-feed">
               <div className="flex items-center justify-between mb-3 px-1">
                 <h3 className="text-sm font-bold text-slate-800">Artikel & Berita</h3>
                 <div className="flex items-center gap-2">
@@ -842,34 +842,36 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto space-y-8 px-6 py-8">
 
         {/* Header Section - Simplified to Greeting only */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              {getGreeting()}, <span className="text-blue-600">{profile?.full_name?.split(' ')[0]}</span>
-            </h1>
-            <div className="flex flex-col gap-1">
-              <p className="text-base text-slate-500 font-medium max-w-lg">
-                Selamat datang di dashboard absensi. Pantau produktivitas dan kelola jadwal Anda hari ini.
-              </p>
-              {deptManager && profile?.role !== 'manager' && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-[10px] font-black bg-blue-50 text-blue-600 border-blue-100 px-2 h-5">
-                    MANAGER UNIT: {deptManager.full_name.toUpperCase()}
-                  </Badge>
-                </div>
-              )}
-              {profile?.role === 'manager' && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-[10px] font-black bg-amber-50 text-amber-700 border-amber-200 px-2 h-5">
-                    MANAJER UNIT: {((profile as any)?.department?.name || 'UNIT').toUpperCase()}
-                  </Badge>
-                </div>
-              )}
+        <div data-tour="profile-header">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
+                {getGreeting()}, <span className="text-blue-600">{profile?.full_name?.split(' ')[0]}</span>
+              </h1>
+              <div className="flex flex-col gap-1">
+                <p className="text-base text-slate-500 font-medium max-w-lg">
+                  Selamat datang di dashboard absensi. Pantau produktivitas dan kelola jadwal Anda hari ini.
+                </p>
+                {deptManager && profile?.role !== 'manager' && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-[10px] font-black bg-blue-50 text-blue-600 border-blue-100 px-2 h-5">
+                      MANAGER UNIT: {deptManager.full_name.toUpperCase()}
+                    </Badge>
+                  </div>
+                )}
+                {profile?.role === 'manager' && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-[10px] font-black bg-amber-50 text-amber-700 border-amber-200 px-2 h-5">
+                      MANAJER UNIT: {((profile as any)?.department?.name || 'UNIT').toUpperCase()}
+                    </Badge>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="hidden lg:flex items-center gap-4">
-            <div className="h-12 px-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center text-sm font-bold text-slate-600">
-              {format(new Date(), 'EEEE, d MMMM yyyy', { locale: id })}
+            <div className="hidden lg:flex items-center gap-4">
+              <div className="h-12 px-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center text-sm font-bold text-slate-600">
+                {format(new Date(), 'EEEE, d MMMM yyyy', { locale: id })}
+              </div>
             </div>
           </div>
         </div>
@@ -955,53 +957,55 @@ export default function Dashboard() {
             </Card>
 
             {/* 2. Stats Grid - Clean & Big */}
-            <div className="grid grid-cols-4 gap-6">
-              {[
-                {
-                  label: isAdmin ? 'Hadir (Tim)' : 'Hadir',
-                  value: isAdmin ? teamStats.present : stats.present,
-                  icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'ring-emerald-100',
-                  sub: isAdmin ? `${teamStats.total_employees} Total` : 'Bulan Ini'
-                },
-                {
-                  label: isAdmin ? 'Terlambat (Tim)' : 'Terlambat',
-                  value: isAdmin ? teamStats.late : stats.late,
-                  icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', ring: 'ring-red-100',
-                  sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
-                },
-                {
-                  label: isAdmin ? 'Cuti (Tim)' : 'Cuti / Izin',
-                  value: isAdmin ? teamStats.leave : stats.leave,
-                  icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-50', ring: 'ring-blue-100',
-                  sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
-                },
-                {
-                  label: isAdmin ? 'Mangkir (Tim)' : 'Lembur',
-                  value: isAdmin ? teamStats.absent : stats.overtime,
-                  icon: isAdmin ? UserX : Briefcase,
-                  color: isAdmin ? 'text-slate-600' : 'text-orange-600',
-                  bg: isAdmin ? 'bg-slate-100' : 'bg-orange-50',
-                  ring: isAdmin ? 'ring-slate-200' : 'ring-orange-100',
-                  sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
-                }
-              ].map((stat, i) => (
-                <Card key={i} className="border-none shadow-lg shadow-slate-200/40 hover:shadow-xl transition-all hover:-translate-y-1 group bg-white ring-1 ring-slate-100/50">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm", stat.bg, stat.color)}>
-                        <stat.icon className="h-6 w-6" />
+            <div data-tour="main-menu-grid">
+              <div className="grid grid-cols-4 gap-6">
+                {[
+                  {
+                    label: isAdmin ? 'Hadir (Tim)' : 'Hadir',
+                    value: isAdmin ? teamStats.present : stats.present,
+                    icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'ring-emerald-100',
+                    sub: isAdmin ? `${teamStats.total_employees} Total` : 'Bulan Ini'
+                  },
+                  {
+                    label: isAdmin ? 'Terlambat (Tim)' : 'Terlambat',
+                    value: isAdmin ? teamStats.late : stats.late,
+                    icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', ring: 'ring-red-100',
+                    sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
+                  },
+                  {
+                    label: isAdmin ? 'Cuti (Tim)' : 'Cuti / Izin',
+                    value: isAdmin ? teamStats.leave : stats.leave,
+                    icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-50', ring: 'ring-blue-100',
+                    sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
+                  },
+                  {
+                    label: isAdmin ? 'Mangkir (Tim)' : 'Lembur',
+                    value: isAdmin ? teamStats.absent : stats.overtime,
+                    icon: isAdmin ? UserX : Briefcase,
+                    color: isAdmin ? 'text-slate-600' : 'text-orange-600',
+                    bg: isAdmin ? 'bg-slate-100' : 'bg-orange-50',
+                    ring: isAdmin ? 'ring-slate-200' : 'ring-orange-100',
+                    sub: isAdmin ? 'Hari Ini' : 'Bulan Ini'
+                  }
+                ].map((stat, i) => (
+                  <Card key={i} className="border-none shadow-lg shadow-slate-200/40 hover:shadow-xl transition-all hover:-translate-y-1 group bg-white ring-1 ring-slate-100/50">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm", stat.bg, stat.color)}>
+                          <stat.icon className="h-6 w-6" />
+                        </div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-1 rounded-lg">
+                          {stat.sub}
+                        </div>
                       </div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-1 rounded-lg">
-                        {stat.sub}
+                      <div>
+                        <div className="text-4xl font-black text-slate-900 tracking-tight">{stat.value}</div>
+                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">{stat.label}</p>
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-4xl font-black text-slate-900 tracking-tight">{stat.value}</div>
-                      <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">{stat.label}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
 
             {/* 3. Charts Section */}

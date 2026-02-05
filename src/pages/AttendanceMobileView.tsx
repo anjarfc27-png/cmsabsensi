@@ -29,6 +29,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Attendance, OfficeLocation, WorkMode, EmployeeSchedule } from '@/types';
 import { cn } from '@/lib/utils';
+import { AttendanceTour } from '@/components/AttendanceTour';
 
 // --- Leaflet setup ---
 // @ts-ignore
@@ -161,6 +162,7 @@ export default function AttendanceMobileView({
 }: AttendanceMobileViewProps) {
     return (
         <DashboardLayout>
+            <AttendanceTour />
             <div className="relative min-h-screen bg-slate-50/50">
                 {/* Custom Background Header for Mobile Feel */}
                 <div className="absolute top-0 left-0 w-full h-[calc(110px+env(safe-area-inset-top))] bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-b-[40px] z-0 shadow-lg" />
@@ -207,37 +209,39 @@ export default function AttendanceMobileView({
                                 </div>
 
                                 {/* GPS Status Indicator & Validation */}
-                                {latitude && longitude ? (
-                                    <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-center gap-3">
-                                        <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                                            <MapPin className="h-4 w-4 text-green-600" />
+                                <div data-tour="gps-indicator">
+                                    {latitude && longitude ? (
+                                        <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-center gap-3">
+                                            <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+                                                <MapPin className="h-4 w-4 text-green-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-bold text-green-700 dark:text-green-700">GPS Terkunci</p>
+                                                <p className="text-[10px] text-green-600 dark:text-green-600">
+                                                    Lat: {latitude.toFixed(6)}, Lon: {longitude.toFixed(6)}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-xs font-bold text-green-700 dark:text-green-700">GPS Terkunci</p>
-                                            <p className="text-[10px] text-green-600 dark:text-green-600">
-                                                Lat: {latitude.toFixed(6)}, Lon: {longitude.toFixed(6)}
-                                            </p>
+                                    ) : (
+                                        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-3 flex items-center gap-3">
+                                            <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                                                {locationLoading ? (
+                                                    <Loader2 className="h-4 w-4 text-yellow-600 animate-spin" />
+                                                ) : (
+                                                    <AlertOctagon className="h-4 w-4 text-yellow-600" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-bold text-yellow-700 dark:text-yellow-700">
+                                                    {locationLoading ? 'Mencari GPS...' : 'GPS Belum Terkunci'}
+                                                </p>
+                                                <p className="text-[10px] text-yellow-600 dark:text-yellow-600">
+                                                    {locationError || 'Klik "Perbarui GPS" untuk mencoba lagi'}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-3 flex items-center gap-3">
-                                        <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                                            {locationLoading ? (
-                                                <Loader2 className="h-4 w-4 text-yellow-600 animate-spin" />
-                                            ) : (
-                                                <AlertOctagon className="h-4 w-4 text-yellow-600" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-xs font-bold text-yellow-700 dark:text-yellow-700">
-                                                {locationLoading ? 'Mencari GPS...' : 'GPS Belum Terkunci'}
-                                            </p>
-                                            <p className="text-[10px] text-yellow-600 dark:text-yellow-600">
-                                                {locationError || 'Klik "Perbarui GPS" untuk mencoba lagi'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
 
                                 {!isLocationValid && workMode === 'wfo' && latitude && longitude && (
                                     <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 dark:text-red-800 rounded-2xl">
@@ -252,44 +256,41 @@ export default function AttendanceMobileView({
                                 {/* Camera / Photo Trigger Section (NEW: Integrated Here) */}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">
-                                        {isFaceRequired ? "Foto Wajah (Wajib)" : "Foto Wajah (Segera Hadir)"}
+                                        Foto Wajah (Wajib)
                                     </label>
 
-                                    {photoPreview ? (
-                                        <div className="relative w-full h-48 rounded-2xl overflow-hidden shadow-md group">
-                                            <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    onClick={() => setPhotoPreview?.(null)}
-                                                    className="bg-white/90 text-red-600 hover:bg-white"
-                                                >
-                                                    Hapus & Foto Ulang
-                                                </Button>
+                                    <div data-tour="face-photo">
+                                        {photoPreview ? (
+                                            <div className="relative w-full h-48 rounded-2xl overflow-hidden shadow-md group">
+                                                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        onClick={() => setPhotoPreview?.(null)}
+                                                        className="bg-white/90 text-red-600 hover:bg-white"
+                                                    >
+                                                        Hapus & Foto Ulang
+                                                    </Button>
+                                                </div>
+                                                <div className="absolute bottom-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm flex items-center gap-1">
+                                                    <CheckCircle2 className="h-3 w-3" /> Foto Tersimpan
+                                                </div>
                                             </div>
-                                            <div className="absolute bottom-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm flex items-center gap-1">
-                                                <CheckCircle2 className="h-3 w-3" /> Foto Tersimpan
+                                        ) : (
+                                            <div
+                                                className="h-24 w-full rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-400 cursor-pointer active:scale-95 flex flex-col items-center justify-center transition-all"
+                                                onClick={openCameraForPhoto}
+                                            >
+                                                <div className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-1">
+                                                    <Camera className="h-5 w-5 text-blue-500" />
+                                                </div>
+                                                <p className="text-xs font-bold text-blue-600">
+                                                    Ambil Foto Sekarang
+                                                </p>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div
-                                            className={cn(
-                                                "h-24 w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all",
-                                                isFaceRequired
-                                                    ? "border-blue-300 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-400 cursor-pointer active:scale-95"
-                                                    : "border-slate-200 bg-slate-50/50 cursor-not-allowed opacity-60"
-                                            )}
-                                            onClick={isFaceRequired ? openCameraForPhoto : undefined}
-                                        >
-                                            <div className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-1">
-                                                <Camera className={cn("h-5 w-5", isFaceRequired ? "text-blue-500" : "text-slate-400")} />
-                                            </div>
-                                            <p className={cn("text-xs font-bold", isFaceRequired ? "text-blue-600" : "text-slate-500 dark:text-slate-500")}>
-                                                {isFaceRequired ? "Ambil Foto Sekarang" : "Segera Hadir"}
-                                            </p>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="space-y-4">
@@ -329,47 +330,49 @@ export default function AttendanceMobileView({
                                     </div>
 
                                     {/* Map Integration */}
-                                    {latitude && longitude ? (
-                                        <div className="h-44 w-full rounded-[24px] overflow-hidden border border-slate-100 relative z-0 shadow-inner">
-                                            {(MapContainer as any) && (
-                                                <MapContainer
-                                                    center={[latitude, longitude] as [number, number]}
-                                                    zoom={16}
-                                                    style={{ height: '100%', width: '100%' }}
-                                                    dragging={false}
-                                                    scrollWheelZoom={false}
-                                                >
-                                                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OSM' />
-                                                    <MapController lat={latitude} long={longitude} />
-                                                    <Marker position={[latitude, longitude] as [number, number]}>
-                                                        <Popup>Posisi Anda</Popup>
-                                                    </Marker>
-                                                    {workMode === 'wfo' && selectedLocationId && (() => {
-                                                        const office = officeLocations.find(l => l.id === selectedLocationId);
-                                                        if (office) return (
-                                                            <>
-                                                                <Marker position={[office.latitude, office.longitude] as [number, number]}>
-                                                                    <Popup>{office.name}</Popup>
-                                                                </Marker>
-                                                                <Circle
-                                                                    center={[office.latitude, office.longitude] as [number, number]}
-                                                                    radius={office.radius_meters}
-                                                                    pathOptions={{ fillColor: isLocationValid ? '#3b82f6' : '#ef4444', color: isLocationValid ? '#3b82f6' : '#ef4444', opacity: 0.1, weight: 1 }}
-                                                                />
-                                                            </>
-                                                        )
-                                                    })()}
-                                                </MapContainer>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="h-44 w-full rounded-[24px] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-widest gap-2">
-                                            <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-                                                {locationLoading ? <Loader2 className="h-5 w-5 text-blue-500 animate-spin" /> : <MapPin className="h-5 w-5 text-slate-300" />}
+                                    <div data-tour="presence-map" className="w-full">
+                                        {latitude && longitude ? (
+                                            <div className="h-44 w-full rounded-[24px] overflow-hidden border border-slate-100 relative z-0 shadow-inner">
+                                                {(MapContainer as any) && (
+                                                    <MapContainer
+                                                        center={[latitude, longitude] as [number, number]}
+                                                        zoom={16}
+                                                        style={{ height: '100%', width: '100%' }}
+                                                        dragging={false}
+                                                        scrollWheelZoom={false}
+                                                    >
+                                                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OSM' />
+                                                        <MapController lat={latitude} long={longitude} />
+                                                        <Marker position={[latitude, longitude] as [number, number]}>
+                                                            <Popup>Posisi Anda</Popup>
+                                                        </Marker>
+                                                        {workMode === 'wfo' && selectedLocationId && (() => {
+                                                            const office = officeLocations.find(l => l.id === selectedLocationId);
+                                                            if (office) return (
+                                                                <>
+                                                                    <Marker position={[office.latitude, office.longitude] as [number, number]}>
+                                                                        <Popup>{office.name}</Popup>
+                                                                    </Marker>
+                                                                    <Circle
+                                                                        center={[office.latitude, office.longitude] as [number, number]}
+                                                                        radius={office.radius_meters}
+                                                                        pathOptions={{ fillColor: isLocationValid ? '#3b82f6' : '#ef4444', color: isLocationValid ? '#3b82f6' : '#ef4444', opacity: 0.1, weight: 1 }}
+                                                                    />
+                                                                </>
+                                                            )
+                                                        })()}
+                                                    </MapContainer>
+                                                )}
                                             </div>
-                                            {locationError || (locationLoading ? 'Mencari Lokasi...' : 'GPS Belum Terkunci')}
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="h-44 w-full rounded-[24px] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-widest gap-2">
+                                                <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                                    {locationLoading ? <Loader2 className="h-5 w-5 text-blue-500 animate-spin" /> : <MapPin className="h-5 w-5 text-slate-300" />}
+                                                </div>
+                                                {locationError || (locationLoading ? 'Mencari Lokasi...' : 'GPS Belum Terkunci')}
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Catatan</label>
@@ -383,46 +386,48 @@ export default function AttendanceMobileView({
                                     </div>
 
                                     {/* Action Button */}
-                                    <Button
-                                        size="lg"
-                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-2xl h-14 shadow-lg shadow-blue-600/20 mt-6"
-                                        onClick={() => {
-                                            if (todayAttendance?.clock_out) return;
+                                    <div data-tour="submit-attendance">
+                                        <Button
+                                            size="lg"
+                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-2xl h-14 shadow-lg shadow-blue-600/20 mt-6"
+                                            onClick={() => {
+                                                if (todayAttendance?.clock_out) return;
 
-                                            // Confirm before clock out
-                                            if (todayAttendance && !window.confirm("Apakah yakin ingin pulang?")) {
-                                                return;
-                                            }
+                                                // Confirm before clock out
+                                                if (todayAttendance && !window.confirm("Apakah yakin ingin pulang?")) {
+                                                    return;
+                                                }
 
-                                            // Validate photo if required
-                                            if (isFaceRequired && !capturedPhoto) {
-                                                openCameraForPhoto?.(); // Force open camera if missed
-                                                return;
-                                            }
-                                            handleSubmit();
-                                        }}
-                                        disabled={loading || submitting || !!todaySchedule?.is_day_off || !latitude || !longitude || (workMode === 'wfo' && !isLocationValid)}
-                                    >
-                                        {loading ? (
-                                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                        ) : (
-                                            <>
-                                                {!latitude || !longitude ? (
-                                                    "TUNGGU GPS..."
-                                                ) : workMode === 'wfo' && !isLocationValid ? (
-                                                    "LOKASI TIDAK VALID"
-                                                ) : todaySchedule?.is_day_off ? (
-                                                    "HARI LIBUR"
-                                                ) : isFaceRequired && !capturedPhoto ? (
-                                                    "AMBIL FOTO DULU"
-                                                ) : (
-                                                    <>
-                                                        {!todayAttendance ? "ABSEN MASUK" : "ABSEN PULANG"}
-                                                    </>
-                                                )}
-                                            </>
-                                        )}
-                                    </Button>
+                                                // Validate photo if required
+                                                if (isFaceRequired && !capturedPhoto) {
+                                                    openCameraForPhoto?.(); // Force open camera if missed
+                                                    return;
+                                                }
+                                                handleSubmit();
+                                            }}
+                                            disabled={loading || submitting || !!todaySchedule?.is_day_off || !latitude || !longitude || (workMode === 'wfo' && !isLocationValid)}
+                                        >
+                                            {loading ? (
+                                                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                            ) : (
+                                                <>
+                                                    {!latitude || !longitude ? (
+                                                        "TUNGGU GPS..."
+                                                    ) : workMode === 'wfo' && !isLocationValid ? (
+                                                        "LOKASI TIDAK VALID"
+                                                    ) : todaySchedule?.is_day_off ? (
+                                                        "HARI LIBUR"
+                                                    ) : isFaceRequired && !capturedPhoto ? (
+                                                        "AMBIL FOTO DULU"
+                                                    ) : (
+                                                        <>
+                                                            {!todayAttendance ? "ABSEN MASUK" : "ABSEN PULANG"}
+                                                        </>
+                                                    )}
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

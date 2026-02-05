@@ -1,0 +1,82 @@
+# Sequence Diagram Absensi (Mermaid)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    
+    actor User as 👤 Karyawan
+    
+    box rgb(240, 248, 255) Frontend System (PWA)
+        participant UI as 📱 App Interface
+        participant PWA as ⚙️ Logic Controller
+        participant AI as 🤖 MediaPipe AI
+    end
+    
+    box rgb(255, 250, 240) Backend System
+        participant DB as ☁️ Supabase DB
+        participant FCM as 🔔 Notification Service
+    end
+
+    %% --- PROSES MULAI ---
+    User->>UI: Buka Menu Absensi
+    activate UI
+    UI->>PWA: initAttendance()
+    activate PWA
+    
+    %% --- CEK GEOLOKASI ---
+    Note over PWA: Validasi GPS Layer 1
+    PWA->>PWA: Check Permissions (GPS/Cam)
+    PWA->>User: Request Izin Lokasi
+    User-->>PWA: Allow
+    
+    PWA->>PWA: navigator.geolocation.getCurrentPosition()
+    PWA-->>PWA: Return {Lat, Long, Accuracy}
+    
+    %% --- CEK MOCK & RADIUS ---
+    rect rgb(255, 230, 230)
+        Note right of PWA: Security Check
+        PWA->>PWA: 1. Mock Location Detection
+        PWA->>PWA: 2. Haversine Formula (Radius < 50m)
+    end
+    
+    alt Lokasi Tidak Valid / Fake GPS
+        PWA-->>UI: Show Error "Lokasi Tidak Valid"
+        UI-->>User: Tampilkan Popup Error
+    else Lokasi Valid
+        PWA->>AI: loadModel(FaceLandmarker)
+        activate AI
+        AI-->>PWA: Model Ready
+        
+        %% --- PROSES FOTO ---
+        PWA->>UI: Buka Kamera Depan
+        UI->>User: Preview Kamera
+        User->>UI: Klik Tombol "Absen Masuk"
+        UI->>PWA: captureFrame()
+        
+        PWA->>AI: detectFace(image)
+        AI-->>PWA: Return {landmarks, face_score}
+        deactivate AI
+        
+        alt Wajah Tidak Terdeteksi / Blur
+            PWA-->>UI: Show Error "Wajah Tidak Jelas"
+        else Wajah Valid (Score > 0.5)
+            %% --- KIRIM KE SERVER ---
+            PWA->>DB: INSERT INTO attendances (uid, lat, long, photo)
+            activate DB
+            DB->>DB: RLS Policy Check (Auth)
+            DB-->>PWA: 201 Created (Success)
+            
+            %% --- NOTIFIKASI ---
+            par Async Process
+                DB->>FCM: Trigger Notification (Manager)
+            and
+                PWA-->>UI: Show Success Animation
+            end
+            deactivate DB
+            
+            UI-->>User: Tampilkan "Absensi Berhasil"
+        end
+    end
+    deactivate PWA
+    deactivate UI
+```

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { FaceLogin } from '@/components/auth/FaceLogin';
-import { Loader2, Lock, Mail, User, ArrowRight, Sparkles, Fingerprint, ScanFace, Smartphone } from 'lucide-react';
+import { Loader2, Lock, Mail, User, ArrowRight, Sparkles, Fingerprint, ScanFace, Smartphone, HelpCircle, BookOpen, ExternalLink, Info } from 'lucide-react';
 import { z } from 'zod';
 import { AppLogo } from '@/components/AppLogo';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
@@ -43,6 +43,7 @@ export default function Auth() {
   const [activeTab, setActiveTab] = useState('login');
   const [justRegistered, setJustRegistered] = useState(false);
   const [showFaceLogin, setShowFaceLogin] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
   const [hasBiometricHardware, setHasBiometricHardware] = useState(false);
@@ -632,6 +633,17 @@ export default function Auth() {
           {/* Wrapper for Auth Form Content - Scrollable if needed but fit in screen */}
           <div className="flex-1 w-full overflow-y-auto custom-scrollbar px-1">
             {renderAuthForm()}
+
+            <div className="mt-4 px-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowGuide(true)}
+                className="w-full h-12 rounded-2xl border-slate-100 bg-white/50 backdrop-blur-sm text-slate-600 font-bold gap-2 text-sm shadow-sm active:scale-95 transition-all"
+              >
+                <BookOpen className="h-4 w-4 text-blue-500" />
+                Lihat Panduan Aplikasi
+              </Button>
+            </div>
           </div>
 
           {/* Footer */}
@@ -682,6 +694,17 @@ export default function Auth() {
             {renderAuthForm()}
           </div>
 
+          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200">
+            <Button
+              variant="outline"
+              onClick={() => setShowGuide(true)}
+              className="w-full h-12 rounded-2xl border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-all font-bold gap-2"
+            >
+              <BookOpen className="h-4 w-4" />
+              Buku Panduan Pengguna
+            </Button>
+          </div>
+
           <div className="flex items-center justify-center gap-2 text-sm text-slate-400 dark:text-slate-500 font-medium">
             <Lock className="h-3 w-3" />
             <span>Enkripsi End-to-End & Keamanan Terjamin</span>
@@ -695,6 +718,78 @@ export default function Auth() {
               onVerificationComplete={onFaceVerified}
               employeeId={lastUser?.id}
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog Panduan Pengguna */}
+        <Dialog open={showGuide} onOpenChange={setShowGuide}>
+          <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-none rounded-[32px] bg-white dark:bg-slate-900 shadow-2xl">
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white relative">
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <BookOpen className="h-24 w-24" />
+              </div>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black flex items-center gap-3">
+                  <Info className="h-6 w-6" />
+                  Panduan Cepat
+                </DialogTitle>
+                <p className="text-blue-100 font-medium">Sistem HRIS & Absensi Pintar</p>
+              </DialogHeader>
+            </div>
+
+            <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6 custom-scrollbar">
+              <section className="space-y-3">
+                <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center text-xs">1</div>
+                  Cara Absen (GPS)
+                </h4>
+                <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-2 ml-8 list-disc">
+                  <li>Aktifkan <b>GPS / Lokasi</b> di HP Anda.</li>
+                  <li>Buka menu <b>Presensi</b> di dalam aplikasi.</li>
+                  <li>Tunggu indikator lokasi akurat, lalu klik <b>Masuk</b>.</li>
+                  <li>Ambil foto selfie sebagai bukti sah.</li>
+                </ul>
+              </section>
+
+              <section className="space-y-3">
+                <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center text-xs">2</div>
+                  Karyawan Baru?
+                </h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400 ml-8">
+                  Pilih tab <b>Daftar</b>, isi Nama, Email Kantor, dan No. WhatsApp. Hubungi Admin jika email Anda tidak bisa didaftarkan.
+                </p>
+              </section>
+
+              <section className="space-y-3">
+                <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center text-xs">3</div>
+                  Masalah Login?
+                </h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400 ml-8">
+                  Pastikan koneksi internet stabil. Jika lupa password, klik <b>Lupa Password</b> atau hubungi HRD PT CMS Duta Solusi.
+                </p>
+              </section>
+
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl flex items-start gap-4">
+                  <HelpCircle className="h-8 w-8 text-blue-500 shrink-0" />
+                  <div>
+                    <h5 className="text-sm font-bold text-slate-800 dark:text-white">Butuh Bantuan?</h5>
+                    <p className="text-xs text-slate-500 mt-1">Hubungi IT Support di it-support@cmsdutasolusi.co.id</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                onClick={() => setShowGuide(false)}
+                className="w-full h-12 rounded-xl bg-slate-900 text-white font-bold"
+              >
+                Dimengerti
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

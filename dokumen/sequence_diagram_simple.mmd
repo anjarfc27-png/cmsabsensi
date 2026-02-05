@@ -1,0 +1,62 @@
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000', 'secondaryColor': '#ffffff', 'tertiaryColor': '#ffffff', 'noteBkgColor': '#ffffff', 'noteTextColor': '#000000', 'actorBkg': '#ffffff', 'actorBorder': '#000000', 'actorTextColor': '#000000', 'signalColor': '#000000', 'signalTextColor': '#000000', 'activationBkgColor': '#ffffff', 'activationBorderColor': '#000000', 'sequenceNumberColor': '#000000' } } }%%
+sequenceDiagram
+    autonumber
+    
+    actor User as << Karyawan >>
+    
+    box "Sisi Klien (Perangkat HP)" #ffffff
+        participant UI as << Tampilan UI >>
+        participant Logic as << Logika Sistem >>
+    end
+    
+    box "Sisi Server (Cloud)" #ffffff
+        participant API as << API Endpoint >>
+        participant DB as << Basis Data >>
+    end
+
+    Note over User, DB: Skenario: Proses Absensi Masuk
+
+    User->>UI: Klik Tombol "Absen Masuk"
+    activate UI
+    UI->>Logic: jalankanValidasi()
+    activate Logic
+    
+    %% GROUP 1: KEAMANAN LOKASI
+    rect rgb(255, 255, 255)
+        Note right of Logic: Cek Keamanan Lokal
+        Logic->>Logic: ambilPosisiGPS()
+        Logic->>Logic: cekRadiusGeofence(lat, long)
+        
+        alt Luar Radius ATAU Fake GPS
+            Logic-->>UI: Error("Lokasi Tidak Valid")
+            UI-->>User: Popup "Lokasi Palsu / Jauh"
+            Note right of User: PROSES DIHENTIKAN
+        end
+    end
+
+    %% GROUP 2: BIOMETRIK
+    Logic->>UI: mintaAksesKamera()
+    User->>UI: Pindai Wajah (Selfie)
+    UI->>Logic: prosesKecerdasanBuatan()
+    
+    alt Wajah Palsu / Tidak Jelas
+        Logic-->>UI: Error("Wajah Tidak Terdeteksi")
+        UI-->>User: Popup "Wajah Ditolak AI"
+    else Wajah Valid
+        %% GROUP 3: TRANSAKSI SERVER
+        Logic->>API: KIRIM DATA (POST)
+        activate API
+        API->>DB: SIMPAN Data (Insert)
+        activate DB
+        DB-->>API: Hasil: OK
+        deactivate DB
+        
+        API-->>Logic: HTTP 201 (Berhasil)
+        deactivate API
+        
+        Logic-->>UI: return Sukses
+        UI-->>User: ✅ Notifikasi: "Absen Berhasil"
+    end
+    
+    deactivate Logic
+    deactivate UI

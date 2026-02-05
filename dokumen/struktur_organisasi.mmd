@@ -1,0 +1,21 @@
+graph TD
+    Komisaris[**Mahat Kusumadi**<br>Komisaris Utama]
+    CEO[**Agung Dermawan**<br>Chief Executive Officer]
+    
+    Komisaris --> CEO
+    
+    subgraph Operations
+        CFHRGA[**Namunsen**<br>CFHRGA]
+        IT[**Subangkit**<br>Head Unit IT Solution]
+        Manpower[**Lili**<br>Head Unit Manpower Provider]
+        Finance[**Ferry**<br>Head Unit Finance & Accounting]
+    end
+    
+    CEO --> CFHRGA
+    CEO --> IT
+    CEO --> Manpower
+    CEO --> Finance
+    
+    CFHRGA --> HR[**Maria**<br>Head Unit HR & GA]
+    
+    IT --> Dev[**Tim IT Developer / Magang**]

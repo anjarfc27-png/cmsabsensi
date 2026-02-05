@@ -14,7 +14,7 @@ export interface FaceDetectionResult {
     faceDescriptor: Float32Array;
 }
 
-let globalFaceLandmarker: FaceLandmarker | null = null;
+let globalFaceLandmarker: FaceLandmarker | null = null; //disimapn di luar hook 
 let globalInitPromise: Promise<void> | null = null;
 
 export function useMediaPipeFace() {

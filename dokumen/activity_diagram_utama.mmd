@@ -1,0 +1,79 @@
+flowchart TD
+    %% Definisi Swimlanes
+    subgraph S_USER [👤 Karyawan / User]
+        START((Mulai))
+        A1[Buka Menu Absensi]
+        A4[Ambil Foto Selfie / Scan Wajah]
+        A6[Konfirmasi Kirim]
+    end
+
+    subgraph S_SYSTEM [📱 Sistem Aplikasi (Frontend PWA)]
+        B1{Cek Izin GPS & Kamera?}
+        B2[Request Permissions]
+        B3[Ambil Koordinat High-Accuracy]
+        B4{Terdeteksi Fake GPS?}
+        B5{Cek Radius Kantor?}
+        B6[Aktifkan Kamera & MediaPipe]
+        B7{Wajah Terdeteksi?}
+        B8[Generate Payload Data]
+        
+        ERR_GPS[Tampilkan Error: Lokasi Palsu]
+        ERR_RAD[Tampilkan Error: Di Luar Jangkauan]
+        ERR_FACE[Tampilkan Error: Wajah Tidak Jelas]
+    end
+
+    subgraph S_BACKEND [☁️ Server & Database (Supabase)]
+        C1[Validasi Token & Session]
+        C2[Insert ke Tabel 'attendances']
+        C3{Berhasil Disimpan?}
+        C4[Trigger Notifikasi ke Manager]
+        END_OK((Selesai - Hadir))
+        END_FAIL((Gagal))
+    end
+
+    %% Alur Logika (Flow)
+    START --> A1
+    A1 --> B1
+    
+    %% Validasi Izin
+    B1 -- Tidak --> B2
+    B2 --> B1
+    B1 -- Ya --> B3
+
+    %% Validasi GPS (Layer 1 Security)
+    B3 --> B4
+    B4 -- Ya (Curang) --> ERR_GPS
+    ERR_GPS --> END_FAIL
+    B4 -- Tidak (Aman) --> B5
+
+    %% Validasi Radius (Layer 2 Security)
+    B5 -- Di Luar Radius --> ERR_RAD
+    ERR_RAD --> END_FAIL
+    B5 -- Di Dalam Radius (Valid) --> B6
+
+    %% Validasi Wajah (Layer 3 Security)
+    B6 --> A4
+    A4 --> B7
+    B7 -- Tidak --> ERR_FACE
+    ERR_FACE --> A4
+    B7 -- Ya (Valid) --> A6
+
+    %% Submission
+    A6 --> B8
+    B8 --> C1
+    C1 --> C2
+    C2 --> C3
+    C3 -- Sukses --> C4
+    C4 --> END_OK
+    C3 -- Gagal API --> END_FAIL
+
+    %% Styling
+    classDef user fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    classDef server fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef error fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#c62828,stroke-dasharray: 5 5
+
+    class A1,A4,A6 user
+    class B1,B2,B3,B4,B5,B6,B7,B8 system
+    class C1,C2,C3,C4 server
+    class ERR_GPS,ERR_RAD,ERR_FACE error
