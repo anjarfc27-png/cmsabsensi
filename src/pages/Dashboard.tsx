@@ -107,8 +107,10 @@ export default function Dashboard() {
   const isAdmin = currentRole === 'super_admin' || currentRole === 'admin_hr' || currentRole === 'manager' || profile?.email?.includes('admin');
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [user?.id]);
+    if (user?.id) {
+      fetchDashboardData();
+    }
+  }, [user?.id, activeRole]);
 
   const fetchDashboardData = async () => {
     try {
@@ -166,9 +168,9 @@ export default function Dashboard() {
       }
 
       // Fetch Team Stats if Manager/Admin
-      if (profile?.role === 'super_admin' || profile?.role === 'admin_hr' || profile?.role === 'manager') {
+      if (currentRole === 'super_admin' || currentRole === 'admin_hr' || currentRole === 'manager') {
         let teamProfilesQuery = supabase.from('profiles').select('id').eq('is_active', true);
-        if (profile.role === 'manager' && profile.department_id) {
+        if (currentRole === 'manager' && profile?.department_id) {
           teamProfilesQuery = teamProfilesQuery.eq('department_id', profile.department_id);
         }
         const { data: teamProfiles } = await teamProfilesQuery;
