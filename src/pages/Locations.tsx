@@ -91,7 +91,6 @@ export default function LocationsPage() {
             radius_meters: '100'
         });
         setEditingLocation(null);
-        setDialogOpen(true);
     };
 
     const handleEdit = (location: OfficeLocation) => {
