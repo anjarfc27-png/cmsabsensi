@@ -133,14 +133,11 @@ export default function AgendaPage() {
         if (role) {
             fetchAgendas();
             fetchHolidays();
+            fetchEmployees(); // Always fetch for participant mapping
         }
     }, [selectedMonth, role]);
 
-    useEffect(() => {
-        if (createOpen && canManage) {
-            fetchEmployees();
-        }
-    }, [createOpen, canManage]);
+    // fetchEmployees call removed here as it's now in the main useEffect above
 
     const fetchHolidays = async () => {
         try {
@@ -168,17 +165,24 @@ export default function AgendaPage() {
                   *,
                   participants:agenda_participants(
                     user_id,
-                    status,
-                    profile:profiles(*)
+                    status
                   )
                 `)
-                .or(`start_time.gte.${queryStart}T00:00:00,end_time.lte.${queryEnd}T23:59:59`);
+                .filter('start_time', 'lte', `${queryEnd}T23:59:59`)
+                .filter('end_time', 'gte', `${queryStart}T00:00:00`);
 
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase Query Error:', error.message, error.details, error.hint);
+                throw error;
+            }
             setAgendas(data || []);
-        } catch (error) {
-            console.error('Fetch Error:', error);
-            toast({ title: 'Gagal memuat agenda', variant: 'destructive' });
+        } catch (error: any) {
+            console.error('Fetch Error Detail:', error);
+            toast({
+                title: 'Gagal memuat agenda',
+                description: error.message || 'Terjadi kesalahan pada server',
+                variant: 'destructive'
+            });
         } finally {
             setLoading(false);
         }
@@ -246,8 +250,8 @@ export default function AgendaPage() {
     };
 
     const handleSaveAgenda = async () => {
-        if (!form.title || !form.date || !form.startTime || !form.endTime) {
-            toast({ title: 'Mohon isi semua field wajib', variant: 'destructive' });
+        if (!form.title || !form.startDate || !form.startTime || !form.endTime) {
+            toast({ title: 'Mohon isi semua field wajib (Judul, Tanggal, Jam)', variant: 'destructive' });
             return;
         }
 
