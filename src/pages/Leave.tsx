@@ -263,7 +263,7 @@ export default function LeavePage() {
             case 'sick': return 'Sakit';
             case 'unpaid': return 'Izin (Unpaid)';
             case 'maternity': return 'Melahirkan';
-            case 'paternity': return 'Cuti Ayah';
+            case 'paternity': return 'lainnya';
             default: return type;
         }
     };
