@@ -42,6 +42,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SpanningCalendar } from '@/components/SpanningCalendar';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -79,6 +80,7 @@ export default function AgendaPage() {
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [agendas, setAgendas] = useState<Agenda[]>([]);
+    const [publicHolidays, setPublicHolidays] = useState<any[]>([]);
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState(new Date());
 
@@ -97,7 +99,8 @@ export default function AgendaPage() {
     const [form, setForm] = useState({
         title: '',
         description: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
+        startDate: format(new Date(), 'yyyy-MM-dd'),
+        endDate: format(new Date(), 'yyyy-MM-dd'),
         startTime: '09:00',
         endTime: '10:00',
         location: '',
@@ -129,6 +132,7 @@ export default function AgendaPage() {
     useEffect(() => {
         if (role) {
             fetchAgendas();
+            fetchHolidays();
         }
     }, [selectedMonth, role]);
 
@@ -138,19 +142,25 @@ export default function AgendaPage() {
         }
     }, [createOpen, canManage]);
 
+    const fetchHolidays = async () => {
+        try {
+            const { data } = await supabase
+                .from('public_holidays')
+                .select('*');
+            setPublicHolidays(data || []);
+        } catch (error) {
+            console.error('Fetch Holidays Error:', error);
+        }
+    };
+
     const fetchAgendas = async () => {
         try {
             setLoading(true);
-            // Fetch range: 1 week before start of month to 1 week after end of month
-            // This ensures all visible calendar days are covered
             const startOfView = startOfWeek(startOfMonth(selectedMonth));
             const endOfView = endOfWeek(endOfMonth(selectedMonth));
 
-            // Add buffer just in case
-            const queryStart = format(subMonths(startOfView, 0), 'yyyy-MM-dd');
-            const queryEnd = format(addMonths(endOfView, 0), 'yyyy-MM-dd');
-
-            console.log('Fetching agendas range:', queryStart, 'to', queryEnd);
+            const queryStart = format(startOfView, 'yyyy-MM-dd');
+            const queryEnd = format(endOfView, 'yyyy-MM-dd');
 
             const { data, error } = await supabase
                 .from('agendas')
@@ -158,15 +168,13 @@ export default function AgendaPage() {
                   *,
                   participants:agenda_participants(
                     user_id,
-                    status
+                    status,
+                    profile:profiles(*)
                   )
                 `)
-                .gte('start_time', `${queryStart}T00:00:00`)
-                .lte('start_time', `${queryEnd}T23:59:59`);
+                .or(`start_time.gte.${queryStart}T00:00:00,end_time.lte.${queryEnd}T23:59:59`);
 
             if (error) throw error;
-
-            console.log('Fetched Agendas Total:', data?.length, data);
             setAgendas(data || []);
         } catch (error) {
             console.error('Fetch Error:', error);
@@ -191,7 +199,8 @@ export default function AgendaPage() {
         setForm({
             title: '',
             description: '',
-            date: format(new Date(), 'yyyy-MM-dd'),
+            startDate: format(new Date(), 'yyyy-MM-dd'),
+            endDate: format(new Date(), 'yyyy-MM-dd'),
             startTime: '09:00',
             endTime: '10:00',
             location: '',
@@ -214,7 +223,8 @@ export default function AgendaPage() {
         setForm({
             title: agenda.title,
             description: agenda.description || '',
-            date: format(startDate, 'yyyy-MM-dd'),
+            startDate: format(startDate, 'yyyy-MM-dd'),
+            endDate: format(endDate, 'yyyy-MM-dd'),
             startTime: format(startDate, 'HH:mm'),
             endTime: format(endDate, 'HH:mm'),
             location: agenda.location || '',
@@ -248,8 +258,8 @@ export default function AgendaPage() {
             const TIMEZONE = 'Asia/Jakarta';
 
             // Combine date and time, then treat it as Jakarta Time
-            const startStr = `${form.date}T${form.startTime}:00`;
-            const endStr = `${form.date}T${form.endTime}:00`;
+            const startStr = `${form.startDate}T${form.startTime}:00`;
+            const endStr = `${form.endDate}T${form.endTime}:00`;
 
             // Convert "Jakarta Time String" -> "UTC Date Object"
             const startDate = fromZonedTime(startStr, TIMEZONE);
@@ -317,7 +327,7 @@ export default function AgendaPage() {
                     const notifTitle = isEditing ? 'Perubahan Jadwal Agenda' : 'Undangan Agenda Baru';
                     const notifMessage = isEditing
                         ? `Agenda "${form.title}" telah diperbarui. Cek jadwal terbaru.`
-                        : `Anda diundang ke agenda "${form.title}" pada ${format(new Date(form.date), 'dd MMMM yyyy', { locale: id })} pukul ${form.startTime} WIB.`;
+                        : `Anda diundang ke agenda "${form.title}" pada ${format(new Date(form.startDate), 'dd MMMM yyyy', { locale: id })} pukul ${form.startTime} WIB.`;
 
                     const notifications = selectedParticipants.map(uid => ({
                         user_id: uid,
@@ -379,8 +389,15 @@ export default function AgendaPage() {
     };
 
     const agendasForSelectedDay = agendas.filter(a => {
-        const dateA = new Date(a.start_time);
-        return dateA.toDateString() === selectedDay.toDateString();
+        const dateA_start = new Date(a.start_time);
+        const dateA_end = new Date(a.end_time);
+        const targetDate = new Date(selectedDay.toDateString());
+
+        // Simple "is on this day" check including spans
+        const checkStart = new Date(dateA_start.toDateString());
+        const checkEnd = new Date(dateA_end.toDateString());
+
+        return targetDate >= checkStart && targetDate <= checkEnd;
     });
 
     if (loading && agendas.length === 0) return <DashboardLayout><div className="flex justify-center py-20"><Loader2 className="animate-spin text-slate-400" /></div></DashboardLayout>;
@@ -437,23 +454,27 @@ export default function AgendaPage() {
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Tanggal *</Label>
-                                                <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="rounded-xl" />
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Mulai *</Label>
+                                                <Input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="rounded-xl" />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Mulai *</Label>
-                                                <Input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="rounded-xl" />
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Sampai *</Label>
+                                                <Input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="rounded-xl" />
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Mulai *</Label>
+                                                <Input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="rounded-xl" />
+                                            </div>
+                                            <div className="space-y-2">
                                                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Selesai *</Label>
                                                 <Input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="rounded-xl" />
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Lokasi (Opsional)</Label>
-                                                <Input placeholder="Misal: Ruang Rapat 1" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="rounded-xl" />
-                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Lokasi (Opsional)</Label>
+                                            <Input placeholder="Misal: Ruang Rapat 1" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="rounded-xl" />
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Link Meeting (Opsional)</Label>
@@ -840,91 +861,18 @@ export default function AgendaPage() {
                 <div className="grid lg:grid-cols-12 gap-4 items-start">
                     {/* LEFT: CALENDAR VIEW (8 cols) */}
                     <div className="lg:col-span-8 space-y-6">
-                        <Card className="border-none shadow-xl shadow-slate-200/60 rounded-[28px] overflow-hidden bg-white ring-1 ring-slate-100">
-                            <CardContent className="p-4 bg-gradient-to-br from-white to-slate-50/50">
-                                <div className="grid grid-cols-7 mb-2">
-                                    {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((day) => (
-                                        <div key={day} className="text-center py-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">
-                                            {day}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="grid grid-cols-7 gap-1">
-                                    {(() => {
-                                        const monthStart = startOfMonth(selectedMonth);
-                                        const monthEnd = endOfMonth(monthStart);
-                                        const calendarStart = startOfWeek(monthStart);
-                                        const calendarEnd = endOfWeek(monthEnd);
-                                        const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
-                                        return days.map((day, idx) => {
-                                            const isCurrentMonth = isSameMonth(day, monthStart);
-                                            const isSelected = isSameDay(day, selectedDay);
-                                            const isToday = isSameDay(day, new Date());
-                                            const dailyAgendas = agendas.filter(a => isSameDay(parseISO(a.start_time), day));
-
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    onClick={() => isCurrentMonth && setSelectedDay(day)}
-                                                    className={cn(
-                                                        "h-24 flex flex-col items-center justify-between p-1.5 rounded-xl border-2 transition-all relative cursor-pointer group",
-                                                        !isCurrentMonth ? "opacity-20 pointer-events-none bg-slate-50/50 border-transparent" : "hover:border-blue-300",
-                                                        isSelected
-                                                            ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-600/30 z-10 scale-[1.02]"
-                                                            : "bg-white border-slate-100 text-slate-600 shadow-sm hover:shadow-blue-200/50 hover:bg-white",
-                                                        isToday && !isSelected && "border-blue-300 bg-blue-50/30 shadow-md shadow-blue-100 ring-2 ring-blue-50"
-                                                    )}
-                                                >
-                                                    <div className="w-full flex justify-between items-start">
-                                                        <span className={cn("font-black text-xs tracking-tighter", isSelected ? "text-white" : "text-slate-800")}>
-                                                            {format(day, 'd')}
-                                                        </span>
-                                                        {isToday && !isSelected && (
-                                                            <div className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-pulse shadow-sm shadow-blue-300" />
-                                                        )}
-                                                    </div>
-
-                                                    <div className="w-full flex flex-col items-center gap-1">
-                                                        {dailyAgendas.length > 0 && isCurrentMonth && (
-                                                            <>
-                                                                <div className="flex -space-x-1.5 justify-center mb-1">
-                                                                    {dailyAgendas.slice(0, 3).map((a, i) => {
-                                                                        const person = employees.find(e => e.id === a.created_by);
-                                                                        return (
-                                                                            <div key={i} className={cn(
-                                                                                "h-5 w-5 rounded-full border-2 flex items-center justify-center text-[8px] font-black uppercase",
-                                                                                isSelected ? "bg-white/20 border-blue-600 text-white" : "bg-blue-50 border-white text-blue-600"
-                                                                            )}>
-                                                                                {person?.full_name[0] || '?'}
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                    {dailyAgendas.length > 3 && (
-                                                                        <div className={cn(
-                                                                            "h-5 w-5 rounded-full border-2 flex items-center justify-center text-[7px] font-black",
-                                                                            isSelected ? "bg-white/20 border-blue-600 text-white" : "bg-blue-50 border-white text-blue-600"
-                                                                        )}>
-                                                                            +{dailyAgendas.length - 3}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                <span className={cn(
-                                                                    "text-[8px] font-black uppercase tracking-widest",
-                                                                    isSelected ? "text-white/60" : "text-slate-400"
-                                                                )}>
-                                                                    {dailyAgendas.length} AGENDA
-                                                                </span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        });
-                                    })()}
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <SpanningCalendar
+                            currentDate={selectedMonth}
+                            agendas={agendas}
+                            holidays={publicHolidays}
+                            onSelectDay={setSelectedDay}
+                            onSelectEvent={(e) => {
+                                if (e.type === 'agenda') {
+                                    handleOpenEdit(e.raw);
+                                }
+                            }}
+                            selectedDay={selectedDay}
+                        />
 
                         {/* Summary Section Below Calendar */}
                         <div className="grid grid-cols-3 gap-4">
@@ -1120,27 +1068,33 @@ export default function AgendaPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Tanggal *</Label>
-                                    <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="rounded-xl" />
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Mulai *</Label>
+                                    <Input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="rounded-xl" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Mulai *</Label>
-                                    <Input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="rounded-xl" />
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Sampai *</Label>
+                                    <Input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="rounded-xl" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Mulai *</Label>
+                                    <Input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="rounded-xl" />
+                                </div>
+                                <div className="space-y-2">
                                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Jam Selesai *</Label>
                                     <Input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="rounded-xl" />
                                 </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Lokasi (Opsional)</Label>
                                     <Input placeholder="Misal: Ruang Rapat 1" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="rounded-xl" />
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Link Meeting (Opsional)</Label>
-                                <Input placeholder="https://zoom.us/..." value={form.meetingLink} onChange={e => setForm({ ...form, meetingLink: e.target.value })} className="rounded-xl" />
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Link Meeting (Opsional)</Label>
+                                    <Input placeholder="https://zoom.us/..." value={form.meetingLink} onChange={e => setForm({ ...form, meetingLink: e.target.value })} className="rounded-xl" />
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Deskripsi</Label>

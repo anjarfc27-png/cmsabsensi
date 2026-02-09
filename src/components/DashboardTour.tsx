@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
 import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { User, Clock, LayoutGrid, Megaphone, ShieldCheck } from 'lucide-react';
+import { User, Clock, LayoutGrid, Megaphone, ShieldCheck, Sparkles, Rocket, Fingerprint } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export function DashboardTour() {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
     const [run, setRun] = useState(false);
@@ -18,12 +17,19 @@ export function DashboardTour() {
         {
             target: 'body',
             content: (
-                <div className="text-center space-y-4 px-2 py-4 animate-in fade-in zoom-in duration-500">
-                    <div className="text-6xl mb-2" style={{ animation: 'float-animation 3s ease-in-out infinite' }}>👋</div>
+                <div className="text-center space-y-3 px-1 py-2 animate-in fade-in zoom-in duration-500">
+                    <div className="relative inline-block">
+                        <div className="text-4xl mb-1" style={{ animation: 'float-animation 3s ease-in-out infinite' }}>👋</div>
+                        <div className="absolute -top-1 -right-1 transform transition-transform animate-pulse">
+                            <Sparkles className="h-4 w-4 text-amber-400" />
+                        </div>
+                    </div>
                     <div>
-                        <h3 className="font-black text-2xl text-slate-900 mb-2 leading-tight">Selamat Datang, {profile?.full_name?.split(' ')[0]}!</h3>
-                        <p className="text-slate-500 leading-relaxed text-sm font-medium">
-                            Mari kami pandu Anda mengenal dashboard <strong>Duta Mruput</strong> terbaru yang lebih cerdas dan cepat.
+                        <h3 className="font-black text-xl text-slate-900 mb-1 leading-tight">
+                            Halo, {profile?.full_name?.split(' ')[0] || 'Rekan'}!
+                        </h3>
+                        <p className="text-slate-500 leading-relaxed text-xs font-medium">
+                            Selamat datang di <strong>Duta Mruput Enterprise</strong>. Mari kami tunjukkan fitur cerdas untuk hari Anda.
                         </p>
                     </div>
                 </div>
@@ -32,82 +38,85 @@ export function DashboardTour() {
             disableBeacon: true,
         },
         {
-            target: '[data-tour="attendance-card"]',
+            target: '[data-tour="profile-header"]',
             content: (
-                <div className="space-y-3 text-left p-1">
+                <div className="space-y-2 text-left p-1">
                     <div className="flex items-center gap-2 text-blue-600">
-                        <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                            <User className="h-5 w-5" />
+                        <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center shadow-sm">
+                            <User className="h-4 w-4" />
                         </div>
-                        <h4 className="font-black text-lg">Identitas Digital</h4>
+                        <h4 className="font-black text-base">Identitas Digital</h4>
                     </div>
-                    <p className="text-slate-600 text-sm leading-relaxed">
-                        Di sini adalah profil Anda. Pastikan <strong>Employee ID</strong> dan <strong>Supervisor</strong> Anda sudah sesuai untuk kemudahan koordinasi.
+                    <p className="text-slate-600 text-xs leading-relaxed">
+                        Data diri Anda terverifikasi di sini. Pastikan <strong>Employee ID</strong> dan <strong>Supervisor</strong> sudah benar.
                     </p>
                 </div>
             ),
             disableBeacon: true,
-            spotlightPadding: 16,
+            spotlightPadding: 8,
         },
         {
             target: '[data-tour="attendance-card"]',
             content: (
-                <div className="space-y-3 text-left p-1">
+                <div className="space-y-2 text-left p-1">
                     <div className="flex items-center gap-2 text-amber-600">
-                        <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                            <Clock className="h-5 w-5" />
+                        <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center shadow-sm">
+                            <Clock className="h-4 w-4" />
                         </div>
-                        <h4 className="font-black text-lg">Live Status</h4>
+                        <h4 className="font-black text-base">Status Kehadiran</h4>
                     </div>
-                    <p className="text-slate-600 text-sm leading-relaxed">
-                        Kartu ini akan berubah warna otomatis. <b>Biru</b> untuk belum absen, <b>Oranye</b> saat bekerja, dan <b>Hijau</b> saat tugas selesai.
+                    <p className="text-slate-600 text-xs leading-relaxed">
+                        Pantau status kerja secara <i>real-time</i>. Warna kartu akan berubah otomatis mengikuti aktivitas absen Anda.
+                    </p>
+                </div>
+            ),
+            spotlightPadding: 6,
+        },
+        {
+            target: '[data-tour="main-menu-grid"]',
+            content: (
+                <div className="space-y-2 text-left p-1">
+                    <div className="flex items-center gap-2 text-indigo-600">
+                        <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center shadow-sm">
+                            <LayoutGrid className="h-4 w-4" />
+                        </div>
+                        <h4 className="font-black text-base">Pusat Layanan HR</h4>
+                    </div>
+                    <p className="text-slate-600 text-xs leading-relaxed">
+                        Mulai dari <b>Absensi GPS</b>, pengajuan <b>Cuti/Lembur</b>, hingga catatan harian dan laporan ada di sini.
                     </p>
                 </div>
             ),
             spotlightPadding: 10,
         },
         {
-            target: '[data-tour="main-menu-grid"]',
-            content: (
-                <div className="space-y-3 text-left p-1">
-                    <div className="flex items-center gap-2 text-indigo-600">
-                        <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-                            <LayoutGrid className="h-5 w-5" />
-                        </div>
-                        <h4 className="font-black text-lg">Pusat Layanan HR</h4>
-                    </div>
-                    <p className="text-slate-600 text-sm leading-relaxed">
-                        Semua kebutuhan Anda ada di sini: <b>Absensi GPS</b>, pengajuan <b>Cuti/Lembur</b>, hingga catatan harian dan album kegiatan.
-                    </p>
-                </div>
-            ),
-            spotlightPadding: 15,
-        },
-        {
             target: '[data-tour="news-feed"]',
             content: (
-                <div className="space-y-3 text-left p-1">
+                <div className="space-y-2 text-left p-1">
                     <div className="flex items-center gap-2 text-pink-600">
-                        <div className="h-8 w-8 rounded-lg bg-pink-50 flex items-center justify-center">
-                            <Megaphone className="h-5 w-5" />
+                        <div className="h-8 w-8 rounded-lg bg-pink-50 flex items-center justify-center shadow-sm">
+                            <Megaphone className="h-4 w-4" />
                         </div>
-                        <h4 className="font-black text-lg">Berita & Pengumuman</h4>
+                        <h4 className="font-black text-base">Informasi Terbaru</h4>
                     </div>
-                    <p className="text-slate-600 text-sm leading-relaxed">
-                        Jangan lewatkan info terbaru dari manajemen. Semua kebijakan dan berita perusahaan akan muncul secara <i>real-time</i> di sini.
+                    <p className="text-slate-600 text-xs leading-relaxed">
+                        Jangan sampai ketinggalan update penting dari perusahaan. Semua berita akan tampil di sini.
                     </p>
                 </div>
             ),
+            spotlightPadding: 4,
         },
         {
             target: 'body',
             content: (
-                <div className="text-center space-y-4 px-2 py-6">
-                    <div className="text-6xl" style={{ animation: 'tour-pulse 2s infinite' }}>🛡️</div>
+                <div className="text-center space-y-3 px-1 py-4">
+                    <div className="relative inline-block">
+                        <div className="text-4xl mb-1" style={{ animation: 'float-animation 2.5s ease-in-out infinite' }}>🛡️</div>
+                    </div>
                     <div>
-                        <h3 className="font-black text-2xl text-slate-900 mb-2">Smart Biometrics</h3>
-                        <p className="text-slate-500 leading-relaxed text-sm font-medium">
-                            Anda juga bisa masuk ke aplikasi menggunakan <strong>Sidik Jari</strong> atau <strong>Face ID</strong> bawaan HP Anda. Lebih aman dan praktis!
+                        <h3 className="font-black text-xl text-slate-900 mb-1">Biometrik</h3>
+                        <p className="text-slate-500 leading-relaxed text-xs font-medium">
+                            Gunakan <b>Sidik Jari</b> atau <b>Face ID</b> untuk login yang lebih instan dan aman.
                         </p>
                     </div>
                 </div>
@@ -118,16 +127,18 @@ export function DashboardTour() {
         {
             target: 'body',
             content: (
-                <div className="text-center space-y-5 px-2 py-6">
-                    <div className="text-6xl animate-bounce">🚀</div>
-                    <div>
-                        <h3 className="font-black text-2xl text-slate-900 mb-2">Siap Mulai?</h3>
-                        <p className="text-slate-500 leading-relaxed text-sm font-medium mb-6">
-                            Sekarang Anda sudah siap menggunakan sistem <strong>Duta Mruput Enterprise</strong>. Selamat bekerja dan raih prestasi maksimal!
+                <div className="text-center space-y-4 px-1 py-4">
+                    <div className="h-14 w-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto shadow-inner relative">
+                        <Rocket className="h-7 w-7 text-blue-600 animate-bounce" />
+                    </div>
+                    <div className="space-y-1">
+                        <h3 className="font-black text-xl text-slate-900 mb-1">Siap Beraksi?</h3>
+                        <p className="text-slate-500 leading-relaxed text-xs font-medium">
+                            Mari raih produktivitas maksimal mulai hari ini!
                         </p>
-                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-600 w-full animate-in slide-in-from-left duration-1000" />
-                        </div>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-2">
+                        <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 w-full animate-in slide-in-from-left duration-1000" />
                     </div>
                 </div>
             ),
@@ -138,34 +149,23 @@ export function DashboardTour() {
 
     useEffect(() => {
         const checkTourStatus = async () => {
-            if (!user) return;
+            if (!user || !profile) return;
 
-            // TESTING MODE: Force tour to run every time
-            setRun(true);
+            // Check if seen in localStorage or profile
+            const seenLocal = localStorage.getItem(`tour_seen_${user.id}`);
+            const seenProfile = profile.has_seen_tour;
 
-            /* Logic disabled for testing
-            const hasSeenTourLocal = localStorage.getItem(`tour_seen_${user.id}`);
-            if (hasSeenTourLocal) return;
-
-            const { data } = await supabase
-                .from('profiles')
-                .select('has_seen_tour')
-                .eq('id', user.id)
-                .single();
-
-            if (!data?.has_seen_tour) {
-                setRun(true);
+            if (!seenLocal && !seenProfile) {
+                // setRun(true); // DISABLED PER USER REQUEST to stop repeating tour
             }
-            */
         };
 
         checkTourStatus();
-    }, [user]);
+    }, [user, profile]);
 
     const handleJoyrideCallback = async (data: CallBackProps) => {
         const { status } = data;
 
-        // Save 'seen' status if finished or skipped
         if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
             setRun(false);
             if (user) {
@@ -178,9 +178,18 @@ export function DashboardTour() {
             }
 
             if (status === STATUS.FINISHED) {
+                // PREMIUM CELEBRATION
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#2563eb', '#4f46e5', '#818cf8', '#ffffff']
+                });
+
                 toast({
-                    title: "Tour Selesai 🎉",
-                    description: "Selamat datang di pengalaman kerja baru!",
+                    title: "Status: Ahli Dashboard 🎓",
+                    description: "Selamat datang di tim digital kami!",
+                    duration: 3000,
                 });
             }
         }
@@ -199,52 +208,51 @@ export function DashboardTour() {
             callback={handleJoyrideCallback}
             styles={{
                 options: {
-                    primaryColor: '#2563eb', // blue-600
+                    primaryColor: '#2563eb',
                     zIndex: 10000,
-                    overlayColor: 'rgba(15, 23, 42, 0.9)', // Premium Zinc-900 overlay
+                    overlayColor: 'rgba(15, 23, 42, 0.85)',
                     arrowColor: '#fff',
                     backgroundColor: '#fff',
                     textColor: '#1e293b',
+                    width: 280,
                 },
                 tooltip: {
-                    borderRadius: '28px',
+                    borderRadius: '20px',
                     fontFamily: 'inherit',
-                    padding: '24px',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                    padding: '20px',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                    border: '1px solid rgba(226, 232, 240, 0.8)'
                 },
                 buttonNext: {
-                    borderRadius: '16px',
+                    borderRadius: '12px',
                     fontWeight: '900',
-                    padding: '12px 24px',
-                    fontSize: '14px',
+                    padding: '10px 18px',
+                    fontSize: '12px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
-                    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)',
-                    transition: 'all 0.2s ease'
+                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)',
+                    background: 'linear-gradient(to right, #2563eb, #4f46e5)',
                 },
                 buttonBack: {
                     color: '#94a3b8',
                     marginRight: '10px',
                     fontWeight: '700',
-                    fontSize: '14px'
+                    fontSize: '12px'
                 },
                 buttonSkip: {
                     color: '#94a3b8',
                     fontWeight: '700',
-                    fontSize: '12px',
-                    textTransform: 'uppercase'
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
                 },
                 spotlight: {
-                    borderRadius: '24px',
-                    boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.9), 0 0 20px rgba(37, 99, 235, 0.3)'
+                    borderRadius: '16px',
+                    boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.85), 0 0 20px rgba(37, 99, 235, 0.3)'
+                },
+                progress: {
+                    marginRight: '15px',
+                    marginTop: '2px'
                 }
-            }}
-            locale={{
-                back: 'Kembali',
-                close: 'Tutup',
-                last: 'Gabung Sekarang 🚀',
-                next: 'Lanjut',
-                skip: 'Lewati',
             }}
         />
     );

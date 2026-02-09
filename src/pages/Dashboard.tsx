@@ -340,7 +340,7 @@ export default function Dashboard() {
 
           <div className="relative z-10 space-y-3 max-w-5xl mx-auto pb-24">
             {/* Header Section - Compact but Heroic */}
-            <div className="flex items-center justify-between pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2 px-4 text-white">
+            <div data-tour="profile-header" className="flex items-center justify-between pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2 px-4 text-white">
               <div className="flex items-center gap-4">
                 <div className="relative group shrink-0" onClick={() => navigate('/profile')}>
                   <div className="absolute -inset-1.5 bg-white/20 rounded-full blur-md group-active:bg-white/40 transition-all" />
@@ -502,42 +502,44 @@ export default function Dashboard() {
                 </div>
               )}
 
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
-                <div data-tour="quick-action"><MenuGridItem href="/attendance" icon={Clock} label="Absen" color="text-blue-600" bg="bg-blue-50" /></div>
-                <div data-tour="nav-history"><MenuGridItem href="/history" icon={Calendar} label="Riwayat" color="text-purple-600" bg="bg-purple-50" /></div>
-                <MenuGridItem href="/corrections" icon={ClipboardCheck} label="Koreksi" color="text-cyan-600" bg="bg-cyan-50" />
-                <MenuGridItem href="/overtime" icon={Clock} label="Lembur" color="text-red-500" bg="bg-red-50" />
-              </div>
+              <div data-tour="main-menu-grid">
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
+                  <div data-tour="quick-action"><MenuGridItem href="/attendance" icon={Clock} label="Absen" color="text-blue-600" bg="bg-blue-50" /></div>
+                  <div data-tour="nav-history"><MenuGridItem href="/history" icon={Calendar} label="Riwayat" color="text-purple-600" bg="bg-purple-50" /></div>
+                  <MenuGridItem href="/corrections" icon={ClipboardCheck} label="Koreksi" color="text-cyan-600" bg="bg-cyan-50" />
+                  <MenuGridItem href="/overtime" icon={Clock} label="Lembur" color="text-red-500" bg="bg-red-50" />
+                </div>
 
-              {/* CATEGORY 2: HRIS */}
-              <div className="my-4 border-t border-slate-100" />
-              <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
-                <div className="h-1 w-3 bg-orange-500 rounded-full" /> HRIS & Pengajuan
-              </h3>
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
-                <MenuGridItem href="/leave" icon={FileText} label="Cuti" color="text-orange-600" bg="bg-orange-50" />
-                <MenuGridItem href="/reimbursement" icon={Receipt} label="Klaim" color="text-emerald-600" bg="bg-emerald-50" isComingSoon />
-                <MenuGridItem href="/salary-slips" icon={Wallet} label="Gaji" color="text-teal-600" bg="bg-teal-50" isComingSoon />
-              </div>
+                {/* CATEGORY 2: HRIS */}
+                <div className="my-4 border-t border-slate-100" />
+                <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                  <div className="h-1 w-3 bg-orange-500 rounded-full" /> HRIS & Pengajuan
+                </h3>
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
+                  <MenuGridItem href="/leave" icon={FileText} label="Cuti" color="text-orange-600" bg="bg-orange-50" />
+                  <MenuGridItem href="/reimbursement" icon={Receipt} label="Klaim" color="text-emerald-600" bg="bg-emerald-50" isComingSoon />
+                  <MenuGridItem href="/salary-slips" icon={Wallet} label="Gaji" color="text-teal-600" bg="bg-teal-50" isComingSoon />
+                </div>
 
-              {/* CATEGORY 3: PRODUKTIVITAS */}
-              <div className="my-4 border-t border-slate-100" />
-              <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
-                <div className="h-1 w-3 bg-indigo-500 rounded-full" /> Produktivitas
-              </h3>
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
-                <div data-tour="nav-schedule"><MenuGridItem href="/agenda" icon={Calendar} label="Agenda" color="text-indigo-600" bg="bg-indigo-50" /></div>
-                <MenuGridItem href="/notes" icon={StickyNote} label="Catatan" color="text-yellow-600" bg="bg-yellow-100/50" />
-              </div>
+                {/* CATEGORY 3: PRODUKTIVITAS */}
+                <div className="my-4 border-t border-slate-100" />
+                <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                  <div className="h-1 w-3 bg-indigo-500 rounded-full" /> Produktivitas
+                </h3>
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
+                  <div data-tour="nav-schedule"><MenuGridItem href="/agenda" icon={Calendar} label="Agenda" color="text-indigo-600" bg="bg-indigo-50" /></div>
+                  <MenuGridItem href="/notes" icon={StickyNote} label="Catatan" color="text-yellow-600" bg="bg-yellow-100/50" />
+                </div>
 
-              {/* CATEGORY 4: LAINNYA */}
-              <div className="my-4 border-t border-slate-100" />
-              <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
-                <div className="h-1 w-3 bg-pink-500 rounded-full" /> Lainnya
-              </h3>
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
-                <MenuGridItem href="/albums" icon={Image} label="Album" color="text-pink-600" bg="bg-pink-50" />
-                <div data-tour="nav-profile"><MenuGridItem href="/profile" icon={SettingsIcon} label="Profil" color="text-slate-600" bg="bg-slate-50" /></div>
+                {/* CATEGORY 4: LAINNYA */}
+                <div className="my-4 border-t border-slate-100" />
+                <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                  <div className="h-1 w-3 bg-pink-500 rounded-full" /> Lainnya
+                </h3>
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
+                  <MenuGridItem href="/albums" icon={Image} label="Album" color="text-pink-600" bg="bg-pink-50" />
+                  <div data-tour="nav-profile"><MenuGridItem href="/profile" icon={SettingsIcon} label="Profil" color="text-slate-600" bg="bg-slate-50" /></div>
+                </div>
               </div>
 
 
@@ -883,78 +885,80 @@ export default function Dashboard() {
           <div className="lg:col-span-8 space-y-8">
 
             {/* 1. Hero Card - Status & Quick Action */}
-            <Card className={cn(
-              "border-none overflow-hidden relative group transition-all duration-500 hover:shadow-2xl shadow-xl",
-              todayAttendance && !todayAttendance.clock_out
-                ? "bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 shadow-orange-200"
-                : todayAttendance?.clock_out
-                  ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-teal-200"
-                  : "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 shadow-blue-200/50"
-            )}>
-              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full -mr-64 -mt-64 blur-3xl" />
-              <CardContent className="p-8 relative">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-4">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/20">
-                      <Clock className="h-3.5 w-3.5 text-white" />
-                      <span className="text-[11px] font-black text-white uppercase tracking-widest">
-                        {todaySchedule?.is_day_off ? 'Hari Libur' : 'Status Absensi'}
-                      </span>
-                    </div>
+            <div data-tour="attendance-card">
+              <Card className={cn(
+                "border-none overflow-hidden relative group transition-all duration-500 hover:shadow-2xl shadow-xl",
+                todayAttendance && !todayAttendance.clock_out
+                  ? "bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 shadow-orange-200"
+                  : todayAttendance?.clock_out
+                    ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-teal-200"
+                    : "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 shadow-blue-200/50"
+              )}>
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full -mr-64 -mt-64 blur-3xl" />
+                <CardContent className="p-8 relative">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-4">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/20">
+                        <Clock className="h-3.5 w-3.5 text-white" />
+                        <span className="text-[11px] font-black text-white uppercase tracking-widest">
+                          {todaySchedule?.is_day_off ? 'Hari Libur' : 'Status Absensi'}
+                        </span>
+                      </div>
 
-                    <div>
-                      <h2 className="text-4xl font-black text-white mb-2 tracking-tight">
-                        {todaySchedule?.is_day_off
-                          ? 'Selamat Berlibur! 🏖️'
-                          : todayAttendance
-                            ? (todayAttendance.clock_out ? 'Kerja Bagus Hari Ini!' : 'Selamat Bekerja!') // Custom greeting based on state
-                            : 'Jangan Lupa Absen!'}
-                      </h2>
-                      <p className="text-blue-100 font-medium text-lg">
-                        {todaySchedule?.is_day_off
-                          ? 'Nikmati waktu istirahat Anda.'
-                          : todayAttendance
-                            ? (todayAttendance.clock_out ? 'Anda sudah menyelesaikan jam kerja hari ini.' : 'Waktu terus berjalan, semangat produktif!')
-                            : 'Silakan lakukan Clock In untuk memulai hari.'}
-                      </p>
-                    </div>
+                      <div>
+                        <h2 className="text-4xl font-black text-white mb-2 tracking-tight">
+                          {todaySchedule?.is_day_off
+                            ? 'Selamat Berlibur! 🏖️'
+                            : todayAttendance
+                              ? (todayAttendance.clock_out ? 'Kerja Bagus Hari Ini!' : 'Selamat Bekerja!') // Custom greeting based on state
+                              : 'Jangan Lupa Absen!'}
+                        </h2>
+                        <p className="text-blue-100 font-medium text-lg">
+                          {todaySchedule?.is_day_off
+                            ? 'Nikmati waktu istirahat Anda.'
+                            : todayAttendance
+                              ? (todayAttendance.clock_out ? 'Anda sudah menyelesaikan jam kerja hari ini.' : 'Waktu terus berjalan, semangat produktif!')
+                              : 'Silakan lakukan Clock In untuk memulai hari.'}
+                        </p>
+                      </div>
 
-                    {todayAttendance && !todaySchedule?.is_day_off && (
-                      <div className="flex items-center gap-6 pt-2">
-                        <div>
-                          <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Waktu Masuk</p>
-                          <div className="text-2xl font-black text-white font-mono bg-white/10 px-3 py-1 rounded-lg backdrop-blur-sm inline-block">
-                            {format(new Date(todayAttendance.clock_in), 'HH:mm')}
-                          </div>
-                        </div>
-                        {todayAttendance.clock_out && (
+                      {todayAttendance && !todaySchedule?.is_day_off && (
+                        <div className="flex items-center gap-6 pt-2">
                           <div>
-                            <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Waktu Pulang</p>
+                            <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Waktu Masuk</p>
                             <div className="text-2xl font-black text-white font-mono bg-white/10 px-3 py-1 rounded-lg backdrop-blur-sm inline-block">
-                              {format(new Date(todayAttendance.clock_out), 'HH:mm')}
+                              {format(new Date(todayAttendance.clock_in), 'HH:mm')}
                             </div>
                           </div>
-                        )}
+                          {todayAttendance.clock_out && (
+                            <div>
+                              <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Waktu Pulang</p>
+                              <div className="text-2xl font-black text-white font-mono bg-white/10 px-3 py-1 rounded-lg backdrop-blur-sm inline-block">
+                                {format(new Date(todayAttendance.clock_out), 'HH:mm')}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {!todaySchedule?.is_day_off && (
+                      <div className="flex flex-col items-center gap-3">
+                        <Button
+                          size="lg"
+                          onClick={() => navigate('/attendance')}
+                          className="h-16 px-8 bg-white hover:bg-slate-50 text-slate-900 border-none rounded-2xl font-black text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
+                        >
+                          <Fingerprint className="h-6 w-6 mr-3 text-blue-600" />
+                          {todayAttendance && !todayAttendance.clock_out ? 'Clock Out Status' : 'Absen Sekarang'}
+                        </Button>
+                        <p className="text-xs text-white/60 font-medium">Lokasi Anda Terpantau</p>
                       </div>
                     )}
                   </div>
-
-                  {!todaySchedule?.is_day_off && (
-                    <div className="flex flex-col items-center gap-3">
-                      <Button
-                        size="lg"
-                        onClick={() => navigate('/attendance')}
-                        className="h-16 px-8 bg-white hover:bg-slate-50 text-slate-900 border-none rounded-2xl font-black text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
-                      >
-                        <Fingerprint className="h-6 w-6 mr-3 text-blue-600" />
-                        {todayAttendance && !todayAttendance.clock_out ? 'Clock Out Status' : 'Absen Sekarang'}
-                      </Button>
-                      <p className="text-xs text-white/60 font-medium">Lokasi Anda Terpantau</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* 2. Stats Grid - Clean & Big */}
             <div data-tour="main-menu-grid">
