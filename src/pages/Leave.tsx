@@ -450,7 +450,7 @@ export default function LeavePage() {
                                                     <SelectItem value="sick">Sakit</SelectItem>
                                                     <SelectItem value="unpaid">Izin (Unpaid)</SelectItem>
                                                     <SelectItem value="maternity">Cuti Melahirkan</SelectItem>
-                                                    <SelectItem value="paternity">Cuti Ayah</SelectItem>
+                                                    <SelectItem value="paternity">lainnya</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -678,7 +678,7 @@ function LeaveForm({ leaveType, setLeaveType, startDate, setStartDate, endDate, 
                         <SelectItem value="sick">Sakit</SelectItem>
                         <SelectItem value="unpaid">Izin (Unpaid)</SelectItem>
                         <SelectItem value="maternity">Cuti Melahirkan</SelectItem>
-                        <SelectItem value="paternity">Cuti Ayah</SelectItem>
+                        <SelectItem value="paternity">lainnya</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
