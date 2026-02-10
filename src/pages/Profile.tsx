@@ -389,15 +389,27 @@ export default function ProfilePage() {
 
       if (error) throw error;
 
+      // Check if any of the results failed
+      const results = data.results || [];
+      const failed = results.filter((r: any) => r.status !== 200 || (r.result && r.result.error));
+
+      if (failed.length > 0 && results.length === failed.length) {
+        const errorDetail = failed[0].result?.error?.message || "Token tidak valid";
+        throw new Error(`Google menolak pesan: ${errorDetail}`);
+      }
+
       toast({
         title: "Terkirim!",
-        description: "Cek bar notifikasi HP Anda sekarang.",
+        description: failed.length > 0
+          ? `Terkirim ke ${results.length - failed.length} perangkat, tapi ${failed.length} gagal.`
+          : "Cek bar notifikasi HP Anda sekarang.",
+        variant: failed.length > 0 ? "default" : "default"
       });
     } catch (error: any) {
       console.error('Error sending test push:', error);
       toast({
         title: "Gagal Mengirim",
-        description: "Pastikan token sudah terdaftar atau coba lagi nanti.",
+        description: error.message || "Pastikan token sudah terdaftar atau coba lagi nanti.",
         variant: "destructive"
       });
     } finally {
