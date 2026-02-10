@@ -66,6 +66,7 @@ export const usePushNotifications = () => {
                 await PushNotifications.addListener('registration', async (token) => {
                     console.log('Native Push registration success');
                     await saveTokenToDatabase(token.value, 'native');
+                    localStorage.setItem('fcm_token_native', token.value);
                 });
 
                 await PushNotifications.addListener('registrationError', (error: any) => {

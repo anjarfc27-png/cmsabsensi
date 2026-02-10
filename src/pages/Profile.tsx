@@ -420,6 +420,23 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
+      // SECURITY AUDIT: Remove FCM token from DB on logout
+      const pwaToken = localStorage.getItem('fcm_token_pwa');
+      const nativeToken = localStorage.getItem('fcm_token_native');
+      const tokenToDelete = pwaToken || nativeToken;
+
+      if (tokenToDelete && user?.id) {
+        console.log('Cleaning up FCM token for user:', user.id);
+        await supabase
+          .from('fcm_tokens' as any)
+          .delete()
+          .eq('user_id', user.id)
+          .eq('token', tokenToDelete);
+
+        localStorage.removeItem('fcm_token_pwa');
+        localStorage.removeItem('fcm_token_native');
+      }
+
       await signOut();
       navigate('/auth');
     } catch (error) {

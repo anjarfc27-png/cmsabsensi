@@ -80,7 +80,30 @@ serve(async (req) => {
     }
 
     try {
-        const { userId, title, body, data, topic } = await req.json()
+        const payload = await req.json()
+        console.log('Received notification payload:', JSON.stringify(payload));
+
+        // Handle both direct calls and Supabase Webhook format
+        let userId, title, body, data, topic;
+
+        if (payload.record) {
+            // This is a Supabase Webhook (INSERT/UPDATE)
+            userId = payload.record.user_id;
+            title = payload.record.title;
+            body = payload.record.message;
+            data = {
+                type: payload.record.type,
+                link: payload.record.link,
+                notification_id: payload.record.id
+            };
+        } else {
+            // This is a direct call from frontend
+            userId = payload.userId;
+            title = payload.title;
+            body = payload.body;
+            data = payload.data;
+            topic = payload.topic;
+        }
 
         // Get Firebase Service Account from environment
         const serviceAccountJson = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
@@ -143,13 +166,21 @@ serve(async (req) => {
         const supabase = createClient(supabaseUrl, supabaseKey)
 
         // Get user's FCM tokens or ALL tokens for broadcast
-        let query = supabase.from('fcm_tokens').select('token');
+        // SECURITY AUDIT: Only send to active users
+        let query;
 
         if (userId === 'all' || userId === 'ALL' || userId === 'broadcast') {
             console.log('Broadcasting notification to all active users via tokens');
-            // No filter = all tokens
+            // Inner join with profiles to filter is_active = true
+            query = supabase
+                .from('fcm_tokens')
+                .select('token, profiles!inner(is_active)')
+                .eq('profiles.is_active', true);
         } else {
-            query = query.eq('user_id', userId);
+            query = supabase
+                .from('fcm_tokens')
+                .select('token')
+                .eq('user_id', userId);
         }
 
         const { data: tokens, error: tokenError } = await query;
@@ -218,6 +249,16 @@ serve(async (req) => {
                 )
 
                 const result = await response.json()
+
+                // CLEANUP: If token is invalid/expired, remove it from database
+                if (response.status === 404 || response.status === 410 || (result.error && result.error.status === 'UNREGISTERED')) {
+                    console.log(`Token ${token.substring(0, 10)}... is invalid. Removing from database.`);
+                    await supabase
+                        .from('fcm_tokens')
+                        .delete()
+                        .eq('token', token);
+                }
+
                 return { token, result, status: response.status }
             })
         )

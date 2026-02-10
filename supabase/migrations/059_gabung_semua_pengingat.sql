@@ -18,9 +18,10 @@ DECLARE
     v_personal_note RECORD;
     v_now_timestamp TIMESTAMPTZ;
 BEGIN
-    v_now_time := CURRENT_TIME;
-    v_today := CURRENT_DATE;
-    v_now_timestamp := NOW();
+    -- TIMEZONE FIX: Force using Jakarta Time for comparison
+    v_now_time := (now() AT TIME ZONE 'Asia/Jakarta')::TIME;
+    v_today := (now() AT TIME ZONE 'Asia/Jakarta')::DATE;
+    v_now_timestamp := now() AT TIME ZONE 'Asia/Jakarta';
 
     -- ==========================================
     -- A. PENGINGAT PRIBADI (PERSONAL NOTES)
