@@ -4,7 +4,7 @@ import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { User, Clock, LayoutGrid, Megaphone, ShieldCheck, Sparkles, Rocket, Fingerprint } from 'lucide-react';
+import { User, Clock, LayoutGrid, Megaphone, Sparkles, Rocket } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export function DashboardTour() {

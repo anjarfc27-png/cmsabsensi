@@ -10,106 +10,127 @@ export const usePushNotifications = () => {
     const { toast } = useToast();
 
     useEffect(() => {
-        if (Capacitor.isNativePlatform() && user?.id) {
+        if (user?.id) {
             registerPush();
         }
     }, [user?.id]);
 
+    // Helper for Web Push VAPID key
+    const urlBase64ToUint8Array = (base64String: string) => {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    };
+
     const registerPush = async () => {
+        if (!user?.id) return;
+
+        // --- NATIVE PLATFORM (Android/iOS) ---
+        if (Capacitor.isNativePlatform()) {
+            try {
+                let permStatus = await PushNotifications.checkPermissions();
+
+                if (permStatus.receive === 'prompt') {
+                    permStatus = await PushNotifications.requestPermissions();
+                }
+
+                if (permStatus.receive !== 'granted') {
+                    console.warn('User denied native push notification permissions');
+                    return;
+                }
+
+                await PushNotifications.addListener('registration', async (token) => {
+                    console.log('Native Push registration success');
+                    await saveTokenToDatabase(token.value, 'native');
+                });
+
+                await PushNotifications.addListener('registrationError', (error: any) => {
+                    console.error('Error on registration: ' + JSON.stringify(error));
+                });
+
+                await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                    toast({
+                        title: notification.title || "Notifikasi Baru",
+                        description: notification.body || "Anda menerima pesan baru.",
+                    });
+                });
+
+                if (Capacitor.getPlatform() === 'android') {
+                    await PushNotifications.createChannel({
+                        id: 'default',
+                        name: 'Default',
+                        description: 'General Notifications',
+                        importance: 5,
+                        visibility: 1,
+                        vibration: true,
+                    });
+                }
+
+                await PushNotifications.register();
+            } catch (error) {
+                console.error('Native push registration failed', error);
+            }
+        }
+        // --- WEB PLATFORM (PWA) ---
+        else {
+            try {
+                if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                    console.warn('Push messaging is not supported in this browser');
+                    return;
+                }
+
+                const registration = await navigator.serviceWorker.ready;
+
+                // Check current permission
+                let permission = Notification.permission;
+                if (permission === 'default') {
+                    permission = await Notification.requestPermission();
+                }
+
+                if (permission !== 'granted') {
+                    console.warn('User denied web push permissions');
+                    return;
+                }
+
+                // Subscribe to push manager with the provided VAPID PUBLIC KEY
+                const VAPID_PUBLIC_KEY = 'BCT-K19g5pQvHIioEfMYsz0_J1GW9KTxOsYIxWDGAr_fNfsuE3O5q5iijBHIhm1TCfpkjy-DGsaVE51OHH7Gcxo';
+
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                });
+
+                console.log('Web Push subscription success');
+                // Save the whole subscription object as a string for web push
+                await saveTokenToDatabase(JSON.stringify(subscription), 'pwa');
+
+            } catch (error) {
+                console.error('Web push registration failed', error);
+            }
+        }
+    };
+
+    const saveTokenToDatabase = async (tokenValue: string, platform: string) => {
+        if (!user?.id) return;
+
         try {
-            // Check performance
-            let permStatus = await PushNotifications.checkPermissions();
+            const { error } = await supabase
+                .from('fcm_tokens' as any)
+                .upsert({
+                    user_id: user.id,
+                    token: tokenValue,
+                    device_type: platform,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id, token' });
 
-            if (permStatus.receive === 'prompt') {
-                permStatus = await PushNotifications.requestPermissions();
-            }
-
-            if (permStatus.receive !== 'granted') {
-                console.warn('User denied push notification permissions');
-                return;
-            }
-
-            // REGISTER LISTENERS BEFORE CALLING REGISTER()
-            // This prevents race conditions where the event fires before the listener is attached
-
-            // On success, we get a token
-            await PushNotifications.addListener('registration', async (token) => {
-                console.log('Push registration success');
-
-                // Save token to Supabase
-                const { error } = await supabase
-                    .from('fcm_tokens' as any)
-                    .upsert({
-                        user_id: user?.id,
-                        token: token.value,
-                        device_type: Capacitor.getPlatform(),
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'user_id, token' });
-
-                if (error) console.error('Error saving FCM token:', error);
-
-                // Subscribe to 'all_employees' topic by default for broadcasts
-                // Note: This requires the client-side topic subscription method or native implementation
-                // Alternatively, we handle topic logic purely server-side by querying 'all' tokens.
-                // But for FCM Topics to work natively, we can use the backend to subscribe this token to a topic.
-                try {
-                    // We will use our own Edge Function to subscribe this new token to a topic silently
-                    if (user?.id) {
-                        // Optional: You could call an edge function here to subscribe `token.value` to 'all_employees'
-                        // But for now, our Edge Function 'send-push-notification' handles broadcast by iterating tokens (userId='all')
-                        // which is safer if we don't want to manage topic subscriptions complexity on client.
-
-                        // HOWEVER, if Dashboard uses `topic: 'all_employees'`, efficient broadcasting demands real FCM topics.
-                        // Let's rely on the iterating tokens method for now as it's more robust without extra client setup.
-                    }
-                } catch (e) {
-                    console.warn('Failed to subscribe to topic', e);
-                }
-            });
-
-            await PushNotifications.addListener('registrationError', (error: any) => {
-                console.error('Error on registration: ' + JSON.stringify(error));
-            });
-
-            await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-                console.log('Push received: ', notification);
-
-                // Show in-app toast if foreground
-                toast({
-                    title: notification.title || "Notifikasi Baru",
-                    description: notification.body || "Anda menerima pesan baru.",
-                    variant: "default",
-                });
-            });
-
-            await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-                console.log('Push action performed: ', notification);
-                // Handle navigation if link is provided in data
-                const link = notification.notification.data?.link;
-                if (link) {
-                    console.log('Should navigate to:', link);
-                    // In a real app, you'd use a global navigation emitter or similar
-                    // For now, we just log it.
-                }
-            });
-
-            // Create notification channel for Android (High Importance)
-            if (Capacitor.getPlatform() === 'android') {
-                await PushNotifications.createChannel({
-                    id: 'default',
-                    name: 'Default',
-                    description: 'General Notifications',
-                    importance: 5,
-                    visibility: 1,
-                    vibration: true,
-                });
-            }
-
-            // NOW call register
-            await PushNotifications.register();
-
-        } catch (error) {
-            console.error('Push notification registration failed', error);
+            if (error) console.error('Error saving push token to database:', error);
+        } catch (e) {
+            console.error('Exception saving push token:', e);
         }
     };
 };

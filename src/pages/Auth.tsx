@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,13 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { FaceLogin } from '@/components/auth/FaceLogin';
-import { Loader2, Lock, Mail, User, ArrowRight, Sparkles, Fingerprint, ScanFace, Smartphone, HelpCircle, BookOpen, ExternalLink, Info } from 'lucide-react';
+import { Loader2, Lock, Mail, User, ArrowRight, Sparkles, Fingerprint, ScanFace, Smartphone, HelpCircle, BookOpen, ExternalLink, Info, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { z } from 'zod';
 import { AppLogo } from '@/components/AppLogo';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import useEmblaCarousel from 'embla-carousel-react';
 
 const loginEmailSchema = z.string().email('Email tidak valid');
 const registerEmailSchema = z.string().email('Email tidak valid');
@@ -44,6 +45,20 @@ export default function Auth() {
   const [justRegistered, setJustRegistered] = useState(false);
   const [showFaceLogin, setShowFaceLogin] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCurrentSlide(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
+  }, [emblaApi, onSelect]);
 
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
   const [hasBiometricHardware, setHasBiometricHardware] = useState(false);
@@ -169,7 +184,7 @@ export default function Auth() {
     try {
       setIsLoading(true);
 
-      const verified = await NativeBiometric.verifyIdentity({
+      await NativeBiometric.verifyIdentity({
         reason: "Masuk ke Akun Anda",
         title: "Verifikasi Biometrik",
         subtitle: "Gunakan Sidik Jari atau Wajah untuk masuk",
@@ -178,13 +193,11 @@ export default function Auth() {
         maxAttempts: 3 // Limit percobaan
       });
 
-      if (verified) {
-        toast({
-          title: 'Verifikasi Berhasil',
-          description: `Selamat datang kembali, ${lastUser?.name}!`,
-        });
-        navigate('/dashboard');
-      }
+      toast({
+        title: 'Verifikasi Berhasil',
+        description: `Selamat datang kembali, ${lastUser?.name}!`,
+      });
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Biometric error:', error);
 
@@ -346,7 +359,7 @@ export default function Auth() {
 
   // Render form content directly to avoid re-creation on every render
   const renderAuthForm = () => (
-    <Card className={cn("border-0 shadow-2xl shadow-slate-200/50 dark:shadow-none bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl overflow-hidden animate-in zoom-in-95 fade-in duration-500", !isMobile && "shadow-none bg-transparent dark:bg-transparent rounded-none")}>
+    <Card className={cn("border-0 shadow-none bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden animate-in zoom-in-95 fade-in duration-500", !isMobile && "shadow-2xl shadow-slate-200/50 dark:shadow-none bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl")}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="px-8 pt-8">
           <TabsList className="grid w-full grid-cols-2 h-14 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 p-1.5">
@@ -382,6 +395,7 @@ export default function Auth() {
                     onChange={(e) => setLoginEmail(e.target.value)}
                     disabled={isLoading}
                     required
+                    autoComplete="email"
                     className="h-14 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all text-base focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
@@ -406,6 +420,7 @@ export default function Auth() {
                     onChange={(e) => setLoginPassword(e.target.value)}
                     disabled={isLoading}
                     required
+                    autoComplete="current-password"
                     className="h-14 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all text-base focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
@@ -522,6 +537,7 @@ export default function Auth() {
                     onChange={(e) => setRegisterName(e.target.value)}
                     disabled={isLoading || justRegistered}
                     required
+                    autoComplete="name"
                     className="h-12 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
@@ -541,6 +557,7 @@ export default function Auth() {
                     onChange={(e) => setRegisterEmail(e.target.value)}
                     disabled={isLoading || justRegistered}
                     required
+                    autoComplete="email"
                     className="h-12 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
@@ -561,6 +578,7 @@ export default function Auth() {
                     disabled={isLoading || justRegistered}
                     required
                     maxLength={15}
+                    autoComplete="tel"
                     className="h-12 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
@@ -581,6 +599,7 @@ export default function Auth() {
                     onChange={(e) => setRegisterPassword(e.target.value)}
                     disabled={isLoading || justRegistered}
                     required
+                    autoComplete="new-password"
                     className="h-12 pl-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-950 transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
@@ -617,39 +636,38 @@ export default function Auth() {
   // -------------------------------------------------------------------------
   if (isMobile) {
     return (
-      <div className="h-[100dvh] flex flex-col items-center justify-center bg-white dark:bg-slate-950 p-4 overflow-hidden relative">
-        <div className="w-full max-w-[480px] relative z-10 flex flex-col max-h-full">
-          {/* Logo - Compact & Protected Height */}
-          <div className="flex-shrink-0 flex flex-col items-center gap-2 mb-4 mt-2 animate-in fade-in slide-in-from-top-8 duration-700">
-            <div className="w-full flex justify-center px-4">
-              <img
-                src="/logo.png"
-                alt="CMS Duta Solusi"
-                className="h-[60px] sm:h-[80px] w-auto object-contain transition-all"
-              />
+      <div className="h-[100dvh] bg-white dark:bg-slate-950 flex flex-col overflow-hidden relative">
+        {/* Subtle decorative accent */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 dark:bg-slate-900/50 rounded-bl-full -z-0" />
+
+        <div className="relative z-10 w-full max-w-lg mx-auto flex flex-col h-full">
+          {/* Top Bar - Ultra Minimal */}
+          <div className="flex items-center justify-between px-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+            <div className="animate-in fade-in duration-700">
+              <img src="/logo.png" alt="CMS Duta Solusi" className="h-10 w-auto object-contain" />
             </div>
+            <button
+              onClick={() => setShowGuide(true)}
+              className="h-10 w-10 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-50 dark:bg-slate-900 rounded-full"
+            >
+              <BookOpen className="h-5 w-5" />
+            </button>
           </div>
 
-          {/* Wrapper for Auth Form Content - Scrollable if needed but fit in screen */}
-          <div className="flex-1 w-full overflow-y-auto custom-scrollbar px-1">
-            {renderAuthForm()}
+          <div className="flex-1 flex flex-col justify-center px-7 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+            {/* Minimal Form Container - Perfect No-Scroll Fit */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="border border-slate-100 dark:border-slate-800 rounded-[32px] bg-white dark:bg-slate-900/30 overflow-hidden shadow-sm">
+                {renderAuthForm()}
+              </div>
+            </div>
 
-            <div className="mt-4 px-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowGuide(true)}
-                className="w-full h-12 rounded-2xl border-slate-100 bg-white/50 backdrop-blur-sm text-slate-600 font-bold gap-2 text-sm shadow-sm active:scale-95 transition-all"
-              >
-                <BookOpen className="h-4 w-4 text-blue-500" />
-                Lihat Panduan Aplikasi
-              </Button>
+            {/* Subtle Brand Signature */}
+            <div className="mt-10 flex flex-col items-center gap-2 opacity-30 animate-in fade-in duration-1000 delay-500">
+              <p className="text-[9px] font-black text-slate-900 dark:text-white uppercase tracking-[0.4em]">CMS Duta Solusi</p>
+              <div className="h-[1px] w-12 bg-slate-200 dark:bg-slate-800" />
             </div>
           </div>
-
-          {/* Footer */}
-          <p className="flex-shrink-0 mt-4 text-[10px] text-slate-400 font-medium text-center pb-2">
-            © 2026 CMS Duta Solusi. All rights reserved.
-          </p>
         </div>
 
         {/* Face Login Dialog */}
@@ -661,7 +679,116 @@ export default function Auth() {
             />
           </DialogContent>
         </Dialog>
-      </div>
+
+        {/* Dialog Panduan Pengguna (Minimalist & Professional) */}
+        <Dialog open={showGuide} onOpenChange={setShowGuide}>
+          <DialogContent className="w-[90vw] sm:max-w-md p-0 overflow-hidden border border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-950 shadow-2xl">
+            {/* Minimal Header */}
+            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-900 bg-white dark:bg-slate-950">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">User Guide — Ver. 3.0</span>
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className={cn("h-1 w-1 rounded-full transition-all duration-300", currentSlide === i ? "bg-slate-900 dark:bg-white scale-125" : "bg-slate-200 dark:bg-slate-800")} />
+                ))}
+              </div>
+            </div>
+
+            {/* Compact Slider */}
+            <div className="overflow-hidden" ref={emblaRef}>
+              <div className="flex">
+                {/* Section 1: Setup */}
+                <div className="flex-[0_0_100%] min-w-0 p-8 space-y-6">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Instalasi Aplikasi</h3>
+                    <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider">Akses PWA melalui Google Chrome</p>
+                  </div>
+                  <div className="space-y-4">
+                    {[
+                      { step: "01", text: "Pastikan koneksi internet stabil & kuota mencukupi." },
+                      { step: "02", text: "Buka URL absensi hanya melalui browser Google Chrome." },
+                      { step: "03", text: "Tunggu halaman termuat sepenuhnya dengan sempurna." },
+                      { step: "04", text: "Ketuk ikon Titik Tiga (⋮) di pojok kanan atas browser." },
+                      { step: "05", text: "Cari & pilih menu 'Instal Aplikasi' atau 'Pasang'." },
+                      { step: "06", text: "Konfirmasi pemasangan & tunggu hingga muncul di menu HP." },
+                      { step: "07", text: "Aplikasi siap digunakan langsung dari Home Screen Anda." }
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-start gap-4">
+                        <span className="text-[10px] font-black text-slate-300 pointer-events-none">{item.step}</span>
+                        <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300 leading-snug">{item.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section 2: Core Workflow */}
+                <div className="flex-[0_0_100%] min-w-0 p-8 space-y-6">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Prosedur Presensi</h3>
+                    <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider">Daily Operating Procedure</p>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      { step: "01", text: "Aktifkan GPS & tunggu indikator hijau (High Accuracy)." },
+                      { step: "02", text: "Pastikan posisi Anda sudah berada di dalam radius kantor." },
+                      { step: "03", text: "Refresh koordinat jika lokasi belum muncul otomatis." },
+                      { step: "04", text: "Ambil swafoto (Fitur segera hadir/Coming Soon)." },
+                      { step: "05", text: "Pilih mode kehadiran (WFO / WFH / Dinas Luar)." },
+                      { step: "06", text: "Klik tombol 'Kirim Absen' & tunggu proses sinkronisasi." },
+                      { step: "07", text: "Pastikan muncul notifikasi 'Berhasil' dari sistem." }
+                    ].map((item, i) => (
+                      <div key={i} className={cn("flex items-start gap-4", item.step === "04" && "opacity-30")}>
+                        <span className="text-[10px] font-black text-slate-300 pointer-events-none">{item.step}</span>
+                        <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300 leading-snug">{item.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section 3: Policies */}
+                <div className="flex-[0_0_100%] min-w-0 p-8 space-y-6">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Kebijakan & Keamanan</h3>
+                    <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider">Information & Data Integrity</p>
+                  </div>
+                  <div className="space-y-3.5">
+                    {[
+                      { t: "Integritas Lokasi", d: "Sistem mendeteksi & melarang penggunaan aplikasi manipulasi lokasi (Fake GPS)." },
+                      { t: "Akurasi Data", d: "Pastikan sinyal seluler stabil untuk sinkronisasi koordinat yang presisi." },
+                      { t: "Audit Otomatis", d: "Setiap aktivitas presensi dicatat dengan timestamp server yang tidak terbantahkan." },
+                      { t: "Privasi Data", d: "Seluruh data koordinat & identifikasi dienkripsi untuk keamanan informasi pribadi." },
+                      { t: "Kebijakan Adil", d: "Validasi lokasi diterapkan setara bagi semua staf demi transparansi kehadiran." }
+                    ].map((item, i) => (
+                      <div key={i} className="flex flex-col gap-0.5">
+                        <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.t}</p>
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-tight">{item.d}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Clean Footer */}
+            <div className="px-8 pb-8 flex items-center justify-between">
+              <Button
+                variant="ghost"
+                onClick={() => emblaApi?.scrollPrev()}
+                className={cn("h-10 px-0 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-opacity", currentSlide === 0 ? "opacity-0 pointer-events-none" : "opacity-100")}
+              >
+                Kembali
+              </Button>
+              <Button
+                onClick={() => currentSlide < 2 ? emblaApi?.scrollNext() : setShowGuide(false)}
+                className="h-12 px-8 rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
+              >
+                {currentSlide < 2 ? "Selanjutnya" : "Mengerti"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+
+      </div >
     );
   }
 
@@ -698,7 +825,7 @@ export default function Auth() {
             <Button
               variant="outline"
               onClick={() => setShowGuide(true)}
-              className="w-full h-12 rounded-2xl border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-all font-bold gap-2"
+              className="w-full h-12 rounded-2xl border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all font-bold gap-2"
             >
               <BookOpen className="h-4 w-4" />
               Buku Panduan Pengguna
@@ -721,77 +848,90 @@ export default function Auth() {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog Panduan Pengguna */}
+        {/* Dialog Panduan Pengguna (Integrated minimalist style) */}
         <Dialog open={showGuide} onOpenChange={setShowGuide}>
-          <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-none rounded-[32px] bg-white dark:bg-slate-900 shadow-2xl">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white relative">
-              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <BookOpen className="h-24 w-24" />
+          <DialogContent className="w-[90vw] sm:max-w-md p-0 overflow-hidden border border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-950 shadow-2xl">
+            {/* Header */}
+            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-900">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">User Guide — Ver. 3.0</span>
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className={cn("h-1 w-1 rounded-full transition-all duration-300", currentSlide === i ? "bg-slate-900 dark:bg-white scale-125" : "bg-slate-200 dark:bg-slate-800")} />
+                ))}
               </div>
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black flex items-center gap-3">
-                  <Info className="h-6 w-6" />
-                  Panduan Cepat
-                </DialogTitle>
-                <p className="text-blue-100 font-medium">Sistem HRIS & Absensi Pintar</p>
-              </DialogHeader>
             </div>
 
-            <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6 custom-scrollbar">
-              <section className="space-y-3">
-                <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center text-xs">1</div>
-                  Cara Absen (GPS)
-                </h4>
-                <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-2 ml-8 list-disc">
-                  <li>Aktifkan <b>GPS / Lokasi</b> di HP Anda.</li>
-                  <li>Buka menu <b>Presensi</b> di dalam aplikasi.</li>
-                  <li>Tunggu indikator lokasi akurat, lalu klik <b>Masuk</b>.</li>
-                  <li>Ambil foto selfie sebagai bukti sah.</li>
-                </ul>
-              </section>
-
-              <section className="space-y-3">
-                <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center text-xs">2</div>
-                  Karyawan Baru?
-                </h4>
-                <p className="text-sm text-slate-500 dark:text-slate-400 ml-8">
-                  Pilih tab <b>Daftar</b>, isi Nama, Email Kantor, dan No. WhatsApp. Hubungi Admin jika email Anda tidak bisa didaftarkan.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center text-xs">3</div>
-                  Masalah Login?
-                </h4>
-                <p className="text-sm text-slate-500 dark:text-slate-400 ml-8">
-                  Pastikan koneksi internet stabil. Jika lupa password, klik <b>Lupa Password</b> atau hubungi HRD PT CMS Duta Solusi.
-                </p>
-              </section>
-
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl flex items-start gap-4">
-                  <HelpCircle className="h-8 w-8 text-blue-500 shrink-0" />
+            <div className="overflow-hidden" ref={emblaRef}>
+              <div className="flex">
+                {/* 1. Setup */}
+                <div className="flex-[0_0_100%] min-w-0 p-8 space-y-6">
                   <div>
-                    <h5 className="text-sm font-bold text-slate-800 dark:text-white">Butuh Bantuan?</h5>
-                    <p className="text-xs text-slate-500 mt-1">Hubungi IT Support di it-support@cmsdutasolusi.co.id</p>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Instalasi PWA</h3>
+                    <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider">Akses Cepat Via Chrome</p>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-[12px] text-slate-500 font-medium leading-relaxed">• Pastikan internet stabil & buka di Chrome.</p>
+                    <p className="text-[12px] text-slate-500 font-medium leading-relaxed">• Tunggu halaman termuat sempurna.</p>
+                    <p className="text-[12px] text-slate-500 font-medium leading-relaxed">• Ketuk Menu browser (titik tiga).</p>
+                    <p className="text-[12px] text-slate-500 font-medium leading-relaxed">• Klik 'Instal Aplikasi' atau 'Pasang'.</p>
+                    <p className="text-[12px] text-slate-500 font-medium leading-relaxed">• Konfirmasi proses pemasangan PWA.</p>
+                    <p className="text-[12px] text-slate-500 font-medium leading-relaxed">• Temukan aplikasi di menu Home Screen.</p>
+                  </div>
+                </div>
+
+                {/* 2. Workflow */}
+                <div className="flex-[0_0_100%] min-w-0 p-8 space-y-6">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Standard Presensi</h3>
+                    <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider">SOP Harian</p>
+                  </div>
+                  <div className="space-y-3 text-[12px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    <p>• Aktifkan GPS (Mode Akurasi Tinggi).</p>
+                    <p>• Tunggu indikator lokasi berwarna HIJAU.</p>
+                    <p>• Pastikan posisi berada di radius kantor.</p>
+                    <p className="opacity-30">• Verifikasi wajah (Fitur segera hadir).</p>
+                    <p>• Pilih mode kehadiran dengan teliti.</p>
+                    <p>• Klik 'Kirim' & tunggu notifikasi berhasil.</p>
+                  </div>
+                </div>
+
+                {/* 3. Security */}
+                <div className="flex-[0_0_100%] min-w-0 p-8 space-y-6">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Integritas Data</h3>
+                    <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider">Information & Transparency</p>
+                  </div>
+                  <div className="space-y-3.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    <p>• Pelarangan total aplikasi modifikasi lokasi (Fake GPS).</p>
+                    <p>• Sinkronisasi otomatis dengan waktu server CMS.</p>
+                    <p>• Validasi radius area kerja yang presisi secara real-time.</p>
+                    <p>• Pencatatan log aktivitas untuk keperluan audit internal.</p>
+                    <p>• Perlindungan enkripsi data koordinat pengguna.</p>
+                    <p>• Sistem keadilan kehadiran berbasis data faktual.</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
+            {/* Footer */}
+            <div className="px-8 pb-8 flex items-center justify-between">
               <Button
-                onClick={() => setShowGuide(false)}
-                className="w-full h-12 rounded-xl bg-slate-900 text-white font-bold"
+                variant="ghost"
+                onClick={() => emblaApi?.scrollPrev()}
+                className={cn("h-10 px-0 text-[10px] font-black uppercase tracking-widest text-slate-400", currentSlide === 0 ? "opacity-0 pointer-events-none" : "opacity-100")}
               >
-                Dimengerti
+                Kembali
+              </Button>
+              <Button
+                onClick={() => currentSlide < 2 ? emblaApi?.scrollNext() : setShowGuide(false)}
+                className="h-12 px-8 rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white text-[11px] font-black uppercase tracking-widest transition-all shadow-lg"
+              >
+                {currentSlide < 2 ? "Lanjut" : "Mengerti"}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
+
       </div>
     </div>
   );

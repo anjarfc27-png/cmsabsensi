@@ -13,7 +13,7 @@ interface AuthContextType {
   loading: boolean;
   hasRole: (role: AppRole) => boolean;
   switchRole: (role: AppRole) => void;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ data?: { user: User | null; session: Session | null }; error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -175,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Device verification error:", err);
     }
 
-    return { error: null };
+    return { data, error: null };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {

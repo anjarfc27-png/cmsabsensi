@@ -17,7 +17,8 @@ import {
     Loader2,
     CalendarDays,
     Search,
-    Globe
+    Globe,
+    RefreshCw
 } from 'lucide-react';
 import {
     Dialog,
@@ -73,6 +74,7 @@ export default function HolidaysPage() {
     const [selectedHoliday, setSelectedHoliday] = useState<PublicHoliday | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [syncing, setSyncing] = useState(false);
 
     // Filter State
     const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
@@ -156,6 +158,48 @@ export default function HolidaysPage() {
         setIsDeleteDialogOpen(true);
     };
 
+    const handleSync = async () => {
+        setSyncing(true);
+        try {
+            // Using a reliable public API for Indonesian Holidays
+            const currentYear = new Date().getFullYear();
+            const response = await fetch(`https://api-harilibur.vercel.app/api?year=${currentYear}`);
+            const data = await response.json();
+
+            if (!Array.isArray(data)) throw new Error('Format data API tidak valid');
+
+            const formattedHolidays = data.map((item: any) => ({
+                date: item.holiday_date,
+                name: item.holiday_name,
+                description: 'Sinkronisasi Otomatis Nasional',
+                is_recurring: false
+            }));
+
+            // Upsert to Supabase (we do it one by one or in bulk)
+            const { error } = await supabase
+                .from('public_holidays')
+                .upsert(formattedHolidays, { onConflict: 'date' });
+
+            if (error) throw error;
+
+            toast({
+                title: 'Sinkronisasi Berhasil!',
+                description: `${formattedHolidays.length} hari libur tahun ${currentYear} telah diperbarui.`,
+            });
+
+            fetchHolidays();
+        } catch (error: any) {
+            console.error('Sync Error:', error);
+            toast({
+                title: 'Gagal Sinkronisasi',
+                description: 'Pastikan koneksi internet stabil atau coba lagi nanti.',
+                variant: 'destructive',
+            });
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     const confirmDelete = async () => {
         if (!selectedHoliday) return;
 
@@ -221,21 +265,31 @@ export default function HolidaysPage() {
                                     <p className="text-blue-50 font-medium opacity-90 mt-1 text-xs">Kelola kalender hari libur perusahaan dan nasional.</p>
                                 </div>
                             </div>
-                            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button className="bg-white/10 hover:bg-white/20 text-white border-none shadow-none backdrop-blur-sm">
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Tambah Hari Libur
-                                    </Button>
-                                </DialogTrigger>
-                                <HolidayFormDialog
-                                    selectedDate={selectedDate} setSelectedDate={setSelectedDate}
-                                    holidayName={holidayName} setHolidayName={setHolidayName}
-                                    holidayDescription={holidayDescription} setHolidayDescription={setHolidayDescription}
-                                    isRecurring={isRecurring} setIsRecurring={setIsRecurring}
-                                    handleSubmit={handleSubmit} saving={saving} id={id}
-                                />
-                            </Dialog>
+                            <div className="flex gap-2">
+                                <Button
+                                    onClick={handleSync}
+                                    disabled={syncing}
+                                    className="bg-white/10 hover:bg-white/20 text-white border-none shadow-none backdrop-blur-sm"
+                                >
+                                    {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                                    Sync Data
+                                </Button>
+                                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button className="bg-white/10 hover:bg-white/20 text-white border-none shadow-none backdrop-blur-sm">
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Tambah Manual
+                                        </Button>
+                                    </DialogTrigger>
+                                    <HolidayFormDialog
+                                        selectedDate={selectedDate} setSelectedDate={setSelectedDate}
+                                        holidayName={holidayName} setHolidayName={setHolidayName}
+                                        holidayDescription={holidayDescription} setHolidayDescription={setHolidayDescription}
+                                        isRecurring={isRecurring} setIsRecurring={setIsRecurring}
+                                        handleSubmit={handleSubmit} saving={saving} id={id}
+                                    />
+                                </Dialog>
+                            </div>
                         </div>
 
                         {/* Content */}
@@ -346,6 +400,15 @@ export default function HolidaysPage() {
                         <p className="text-slate-500 font-medium text-sm mt-1">Kelola daftar libur & cuti bersama.</p>
                     </div>
                     <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className="bg-white border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50"
+                        >
+                            {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                            Sinkronisasi Otomatis
+                        </Button>
                         <Select value={yearFilter} onValueChange={setYearFilter}>
                             <SelectTrigger className="w-[120px] bg-white border-slate-200 rounded-xl font-bold">
                                 <SelectValue />

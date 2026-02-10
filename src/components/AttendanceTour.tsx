@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Target, RefreshCw, MapPin, Camera, CheckCircle2, ShieldCheck, Info } from 'lucide-react';
+import { Target, RefreshCw, MapPin, Camera, CheckCircle2, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export function AttendanceTour() {
-    const { user, profile } = useAuth();
+    const { user } = useAuth();
     const { toast } = useToast();
     const [run, setRun] = useState(false);
 

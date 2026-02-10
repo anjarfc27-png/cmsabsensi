@@ -132,6 +132,10 @@ export interface Profile {
   reports_to: string | null;
   manager?: Profile; // Joined
 
+  // Tour Tracking
+  has_seen_tour: boolean;
+  has_seen_attendance_tour: boolean;
+
   created_at: string;
   updated_at: string;
 }
