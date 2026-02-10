@@ -4,6 +4,23 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { initializeApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+
+// Firebase config should match your project
+const firebaseConfig = {
+    apiKey: "AIzaSyDeuXMVp1Y4Ss-Py4-qeTlZYqDk-s7Xg-s",
+    authDomain: "cmsabsensibenar.firebaseapp.com",
+    projectId: "cmsabsensibenar",
+    storageBucket: "cmsabsensibenar.firebasestorage.app",
+    messagingSenderId: "1005997535417",
+    appId: "1:1005997535417:web:b73c7477ea5af5134d2b68",
+    measurementId: "G-E9V7ZGM5FH"
+};
+
+// Initialize Firebase App
+const app = initializeApp(firebaseConfig);
+const messaging = getMessaging(app);
 
 export const usePushNotifications = () => {
     const { user } = useAuth();
@@ -79,14 +96,7 @@ export const usePushNotifications = () => {
         // --- WEB PLATFORM (PWA) ---
         else {
             try {
-                if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                    console.warn('Push messaging is not supported in this browser');
-                    return;
-                }
-
-                const registration = await navigator.serviceWorker.ready;
-
-                // Check current permission
+                console.log('Requesting notification permission...');
                 let permission = Notification.permission;
                 if (permission === 'default') {
                     permission = await Notification.requestPermission();
@@ -97,20 +107,37 @@ export const usePushNotifications = () => {
                     return;
                 }
 
-                // Subscribe to push manager with the provided VAPID PUBLIC KEY
+                // Get FCM token using Firebase SDK
                 const VAPID_PUBLIC_KEY = 'BCT-K19g5pQvHIioEfMYsz0_J1GW9KTxOsYIxWDGAr_fNfsuE3O5q5iijBHIhm1TCfpkjy-DGsaVE51OHH7Gcxo';
 
-                const subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                console.log('Getting FCM registration token for PWA...');
+                const token = await getToken(messaging, { 
+                    vapidKey: VAPID_PUBLIC_KEY 
                 });
 
-                console.log('Web Push subscription success');
-                // Save the whole subscription object as a string for web push
-                await saveTokenToDatabase(JSON.stringify(subscription), 'pwa');
+                if (token) {
+                    console.log('PWA token received successfully:', token);
+                    await saveTokenToDatabase(token, 'pwa');
+                    
+                    toast({
+                        title: "PWA Push Aktif",
+                        description: "Perangkat ini sekarang terdaftar untuk notifikasi.",
+                    });
+
+                    // Listen for foreground messages
+                    onMessage(messaging, (payload) => {
+                        console.log('Foreground message received:', payload);
+                        toast({
+                            title: payload.notification?.title || "Notifikasi Baru",
+                            description: payload.notification?.body || "Anda menerima pesan baru.",
+                        });
+                    });
+                } else {
+                    console.warn('No registration token available. Request permission to generate one.');
+                }
 
             } catch (error) {
-                console.error('Web push registration failed', error);
+                console.error('Web push registration failed:', error);
             }
         }
     };
