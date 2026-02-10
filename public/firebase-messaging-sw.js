@@ -19,12 +19,25 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Received background message ', payload);
 
-    const notificationTitle = payload.notification?.title || "Notifikasi Absensi";
+    // Extract notification details from the payload
+    // FCM v1 often puts them in payload.notification or payload.data
+    const title = payload.notification?.title || payload.data?.title || "CMS Absensi";
+    const body = payload.notification?.body || payload.data?.body || "Ada pesan baru untuk Anda.";
+
     const notificationOptions = {
-        body: payload.notification?.body || "Ada pesan baru untuk Anda.",
+        body: body,
         icon: '/logo.png',
-        data: payload.data
+        badge: '/logo.png',
+        tag: 'absensi-notif', // prevents duplicates
+        renotify: true,
+        data: payload.data,
+        vibrate: [200, 100, 200]
     };
 
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    return self.registration.showNotification(title, notificationOptions);
+});
+
+// Self-replace logic to ensure it updates immediately
+self.addEventListener('install', () => {
+    self.skipWaiting();
 });
