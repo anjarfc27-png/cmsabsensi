@@ -1104,6 +1104,25 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 ))}
+
+                {notificationPermission === 'granted' && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium">
+                      <Info className="h-3 w-3" />
+                      <span>Notifikasi aktif di HP ini</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 px-4 rounded-xl border-blue-100 text-blue-600 font-bold text-xs"
+                      onClick={sendTestNotification}
+                      disabled={sendingTest}
+                    >
+                      {sendingTest ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Bell className="h-3 w-3 mr-2" />}
+                      Tes Notifikasi
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
