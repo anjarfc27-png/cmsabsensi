@@ -107,18 +107,23 @@ export const usePushNotifications = () => {
                     return;
                 }
 
+                // Get the current service worker registration
+                const registration = await navigator.serviceWorker.ready;
+                console.log('App service worker is ready:', registration);
+
                 // Get FCM token using Firebase SDK
                 const VAPID_PUBLIC_KEY = 'BCT-K19g5pQvHIioEfMYsz0_J1GW9KTxOsYIxWDGAr_fNfsuE3O5q5iijBHIhm1TCfpkjy-DGsaVE51OHH7Gcxo';
 
                 console.log('Getting FCM registration token for PWA...');
-                const token = await getToken(messaging, { 
-                    vapidKey: VAPID_PUBLIC_KEY 
+                const token = await getToken(messaging, {
+                    vapidKey: VAPID_PUBLIC_KEY,
+                    serviceWorkerRegistration: registration // Crucial for PWA
                 });
 
                 if (token) {
                     console.log('PWA token received successfully:', token);
                     await saveTokenToDatabase(token, 'pwa');
-                    
+
                     toast({
                         title: "PWA Push Aktif",
                         description: "Perangkat ini sekarang terdaftar untuk notifikasi.",

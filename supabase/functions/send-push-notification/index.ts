@@ -186,6 +186,22 @@ serve(async (req) => {
                                 icon: 'ic_notification'
                             },
                         },
+                        webpush: {
+                            headers: {
+                                Urgency: "high"
+                            },
+                            notification: {
+                                icon: "/logo.png",
+                                vibrate: [200, 100, 200],
+                                requireInteraction: true,
+                                actions: [
+                                    {
+                                        action: "open_app",
+                                        title: "Buka Aplikasi"
+                                    }
+                                ]
+                            }
+                        }
                     },
                 }
 
