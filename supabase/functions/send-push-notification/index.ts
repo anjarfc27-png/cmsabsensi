@@ -121,14 +121,24 @@ serve(async (req) => {
         if (topic) {
             console.log('Sending push to TOPIC:', topic);
 
+            // Safely prepare data values as strings for FCM v1
+            const fcmData: Record<string, string> = {};
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    if (data[key] !== null && data[key] !== undefined) {
+                        fcmData[key] = String(data[key]);
+                    }
+                });
+            }
+
             const fcmPayload = {
                 message: {
                     topic: topic,
                     notification: {
-                        title: title.startsWith('CMS |') ? title : `CMS | ${title}`,
-                        body: body,
+                        title: title && title.startsWith('CMS |') ? title : `CMS | ${title || 'Notifikasi'}`,
+                        body: body || '',
                     },
-                    data: data || {},
+                    data: fcmData,
                     android: {
                         priority: 'high',
                         notification: {
@@ -198,6 +208,16 @@ serve(async (req) => {
             )
         }
 
+        // Safely prepare data values as strings for FCM v1
+        const fcmData: Record<string, string> = {};
+        if (data) {
+            Object.keys(data).forEach(key => {
+                if (data[key] !== null && data[key] !== undefined) {
+                    fcmData[key] = String(data[key]);
+                }
+            });
+        }
+
         // Send FCM notification to each token using v1 API
         const results = await Promise.all(
             tokens.map(async ({ token }) => {
@@ -205,10 +225,10 @@ serve(async (req) => {
                     message: {
                         token: token,
                         notification: {
-                            title: title.startsWith('CMS |') ? title : `CMS | ${title}`,
-                            body: body,
+                            title: title && title.startsWith('CMS |') ? title : `CMS | ${title || 'Notifikasi'}`,
+                            body: body || '',
                         },
-                        data: data || {},
+                        data: fcmData,
                         android: {
                             priority: 'high',
                             notification: {
