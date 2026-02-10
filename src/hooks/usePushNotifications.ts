@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,10 +25,12 @@ const messaging = getMessaging(app);
 export const usePushNotifications = () => {
     const { user } = useAuth();
     const { toast } = useToast();
+    const hasRegistered = useRef(false);
 
     useEffect(() => {
-        if (user?.id) {
+        if (user?.id && !hasRegistered.current) {
             registerPush();
+            hasRegistered.current = true;
         }
     }, [user?.id]);
 
@@ -107,9 +109,12 @@ export const usePushNotifications = () => {
                     return;
                 }
 
-                // Get the current service worker registration
-                const registration = await navigator.serviceWorker.ready;
-                console.log('App service worker is ready:', registration);
+                // Explicitly register our specific messaging service worker
+                console.log('Registering messaging service worker...');
+                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+                    scope: '/'
+                });
+                console.log('Messaging service worker registered:', registration);
 
                 // Get FCM token using Firebase SDK
                 const VAPID_PUBLIC_KEY = 'BCT-K19g5pQvHIioEfMYsz0_J1GW9KTxOsYIxWDGAr_fNfsuE3O5q5iijBHIhm1TCfpkjy-DGsaVE51OHH7Gcxo';
@@ -117,17 +122,23 @@ export const usePushNotifications = () => {
                 console.log('Getting FCM registration token for PWA...');
                 const token = await getToken(messaging, {
                     vapidKey: VAPID_PUBLIC_KEY,
-                    serviceWorkerRegistration: registration // Crucial for PWA
+                    serviceWorkerRegistration: registration
                 });
 
                 if (token) {
                     console.log('PWA token received successfully:', token);
-                    await saveTokenToDatabase(token, 'pwa');
 
-                    toast({
-                        title: "PWA Push Aktif",
-                        description: "Perangkat ini sekarang terdaftar untuk notifikasi.",
-                    });
+                    // Only save and toast if the token is different from what we last saved
+                    const lastToken = localStorage.getItem('fcm_token_pwa');
+                    if (lastToken !== token) {
+                        await saveTokenToDatabase(token, 'pwa');
+                        localStorage.setItem('fcm_token_pwa', token);
+
+                        toast({
+                            title: "PWA Push Aktif",
+                            description: "Perangkat ini sekarang terdaftar untuk notifikasi.",
+                        });
+                    }
 
                     // Listen for foreground messages
                     onMessage(messaging, (payload) => {
