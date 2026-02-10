@@ -171,6 +171,19 @@ export default function InformationPage() {
                     });
 
                 if (error) throw error;
+
+                // Send Push Notification to ALL users
+                if (sendNotification) {
+                    console.log('Broadcasting push notification for new announcement...');
+                    supabase.functions.invoke('send-push-notification', {
+                        body: {
+                            userId: 'all',
+                            title: `PENGUMUMAN: ${newTitle}`,
+                            body: newContent.substring(0, 100) + (newContent.length > 100 ? '...' : ''),
+                        }
+                    }).catch(err => console.error('Failed to send broadcast push:', err));
+                }
+
                 toast({ title: "Berhasil", description: "Pengumuman berhasil dipublikasikan." });
             }
 
