@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,7 +46,7 @@ export const usePushNotifications = () => {
         return outputArray;
     };
 
-    const registerPush = async () => {
+    const registerPush = useCallback(async () => {
         if (!user?.id) return;
 
         // --- NATIVE PLATFORM (Android/iOS) ---
@@ -157,7 +157,7 @@ export const usePushNotifications = () => {
                 console.error('Web push registration failed:', error);
             }
         }
-    };
+    }, [user?.id, toast]);
 
     const saveTokenToDatabase = async (tokenValue: string, platform: string) => {
         if (!user?.id) return;
@@ -178,10 +178,10 @@ export const usePushNotifications = () => {
         }
     };
 
-    return {
+    return useMemo(() => ({
         permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
         isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream,
         isStandalone: (window.navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches,
         register: registerPush
-    };
+    }), [registerPush]);
 };
