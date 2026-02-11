@@ -152,14 +152,19 @@ serve(async (req) => {
                         body: body || '',
                     },
                     data: fcmData,
-                    android: {
-                        priority: 'high',
-                        notification: {
-                            sound: 'default',
-                            channel_id: 'default',
-                            icon: 'ic_notification'
+                    webpush: {
+                        headers: {
+                            Urgency: "high"
                         },
-                    },
+                        notification: {
+                            title: title && title.startsWith('CMS |') ? title : `CMS | ${title || 'Notifikasi'}`,
+                            body: body || '',
+                            icon: "/logo.png",
+                            badge: "/logo.png",
+                            vibrate: [200, 100, 200],
+                            requireInteraction: true
+                        }
+                    }
                 },
             }
 
@@ -242,20 +247,15 @@ serve(async (req) => {
                             body: body || '',
                         },
                         data: fcmData,
-                        android: {
-                            priority: 'high',
-                            notification: {
-                                sound: 'default',
-                                channel_id: 'default',
-                                icon: 'ic_notification'
-                            },
-                        },
                         webpush: {
                             headers: {
                                 Urgency: "high"
                             },
                             notification: {
+                                title: title && title.startsWith('CMS |') ? title : `CMS | ${title || 'Notifikasi'}`,
+                                body: body || '',
                                 icon: "/logo.png",
+                                badge: "/logo.png",
                                 vibrate: [200, 100, 200],
                                 requireInteraction: true,
                                 actions: [

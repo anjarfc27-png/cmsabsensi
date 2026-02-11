@@ -281,17 +281,24 @@ export default function ShiftsPage() {
         }
         setSaving(true);
         try {
+            const payload = {
+                ...form,
+                code: form.code || null,
+                break_start: form.break_start || null,
+                break_end: form.break_end || null,
+            };
+
             if (isEditing && currentShiftId) {
                 // UPDATE
                 const { error } = await (supabase.from('shifts') as any)
-                    .update(form)
+                    .update(payload)
                     .eq('id', currentShiftId);
 
                 if (error) throw error;
                 toast({ title: 'Shift Berhasil Diperbarui' });
             } else {
                 // CREATE
-                const { error } = await (supabase.from('shifts') as any).insert(form);
+                const { error } = await (supabase.from('shifts') as any).insert(payload);
                 if (error) throw error;
                 toast({ title: 'Shift Berhasil Ditambahkan' });
             }

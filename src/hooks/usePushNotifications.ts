@@ -177,4 +177,11 @@ export const usePushNotifications = () => {
             console.error('Exception saving push token:', e);
         }
     };
+
+    return {
+        permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
+        isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream,
+        isStandalone: (window.navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches,
+        register: registerPush
+    };
 };

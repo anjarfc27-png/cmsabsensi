@@ -42,7 +42,10 @@ import {
   Newspaper,
   StickyNote,
   Settings,
-  Camera
+  Camera,
+  BellRing,
+  Smartphone,
+  Info as InfoIcon
 } from 'lucide-react';
 import { AppLogo } from '@/components/AppLogo';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -218,7 +221,7 @@ const getNavGroups = (role: string) => {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  usePushNotifications();
+  const { permission, isIOS, register } = usePushNotifications();
   const { profile, roles, activeRole, switchRole, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -317,8 +320,46 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // RENDER MOBILE LAYOUT (FROZEN FOR MOBILE)
   // -------------------------------------------------------------------------
   if (isMobile) {
+    const { permission, isIOS, isStandalone, register } = usePushNotifications();
+
     return (
       <div className="min-h-screen bg-slate-50/50 flex flex-col overflow-x-hidden">
+        {/* iOS PWA Notification Prompt - Crucial for User Gesture Requirement */}
+        {isIOS && permission === 'default' && (
+          <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-lg sticky top-0 z-[60] animate-in slide-in-from-top duration-500">
+            {isStandalone ? (
+              <>
+                <div className="flex items-center gap-3 text-left">
+                  <div className="h-8 w-8 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                    <BellRing className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black uppercase tracking-wider leading-none">Aktifkan Notifikasi</span>
+                    <span className="text-[10px] opacity-80 font-medium">Klik agar tidak telat absen</span>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => register()}
+                  className="bg-white text-blue-600 hover:bg-slate-100 h-8 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm shrink-0"
+                >
+                  Izinkan
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-3 w-full">
+                <div className="h-8 w-8 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                  <Smartphone className="h-4 w-4" />
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="text-[11px] font-black uppercase tracking-wider leading-none block">Pasang Aplikasi</span>
+                  <span className="text-[10px] opacity-80 font-medium leading-tight">Tekan ikon <span className="inline-block px-1 bg-white/20 rounded mx-0.5 whitespace-nowrap">↑</span> lalu 'Add to Home Screen' untuk notifikasi</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <main className="flex-1 pb-20 px-1 overflow-x-hidden">
           {children}
         </main>
