@@ -91,18 +91,18 @@ export default function QuickAttendancePage() {
                 let minDistance = Infinity;
                 let isValid = false;
                 let validOfficeRadius = null;
-                
+
                 for (const office of officeLocations) {
                     const dist = getDistanceFromLatLonInM(latitude, longitude, office.latitude, office.longitude);
                     if (dist < minDistance) minDistance = dist;
-                    
+
                     // Check if within this office's radius
                     if (dist <= office.radius_meters) {
                         isValid = true;
                         validOfficeRadius = office.radius_meters;
                     }
                 }
-                
+
                 setNearestOfficeDist(minDistance);
                 setIsLocationValid(isValid);
             } else {
@@ -133,7 +133,7 @@ export default function QuickAttendancePage() {
             // Find the nearest office and its radius for the error message
             let nearestOffice = null;
             let minDistance = Infinity;
-            
+
             for (const office of officeLocations) {
                 const dist = getDistanceFromLatLonInM(latitude, longitude, office.latitude, office.longitude);
                 if (dist < minDistance) {
@@ -141,7 +141,7 @@ export default function QuickAttendancePage() {
                     nearestOffice = office;
                 }
             }
-            
+
             const msg = nearestOffice ? `Jarak: ${Math.round(minDistance)}m (Max: ${nearestOffice.radius_meters}m)` : "Lokasi kantor tidak valid.";
             toast({
                 title: "Di Luar Jangkauan Kantor",

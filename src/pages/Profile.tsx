@@ -365,88 +365,6 @@ export default function ProfilePage() {
 
 
 
-  const [sendingTest, setSendingTest] = useState(false);
-  const sendTestNotification = async () => {
-    if (notificationPermission !== 'granted') {
-      toast({
-        title: "Izin Diperlukan",
-        description: "Silakan berikan izin notifikasi terlebih dahulu.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-
-    setSendingTest(true);
-    try {
-      // We'll call the Supabase Edge Function to send a push to this user
-      const { data, error } = await supabase.functions.invoke('send-push-notification', {
-        body: {
-          userId: user?.id,
-          title: "Tes Notifikasi Berhasil! 🎉",
-          body: "Ini adalah pesan percobaan dari sistem absensi Anda.",
-        }
-      });
-
-      console.log('Edge Function Response:', { data, error });
-
-      if (error) {
-        console.error('Edge Function Error Details:', {
-          message: error.message,
-          context: error.context,
-          details: error
-        });
-
-        // Try to get the actual response body
-        if (error.context && error.context instanceof Response) {
-          try {
-            const errorBody = await error.context.text();
-            console.error('Edge Function Error Body:', errorBody);
-            try {
-              const errorJson = JSON.parse(errorBody);
-              console.error('Edge Function Error JSON:', errorJson);
-              throw new Error(`Server Error: ${errorJson.error || errorJson.message || errorBody}`);
-            } catch (parseError) {
-              throw new Error(`Server Error: ${errorBody}`);
-            }
-          } catch (readError) {
-            console.error('Could not read error body:', readError);
-          }
-        }
-
-        throw error;
-      }
-
-      // Check if any of the results failed
-      const results = data.results || [];
-      const failed = results.filter((r: any) => r.status !== 200 || (r.result && r.result.error));
-
-      if (failed.length > 0 && results.length === failed.length) {
-        const errorDetail = failed[0].result?.error?.message || "Token tidak valid";
-        throw new Error(`Google menolak pesan: ${errorDetail}`);
-      }
-
-      toast({
-        title: "Terkirim!",
-        description: failed.length > 0
-          ? `Terkirim ke ${results.length - failed.length} perangkat, tapi ${failed.length} gagal.`
-          : "Cek bar notifikasi HP Anda sekarang.",
-        variant: failed.length > 0 ? "default" : "default"
-      });
-    } catch (error: any) {
-      console.error('Error sending test push:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-
-      toast({
-        title: "Gagal Mengirim",
-        description: error.message || "Pastikan token sudah terdaftar atau coba lagi nanti.",
-        variant: "destructive"
-      });
-    } finally {
-      setSendingTest(false);
-    }
-
-  };
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -897,24 +815,6 @@ export default function ProfilePage() {
                     ))}
                   </div>
 
-                  {notificationPermission === 'granted' && (
-                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-500 text-xs font-medium">
-                        <Info className="h-3.5 w-3.5" />
-                        <span>Notifikasi aktif untuk perangkat ini.</span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl border-blue-200 text-blue-600 font-bold hover:bg-blue-50"
-                        onClick={sendTestNotification}
-                        disabled={sendingTest}
-                      >
-                        {sendingTest ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Bell className="h-3 w-3 mr-2" />}
-                        Tes Notifikasi
-                      </Button>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1165,24 +1065,6 @@ export default function ProfilePage() {
                   </div>
                 ))}
 
-                {notificationPermission === 'granted' && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium">
-                      <Info className="h-3 w-3" />
-                      <span>Notifikasi aktif di HP ini</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 px-4 rounded-xl border-blue-100 text-blue-600 font-bold text-xs"
-                      onClick={sendTestNotification}
-                      disabled={sendingTest}
-                    >
-                      {sendingTest ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Bell className="h-3 w-3 mr-2" />}
-                      Tes Notifikasi
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>

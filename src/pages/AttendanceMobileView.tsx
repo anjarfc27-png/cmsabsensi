@@ -9,13 +9,13 @@ import {
     Loader2,
     ChevronLeft,
     Clock,
+    Camera,
     CheckCircle2,
     MapPin,
     AlertOctagon,
     RefreshCw,
     LogIn,
     LogOut,
-    Camera,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -179,7 +179,19 @@ export default function AttendanceMobileView({
                                 <p className="text-[10px] text-blue-50 font-bold opacity-80 uppercase tracking-widest leading-none">Record your activity</p>
                             </div>
                         </div>
-                        <WibClock />
+                        <div className="flex items-center gap-2">
+                            {!todayAttendance?.clock_out && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setReminderOpen(true)}
+                                    className="text-white hover:bg-white/20 h-10 w-10 rounded-full"
+                                >
+                                    <BellPlus className="h-5 w-5" />
+                                </Button>
+                            )}
+                            <WibClock />
+                        </div>
                     </div>
 
                     {/* Attendance Form */}

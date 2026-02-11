@@ -134,7 +134,8 @@ export default function NotificationsPage() {
             n.message.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = filterType === 'all' || n.type === filterType;
         const matchesRead = filterRead === 'all' || (filterRead === 'unread' && !n.read);
-        return matchesSearch && matchesType && matchesRead;
+        const isPushOnly = n.type && n.type.startsWith('push_');
+        return matchesSearch && matchesType && matchesRead && !isPushOnly;
     });
 
     const categories = [
@@ -179,45 +180,6 @@ export default function NotificationsPage() {
                                         Baca Semua
                                     </Button>
                                 )}
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={async () => {
-                                        if (Capacitor.isNativePlatform()) {
-                                            try {
-                                                const perm = await LocalNotifications.checkPermissions();
-                                                if (perm.display !== 'granted') {
-                                                    await LocalNotifications.requestPermissions();
-                                                }
-                                                await LocalNotifications.schedule({
-                                                    notifications: [
-                                                        {
-                                                            title: "CMS Duta Solusi",
-                                                            body: "Sistem notifikasi Anda telah aktif! 🚀",
-                                                            id: 1,
-                                                            schedule: { at: new Date(Date.now() + 1000) },
-                                                            sound: undefined,
-                                                            attachments: undefined,
-                                                            extra: null
-                                                        }
-                                                    ]
-                                                });
-                                            } catch (e) {
-                                                console.error('Local Notification Error:', e);
-                                            }
-                                        } else {
-                                            import('sonner').then(({ toast }) => {
-                                                toast.success('Test Notifikasi', {
-                                                    description: 'Notifikasi browser berfungsi dengan baik! 🎉'
-                                                });
-                                            });
-                                        }
-                                    }}
-                                    className="text-white hover:bg-white/20 text-xs font-bold"
-                                >
-                                    <Bell className="h-4 w-4 mr-2" />
-                                    Test
-                                </Button>
                             </div>
                         </div>
 
