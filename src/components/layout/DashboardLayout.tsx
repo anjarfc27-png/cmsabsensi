@@ -44,7 +44,6 @@ import {
   Settings,
   Camera,
   BellRing,
-  Smartphone,
   Info as InfoIcon
 } from 'lucide-react';
 import { AppLogo } from '@/components/AppLogo';
