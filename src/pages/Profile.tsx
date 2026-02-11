@@ -376,6 +376,7 @@ export default function ProfilePage() {
       return;
     }
 
+
     setSendingTest(true);
     try {
       // We'll call the Supabase Edge Function to send a push to this user
@@ -387,7 +388,34 @@ export default function ProfilePage() {
         }
       });
 
-      if (error) throw error;
+      console.log('Edge Function Response:', { data, error });
+
+      if (error) {
+        console.error('Edge Function Error Details:', {
+          message: error.message,
+          context: error.context,
+          details: error
+        });
+
+        // Try to get the actual response body
+        if (error.context && error.context instanceof Response) {
+          try {
+            const errorBody = await error.context.text();
+            console.error('Edge Function Error Body:', errorBody);
+            try {
+              const errorJson = JSON.parse(errorBody);
+              console.error('Edge Function Error JSON:', errorJson);
+              throw new Error(`Server Error: ${errorJson.error || errorJson.message || errorBody}`);
+            } catch (parseError) {
+              throw new Error(`Server Error: ${errorBody}`);
+            }
+          } catch (readError) {
+            console.error('Could not read error body:', readError);
+          }
+        }
+
+        throw error;
+      }
 
       // Check if any of the results failed
       const results = data.results || [];
@@ -407,6 +435,8 @@ export default function ProfilePage() {
       });
     } catch (error: any) {
       console.error('Error sending test push:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+
       toast({
         title: "Gagal Mengirim",
         description: error.message || "Pastikan token sudah terdaftar atau coba lagi nanti.",
@@ -415,6 +445,7 @@ export default function ProfilePage() {
     } finally {
       setSendingTest(false);
     }
+
   };
 
   const handleLogout = async () => {

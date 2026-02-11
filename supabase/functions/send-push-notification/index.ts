@@ -108,10 +108,23 @@ serve(async (req) => {
         // Get Firebase Service Account from environment
         const serviceAccountJson = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
         if (!serviceAccountJson) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT not configured')
+            console.error('FIREBASE_SERVICE_ACCOUNT environment variable is not set');
+            return new Response(
+                JSON.stringify({ error: 'System configuration error: Firebase credentials missing' }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
-        const serviceAccount = JSON.parse(serviceAccountJson)
+        let serviceAccount;
+        try {
+            serviceAccount = JSON.parse(serviceAccountJson)
+        } catch (e) {
+            console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:', e);
+            return new Response(
+                JSON.stringify({ error: 'System configuration error: Invalid Firebase credentials format' }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
         const projectId = serviceAccount.project_id
 
         // Get OAuth2 access token
@@ -291,11 +304,33 @@ serve(async (req) => {
         )
     } catch (error) {
         console.error('Error in send-push-notification:', error)
+        console.error('Error type:', typeof error)
+        console.error('Error stringified:', JSON.stringify(error, null, 2))
 
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        let errorMessage = 'Unknown error'
+        let errorDetails: any = {}
+
+        if (error instanceof Error) {
+            errorMessage = error.message
+            errorDetails = {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            }
+        } else if (typeof error === 'object' && error !== null) {
+            errorMessage = JSON.stringify(error)
+            errorDetails = error
+        } else {
+            errorMessage = String(error)
+            errorDetails = { raw: String(error) }
+        }
 
         return new Response(
-            JSON.stringify({ error: errorMessage }),
+            JSON.stringify({
+                error: errorMessage,
+                details: errorDetails,
+                timestamp: new Date().toISOString()
+            }),
             {
                 status: 500,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
