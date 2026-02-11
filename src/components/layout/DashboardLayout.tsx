@@ -220,7 +220,7 @@ const getNavGroups = (role: string) => {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { permission, isIOS, register } = usePushNotifications();
+  const { permission, isIOS, isStandalone, register } = usePushNotifications();
   const { profile, roles, activeRole, switchRole, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -319,7 +319,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // RENDER MOBILE LAYOUT (FROZEN FOR MOBILE)
   // -------------------------------------------------------------------------
   if (isMobile) {
-    const { permission, isIOS, isStandalone, register } = usePushNotifications();
 
     return (
       <div className="min-h-screen bg-slate-50/50 flex flex-col overflow-x-hidden">
