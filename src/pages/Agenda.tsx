@@ -326,26 +326,9 @@ export default function AgendaPage() {
                     const { error: partError } = await supabase.from('agenda_participants').insert(participantData);
                     if (partError) throw partError;
 
-                    // --- SEND NOTIFICATIONS TO PARTICIPANTS ---
-                    // Only send if it's a NEW agenda or significantly updated (logic simplified here)
-                    const notifTitle = isEditing ? 'Perubahan Jadwal Agenda' : 'Undangan Agenda Baru';
-                    const notifMessage = isEditing
-                        ? `Agenda "${form.title}" telah diperbarui. Cek jadwal terbaru.`
-                        : `Anda diundang ke agenda "${form.title}" pada ${format(new Date(form.startDate), 'dd MMMM yyyy', { locale: id })} pukul ${form.startTime} WIB.`;
-
-                    const notifications = selectedParticipants.map(uid => ({
-                        user_id: uid,
-                        title: notifTitle,
-                        message: notifMessage,
-                        type: 'info', // or 'agenda' if you have that type
-                        read: false,
-
-                        created_at: new Date().toISOString()
-                        // link: '/agenda' // Optional if your notification table supports link
-                    }));
-
-                    // Fire and forget notification insert
-                    await supabase.from('notifications').insert(notifications);
+                    // NOTE: Notifications are now handled automatically by database trigger
+                    // See migration: 105_fix_agenda_notifications.sql
+                    // Database trigger sends rich notifications to all participants when they are added
                 }
             }
 

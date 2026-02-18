@@ -35,7 +35,9 @@ import {
   StickyNote,
   CalendarDays,
   CheckCircle2,
-  UserCheck
+  UserCheck,
+  Fingerprint,
+  UserX
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
