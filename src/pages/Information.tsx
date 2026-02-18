@@ -66,6 +66,7 @@ export default function InformationPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newContent, setNewContent] = useState('');
+    const [newExpiresAt, setNewExpiresAt] = useState('');
     const [sendNotification, setSendNotification] = useState(true);
 
     // Filtering State
@@ -110,6 +111,7 @@ export default function InformationPage() {
         setCurrentId(null);
         setNewTitle('');
         setNewContent('');
+        setNewExpiresAt('');
         setSendNotification(true);
         setIsCreateOpen(true);
     };
@@ -119,6 +121,7 @@ export default function InformationPage() {
         setCurrentId(ann.id);
         setNewTitle(ann.title);
         setNewContent(ann.content);
+        setNewExpiresAt(ann.expires_at ? ann.expires_at.slice(0, 16) : '');
         setSendNotification(false);
         setIsCreateOpen(true);
     };
@@ -147,6 +150,7 @@ export default function InformationPage() {
                     .update({
                         title: newTitle,
                         content: newContent,
+                        expires_at: newExpiresAt ? new Date(newExpiresAt).toISOString() : null,
                     })
                     .eq('id', currentId);
 
@@ -158,7 +162,8 @@ export default function InformationPage() {
                         p_title: newTitle,
                         p_content: newContent,
                         p_created_by: user?.id,
-                        p_send_notification: sendNotification
+                        p_send_notification: sendNotification,
+                        p_expires_at: newExpiresAt ? new Date(newExpiresAt).toISOString() : null
                     });
 
                 if (error) throw error;
@@ -168,6 +173,7 @@ export default function InformationPage() {
             await fetchAnnouncements();
             setNewTitle('');
             setNewContent('');
+            setNewExpiresAt('');
             setIsCreateOpen(false);
         } catch (error: any) {
             console.error('Error saving announcement:', error);
@@ -611,6 +617,16 @@ export default function InformationPage() {
                                 className="min-h-[180px] rounded-2xl bg-slate-50 border-slate-200 p-5 resize-none transition-all text-sm leading-relaxed"
                                 placeholder="Detail informasi..."
                             />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Tampil Sampai (Opsional)</Label>
+                            <Input
+                                type="datetime-local"
+                                value={newExpiresAt}
+                                onChange={(e) => setNewExpiresAt(e.target.value)}
+                                className="h-14 rounded-2xl bg-slate-50 border-slate-200 font-bold focus:bg-white text-slate-900 px-5 focus:ring-8 focus:ring-blue-500/5 transition-all outline-none"
+                            />
+                            <p className="text-[10px] text-slate-400 font-medium pl-1">Jika dikosongkan, pengumuman tampil selamanya.</p>
                         </div>
                         <div className="flex items-center gap-5 bg-blue-50/50 p-6 rounded-3xl border border-blue-100 shadow-inner">
                             <Checkbox
