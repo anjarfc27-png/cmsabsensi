@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Search, Megaphone, Calendar, ChevronRight, Plus, Loader2, Info, Edit, Trash2, MoreVertical, ArrowLeft } from 'lucide-react';
+import { Search, Megaphone, Calendar, ChevronRight, Plus, Loader2, Info, Edit, Trash2, MoreVertical, ArrowLeft, Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useVoiceCall } from '@/hooks/useVoiceCall';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -39,6 +41,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { cn } from '@/lib/utils';
 
+const months = [
+    { v: '01', l: 'Januari' }, { v: '02', l: 'Februari' }, { v: '03', l: 'Maret' },
+    { v: '04', l: 'April' }, { v: '05', l: 'Mei' }, { v: '06', l: 'Juni' },
+    { v: '07', l: 'Juli' }, { v: '08', l: 'Agustus' }, { v: '09', l: 'September' },
+    { v: '10', l: 'Oktober' }, { v: '11', l: 'November' }, { v: '12', l: 'Desember' }
+];
+
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
+
 interface Announcement {
     id: string;
     title: string;
@@ -58,6 +70,8 @@ export default function InformationPage() {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [callHistory, setCallHistory] = useState<any[]>([]);
+    const { startCall } = useVoiceCall();
 
     // Create/Edit Announcement State
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -70,7 +84,7 @@ export default function InformationPage() {
     const [sendNotification, setSendNotification] = useState(true);
 
     // Filtering State
-    const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+    const [activeTab, setActiveTab] = useState<'active' | 'history' | 'calls'>('active');
     const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'MM'));
     const [selectedYear, setSelectedYear] = useState<string>(format(new Date(), 'yyyy'));
 
@@ -82,7 +96,26 @@ export default function InformationPage() {
 
     useEffect(() => {
         fetchAnnouncements();
-    }, []);
+        fetchCalls();
+    }, [user?.id, activeTab === 'calls']);
+
+    const fetchCalls = async () => {
+        if (!user?.id) return;
+        const { data, error } = await supabase
+            .from('calls' as any)
+            .select(`
+                *,
+                caller:profiles!caller_id(id, full_name, avatar_url),
+                receiver:profiles!receiver_id(id, full_name, avatar_url)
+            `)
+            .or(`caller_id.eq.${user.id},receiver_id.eq.${user.id}`)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        if (!error && data) {
+            setCallHistory(data);
+        }
+    };
 
     const fetchAnnouncements = async () => {
         setLoading(true);
@@ -217,26 +250,13 @@ export default function InformationPage() {
 
         if (activeTab === 'active') {
             return matchesSearch && isActiveState;
-        } else {
-            // History: Show all announcements matching month/year that are NOT active
-            // (either expired, deactivated, or soft-deleted)
+        } else if (activeTab === 'history') {
             const matchesMonth = format(date, 'MM') === selectedMonth;
             const matchesYear = format(date, 'yyyy') === selectedYear;
-
-            // Only show in history if it's NOT in the active list
             return matchesSearch && !isActiveState && matchesMonth && matchesYear;
         }
+        return false;
     });
-
-    const months = [
-        { v: '01', l: 'Januari' }, { v: '02', l: 'Februari' }, { v: '03', l: 'Maret' },
-        { v: '04', l: 'April' }, { v: '05', l: 'Mei' }, { v: '06', l: 'Juni' },
-        { v: '07', l: 'Juli' }, { v: '08', l: 'Agustus' }, { v: '09', l: 'September' },
-        { v: '10', l: 'Oktober' }, { v: '11', l: 'November' }, { v: '12', l: 'Desember' }
-    ];
-
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
 
     if (isMobile) {
         return (
@@ -272,7 +292,7 @@ export default function InformationPage() {
                             </p>
                         </div>
 
-                        {/* Mobile Tabs & Filters */}
+                        {/* Mobile Tabs */}
                         <div className="flex flex-col gap-4 -mt-4 mb-6">
                             <div className="flex p-1 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
                                 <button
@@ -293,106 +313,142 @@ export default function InformationPage() {
                                 >
                                     Riwayat
                                 </button>
-                            </div>
-
-                            <div className="bg-white rounded-2xl shadow-xl shadow-blue-900/5 p-2 space-y-2">
-                                <div className="relative">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                                    <Input
-                                        placeholder="Cari info..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-12 h-12 bg-transparent border-none shadow-none focus-visible:ring-0 text-base placeholder:text-slate-400"
-                                    />
-                                </div>
-
-                                {activeTab === 'history' && (
-                                    <div className="flex gap-2 p-2 border-t border-slate-50 pt-4">
-                                        <select
-                                            value={selectedMonth}
-                                            onChange={(e) => setSelectedMonth(e.target.value)}
-                                            className="flex-1 h-10 px-3 rounded-xl border border-slate-100 bg-slate-50 text-[10px] font-bold outline-none"
-                                        >
-                                            {months.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
-                                        </select>
-                                        <select
-                                            value={selectedYear}
-                                            onChange={(e) => setSelectedYear(e.target.value)}
-                                            className="w-24 h-10 px-3 rounded-xl border border-slate-100 bg-slate-50 text-[10px] font-bold outline-none"
-                                        >
-                                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                        </select>
-                                    </div>
-                                )}
+                                <button
+                                    onClick={() => setActiveTab('calls')}
+                                    className={cn(
+                                        "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                        activeTab === 'calls' ? "bg-white text-blue-600 shadow-lg" : "text-white/70 hover:text-white"
+                                    )}
+                                >
+                                    Telepon
+                                </button>
                             </div>
                         </div>
 
-                        {loading ? (
-                            <div className="space-y-4">
-                                {[1, 2, 3].map(i => (
-                                    <Skeleton key={i} className="h-40 w-full rounded-2xl" />
-                                ))}
-                            </div>
-                        ) : filteredAnnouncements.length > 0 ? (
-                            <div className="space-y-4 pb-12">
-                                {filteredAnnouncements.map((ann, idx) => (
-                                    <Card key={ann.id} className={cn(
-                                        "border-none shadow-sm rounded-2xl overflow-hidden",
-                                        idx === 0 ? "bg-gradient-to-br from-blue-600 to-indigo-700 text-white" : "bg-white"
-                                    )}>
-                                        <CardContent className="p-5">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <Badge className={cn(
-                                                    "text-[9px] px-2 py-0 h-4 border-none",
-                                                    idx === 0 && activeTab === 'active' ? "bg-white/20 text-white" : "bg-blue-50 text-blue-600"
-                                                )}>
-                                                    {ann.deleted_at ? 'Terhapus' : (ann.expires_at && new Date(ann.expires_at) <= new Date() ? 'Berakhir' : (!ann.is_active ? 'Draft' : (idx === 0 && activeTab === 'active' ? 'Terbaru' : 'Info')))}
-                                                </Badge>
-                                                <span className={cn(
-                                                    "text-[10px] font-medium",
-                                                    idx === 0 ? "text-blue-100" : "text-slate-400"
-                                                )}>
-                                                    {format(new Date(ann.created_at), 'd MMM yyyy', { locale: id })}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between items-start gap-2">
-                                                <h3 className={cn(
-                                                    "font-bold text-sm mb-2 line-clamp-2 flex-1",
-                                                    idx === 0 ? "text-white" : "text-slate-800"
-                                                )}>{ann.title}</h3>
-                                                {isAdmin && (
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className={cn("h-6 w-6 -mr-2 -mt-1", idx === 0 ? "text-blue-200 hover:text-white hover:bg-white/20" : "text-slate-300 hover:text-slate-600")}>
-                                                                <MoreVertical className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="rounded-xl">
-                                                            {!ann.deleted_at && (
-                                                                <DropdownMenuItem onClick={() => handleOpenEdit(ann)}>
-                                                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                            <DropdownMenuItem onClick={() => handleOpenDelete(ann)} className="text-red-600">
-                                                                <Trash2 className="mr-2 h-4 w-4" /> {ann.deleted_at ? 'Hapus Permanen' : 'Hapus'}
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                )}
-                                            </div>
-                                            <p className={cn(
-                                                "text-xs line-clamp-2",
-                                                idx === 0 ? "text-blue-50" : "text-slate-500"
-                                            )}>{ann.content}</p>
-                                        </CardContent>
-                                    </Card>
-                                ))}
+                        {activeTab === 'calls' ? (
+                            <div className="space-y-3 pb-24">
+                                {callHistory.length > 0 ? (
+                                    callHistory.map((call) => {
+                                        const isOutgoing = call.caller_id === user?.id;
+                                        const peer = isOutgoing ? call.receiver : call.caller;
+                                        const status = call.status;
+
+                                        return (
+                                            <Card key={call.id} className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+                                                <CardContent className="p-4 flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="relative">
+                                                            <Avatar className="h-12 w-12 border border-slate-100">
+                                                                <AvatarImage src={peer?.avatar_url} />
+                                                                <AvatarFallback className="bg-slate-100 text-slate-500 font-bold uppercase">
+                                                                    {peer?.full_name?.substring(0, 2)}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className={cn(
+                                                                "absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center border-2 border-white",
+                                                                status === 'missed' ? "bg-red-50 text-red-600" : (isOutgoing ? "bg-blue-50 text-blue-600" : "bg-green-50 text-green-600")
+                                                            )}>
+                                                                {status === 'missed' ? <PhoneMissed className="h-2.5 w-2.5" /> : (isOutgoing ? <PhoneOutgoing className="h-2.5 w-2.5" /> : <PhoneIncoming className="h-2.5 w-2.5" />)}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-900 text-sm">{peer?.full_name || 'User'}</h4>
+                                                            <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                                                                <Clock className="h-3 w-3" />
+                                                                {format(new Date(call.created_at), 'd MMM, HH:mm', { locale: id })}
+                                                                <span className="capitalize">• {status}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-10 w-10 rounded-full text-blue-600 bg-blue-50 hover:bg-blue-100"
+                                                        onClick={() => peer?.id && startCall(peer.id, peer.full_name)}
+                                                    >
+                                                        <Phone className="h-4 w-4 fill-blue-600" />
+                                                    </Button>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center py-20 bg-white rounded-[32px] border border-slate-100">
+                                        <Phone className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                                        <p className="text-slate-400 text-sm font-bold">Belum ada riwayat telepon.</p>
+                                    </div>
+                                )}
                             </div>
                         ) : (
-                            <div className="text-center py-20">
-                                <Info className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                                <p className="text-slate-400 text-sm">Tidak ada pengumuman.</p>
-                            </div>
+                            <>
+                                {loading ? (
+                                    <div className="space-y-4">
+                                        {[1, 2, 3].map(i => (
+                                            <Skeleton key={i} className="h-40 w-full rounded-2xl" />
+                                        ))}
+                                    </div>
+                                ) : filteredAnnouncements.length > 0 ? (
+                                    <div className="space-y-4 pb-12">
+                                        {filteredAnnouncements.map((ann, idx) => (
+                                            <Card key={ann.id} className={cn(
+                                                "border-none shadow-sm rounded-2xl overflow-hidden",
+                                                idx === 0 ? "bg-gradient-to-br from-blue-600 to-indigo-700 text-white" : "bg-white"
+                                            )}>
+                                                <CardContent className="p-5">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <Badge className={cn(
+                                                            "text-[9px] px-2 py-0 h-4 border-none",
+                                                            idx === 0 && activeTab === 'active' ? "bg-white/20 text-white" : "bg-blue-50 text-blue-600"
+                                                        )}>
+                                                            {ann.deleted_at ? 'Terhapus' : (ann.expires_at && new Date(ann.expires_at) <= new Date() ? 'Berakhir' : (!ann.is_active ? 'Draft' : (idx === 0 && activeTab === 'active' ? 'Terbaru' : 'Info')))}
+                                                        </Badge>
+                                                        <span className={cn(
+                                                            "text-[10px] font-medium",
+                                                            idx === 0 ? "text-blue-100" : "text-slate-400"
+                                                        )}>
+                                                            {format(new Date(ann.created_at), 'd MMM yyyy', { locale: id })}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <h3 className={cn(
+                                                            "font-bold text-sm mb-2 line-clamp-2 flex-1",
+                                                            idx === 0 ? "text-white" : "text-slate-800"
+                                                        )}>{ann.title}</h3>
+                                                        {isAdmin && (
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 -mr-2 -mt-1", idx === 0 ? "text-blue-200 hover:text-white hover:bg-white/20" : "text-slate-300 hover:text-slate-600")}>
+                                                                        <MoreVertical className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end" className="rounded-xl">
+                                                                    {!ann.deleted_at && (
+                                                                        <DropdownMenuItem onClick={() => handleOpenEdit(ann)}>
+                                                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    <DropdownMenuItem onClick={() => handleOpenDelete(ann)} className="text-red-600">
+                                                                        <Trash2 className="mr-2 h-4 w-4" /> {ann.deleted_at ? 'Hapus Permanen' : 'Hapus'}
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        )}
+                                                    </div>
+                                                    <p className={cn(
+                                                        "text-xs line-clamp-2",
+                                                        idx === 0 ? "text-blue-50" : "text-slate-500"
+                                                    )}>{ann.content}</p>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-20">
+                                        <Info className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                                        <p className="text-slate-400 text-sm">Tidak ada pengumuman.</p>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -433,7 +489,6 @@ export default function InformationPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        {/* Tab Switcher */}
                         <div className="flex items-center p-1 bg-slate-100 rounded-xl mr-2">
                             <button
                                 onClick={() => setActiveTab('active')}
@@ -452,6 +507,15 @@ export default function InformationPage() {
                                 )}
                             >
                                 Riwayat
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('calls')}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                                    activeTab === 'calls' ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                Telepon
                             </button>
                         </div>
 
@@ -484,7 +548,7 @@ export default function InformationPage() {
                             </div>
                         )}
 
-                        {isAdmin && (
+                        {isAdmin && activeTab !== 'calls' && (
                             <Button
                                 onClick={handleOpenCreate}
                                 className="bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-100 h-12 px-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
@@ -496,108 +560,155 @@ export default function InformationPage() {
                     </div>
                 </div>
 
-                {/* Dense Activity List (Inbox Style) */}
-                {loading ? (
-                    <div className="space-y-2">
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                            <Skeleton key={i} className="h-14 w-full rounded-xl" />
-                        ))}
-                    </div>
-                ) : filteredAnnouncements.length > 0 ? (
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                        {/* List Header Table Style */}
-                        <div className="hidden md:grid grid-cols-12 gap-4 px-8 py-4 bg-slate-50 border-b border-slate-100 uppercase tracking-[0.2em] font-black text-[9px] text-slate-400">
-                            <div className="col-span-2">Waktu</div>
-                            <div className="col-span-4">Judul Informasi</div>
-                            <div className="col-span-4">Preview Pesan</div>
-                            <div className="col-span-2 text-right">Opsi</div>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+                    <div className="md:col-span-8 space-y-6">
+                        {activeTab === 'calls' ? (
+                            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
+                                {callHistory.length > 0 ? (
+                                    callHistory.map((call) => {
+                                        const isOutgoing = call.caller_id === user?.id;
+                                        const peer = isOutgoing ? call.receiver : call.caller;
+                                        const status = call.status;
 
-                        <div className="divide-y divide-slate-50">
-                            {filteredAnnouncements.map((ann) => (
-                                <div
-                                    key={ann.id}
-                                    className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center px-8 py-4 hover:bg-slate-50 transition-all cursor-pointer group"
-                                >
-                                    {/* Date & Time Column */}
-                                    <div className="col-span-2 flex flex-col">
-                                        <span className="text-xs font-black text-slate-900">{format(new Date(ann.created_at), 'd MMM yyyy')}</span>
-                                        <span className="text-[10px] text-slate-400 font-bold">{format(new Date(ann.created_at), 'HH:mm')}</span>
-                                    </div>
-
-                                    {/* Title Column */}
-                                    <div className="col-span-4 flex items-center gap-3">
-                                        <h3 className="text-sm font-black text-slate-800 line-clamp-1 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
-                                            {ann.title}
-                                        </h3>
-                                        {ann.deleted_at && <Badge variant="destructive" className="text-[8px] h-4 px-1.5 uppercase font-black tracking-widest bg-red-50 text-red-600 border-red-100">Dihapus</Badge>}
-                                        {ann.expires_at && new Date(ann.expires_at) <= new Date() && !ann.deleted_at && <Badge variant="outline" className="text-[8px] h-4 px-1.5 uppercase font-black tracking-widest text-slate-400 border-slate-200">Berakhir</Badge>}
-                                        {!ann.is_active && !ann.deleted_at && <Badge variant="outline" className="text-[8px] h-4 px-1.5 uppercase font-black tracking-widest text-orange-400 border-orange-100">Draft</Badge>}
-                                    </div>
-
-                                    {/* Content Column */}
-                                    <div className="col-span-4">
-                                        <p className="text-xs text-slate-500 line-clamp-1 opacity-60 font-medium italic">
-                                            {ann.content}
-                                        </p>
-                                    </div>
-
-                                    {/* Action Column */}
-                                    <div className="col-span-2 flex justify-end items-center gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {isAdmin ? (
-                                            <>
-                                                {!ann.deleted_at && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(ann); }}
-                                                        className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm"
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                )}
+                                        return (
+                                            <div key={call.id} className="p-6 hover:bg-slate-50/50 transition-colors flex items-center justify-between group">
+                                                <div className="flex items-center gap-5">
+                                                    <div className="relative">
+                                                        <Avatar className="h-14 w-14 border-4 border-slate-50 shadow-sm">
+                                                            <AvatarImage src={peer?.avatar_url} />
+                                                            <AvatarFallback className="bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500 font-black text-lg">
+                                                                {peer?.full_name?.substring(0, 2).toUpperCase()}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div className={cn(
+                                                            "absolute -bottom-1 -right-1 h-7 w-7 rounded-full flex items-center justify-center border-4 border-white",
+                                                            status === 'missed' ? "bg-red-50 text-red-600" : (isOutgoing ? "bg-blue-50 text-blue-600" : "bg-green-50 text-green-600")
+                                                        )}>
+                                                            {status === 'missed' ? <PhoneMissed className="h-3.5 w-3.5" /> : (isOutgoing ? <PhoneOutgoing className="h-3.5 w-3.5" /> : <PhoneIncoming className="h-3.5 w-3.5" />)}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{peer?.full_name}</h3>
+                                                        <div className="flex items-center gap-3 mt-1">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                                <Clock className="h-3.5 w-3.5" />
+                                                                {format(new Date(call.created_at), 'eeee, d MMM yyyy - HH:mm', { locale: id })}
+                                                            </span>
+                                                            <Badge variant="outline" className={cn(
+                                                                "text-[8px] h-4 px-1.5 uppercase font-black tracking-widest border-none",
+                                                                status === 'missed' ? "bg-red-100 text-red-600" : (isOutgoing ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600")
+                                                            )}>
+                                                                {isOutgoing ? 'Outgoing' : (status === 'missed' ? 'Missed' : 'Incoming')} • {status}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={(e) => { e.stopPropagation(); handleOpenDelete(ann); }}
-                                                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg shadow-sm"
+                                                    onClick={() => peer?.id && startCall(peer.id, peer.full_name)}
+                                                    className="h-12 w-12 rounded-2xl bg-white border border-slate-100 shadow-sm text-blue-600 hover:bg-blue-50 hover:border-blue-100 transition-all active:scale-95"
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    <Phone className="h-5 w-5 fill-blue-600" />
                                                 </Button>
-                                            </>
-                                        ) : (
-                                            <div className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-300">
-                                                <ChevronRight className="h-5 w-5" />
                                             </div>
-                                        )}
+                                        );
+                                    })
+                                ) : (
+                                    <div className="py-32 text-center">
+                                        <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <Phone className="h-8 w-8 text-slate-200" />
+                                        </div>
+                                        <h3 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Belum ada Riwayat Telepon</h3>
+                                        <p className="text-slate-400 text-sm max-w-xs mx-auto">Riwayat panggilan suara Anda akan terkumpul di sini secara otomatis.</p>
                                     </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                                <div className="hidden md:grid grid-cols-12 gap-4 px-8 py-4 bg-slate-50 border-b border-slate-100 uppercase tracking-[0.2em] font-black text-[9px] text-slate-400">
+                                    <div className="col-span-2">Waktu</div>
+                                    <div className="col-span-4">Judul Informasi</div>
+                                    <div className="col-span-4">Preview Pesan</div>
+                                    <div className="col-span-2 text-right">Opsi</div>
                                 </div>
-                            ))}
-                        </div>
+
+                                <div className="divide-y divide-slate-50">
+                                    {loading ? (
+                                        [1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 w-full rounded-none" />)
+                                    ) : filteredAnnouncements.length > 0 ? (
+                                        filteredAnnouncements.map((ann) => (
+                                            <div key={ann.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center px-8 py-5 hover:bg-slate-50/80 transition-all group cursor-default">
+                                                <div className="col-span-2 flex flex-col">
+                                                    <span className="text-xs font-black text-slate-900">{format(new Date(ann.created_at), 'd MMM yyyy')}</span>
+                                                    <span className="text-[10px] text-slate-400 font-bold">{format(new Date(ann.created_at), 'HH:mm')}</span>
+                                                </div>
+                                                <div className="col-span-4">
+                                                    <h3 className="text-sm font-black text-slate-800 line-clamp-1 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{ann.title}</h3>
+                                                    <div className="flex gap-1.5 mt-1">
+                                                        {ann.deleted_at && <Badge className="text-[8px] h-4 px-1.5 bg-red-50 text-red-600 border-none">Dihapus</Badge>}
+                                                        {ann.expires_at && new Date(ann.expires_at) <= new Date() && <Badge className="text-[8px] h-4 px-1.5 bg-orange-50 text-orange-600 border-none">Berakhir</Badge>}
+                                                        {!ann.is_active && !ann.deleted_at && <Badge className="text-[8px] h-4 px-1.5 bg-slate-100 text-slate-400 border-none">Draft</Badge>}
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-4 text-xs text-slate-500 line-clamp-1 italic opacity-60">
+                                                    {ann.content}
+                                                </div>
+                                                <div className="col-span-2 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {isAdmin && !ann.deleted_at && (
+                                                        <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(ann)} className="h-9 w-9 rounded-xl text-blue-600 hover:bg-blue-50">
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    {isAdmin && (
+                                                        <Button variant="ghost" size="icon" onClick={() => handleOpenDelete(ann)} className="h-9 w-9 rounded-xl text-red-600 hover:bg-red-50">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="py-20 text-center">
+                                            <Info className="h-8 w-8 text-slate-200 mx-auto mb-3" />
+                                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Tidak ada pengumuman</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                ) : (
-                    <div className="text-center py-32 bg-slate-50/50 rounded-[40px] border-2 border-dashed border-slate-200">
-                        <div className="h-24 w-24 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-slate-200/50">
-                            <Info className="h-10 w-10 text-slate-200" />
-                        </div>
-                        <h3 className="text-xl font-black text-slate-900 tracking-tighter">Database Kosong</h3>
-                        <p className="text-slate-500 mt-2 max-w-xs mx-auto text-sm font-medium px-4">
-                            Tidak ditemukan informasi publik dalam kriteria pencarian ini.
-                        </p>
+
+                    <div className="md:col-span-4 space-y-6">
+                        <Card className="border-none shadow-xl shadow-blue-900/5 rounded-[41px] bg-gradient-to-br from-blue-600 to-indigo-700 text-white overflow-hidden relative">
+                            <CardContent className="p-10 relative z-10">
+                                <h3 className="font-black text-lg mb-2 tracking-tight">SDM & Karyawan</h3>
+                                <p className="text-blue-100 text-xs font-medium mb-8 leading-relaxed">
+                                    Butuh menghubungi rekan kerja? Gunakan fitur panggilan suara langsung dari daftar karyawan.
+                                </p>
+                                <Button
+                                    variant="secondary"
+                                    className="w-full rounded-2xl h-14 font-black uppercase tracking-widest text-xs bg-white text-blue-600 hover:bg-white/90"
+                                    onClick={() => navigate('/employees')}
+                                >
+                                    Lihat Tim Kami
+                                </Button>
+                            </CardContent>
+                        </Card>
                     </div>
-                )}
+                </div>
             </div>
 
-            {/* Create/Edit Modal - Full Width on Mobile, Compact on Desktop */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent className="sm:max-w-[550px] border-none shadow-2xl p-0 overflow-hidden rounded-[32px]">
-                    <div className="bg-slate-900 p-10 text-white">
-                        <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                                <Plus className="h-7 w-7" />
-                            </div>
-                            {isEditing ? 'Perbarui Info' : 'Informasi Baru'}
-                        </DialogTitle>
+                <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[40px] border-none shadow-2xl">
+                    <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
+                        <div>
+                            <DialogTitle className="text-2xl font-black uppercase tracking-tighter">{isEditing ? 'Update Informasi' : 'Buat Pengumuman Baru'}</DialogTitle>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1 opacity-70">Publikasikan pesan ke seluruh staff LPK.</p>
+                        </div>
+                        <div className="h-14 w-14 bg-white/10 rounded-2xl flex items-center justify-center">
+                            <Megaphone className="h-7 w-7 text-blue-400" />
+                        </div>
                     </div>
                     <div className="p-10 space-y-8">
                         <div className="space-y-2">

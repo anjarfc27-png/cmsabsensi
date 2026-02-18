@@ -94,7 +94,8 @@ serve(async (req) => {
             data = {
                 type: payload.record.type,
                 link: payload.record.link,
-                notification_id: payload.record.id
+                notification_id: payload.record.id,
+                ...(payload.record.extra_data || {})
             };
         } else {
             // This is a direct call from frontend

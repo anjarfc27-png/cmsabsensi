@@ -76,6 +76,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { downloadExcel } from '@/utils/csvExport';
+import { useVoiceCall } from '@/hooks/useVoiceCall';
 
 import { MasterDataDialog } from '@/components/employees/MasterDataDialog';
 
@@ -104,6 +105,8 @@ export default function EmployeesPage() {
     const [masterTab, setMasterTab] = useState<'departments' | 'positions'>('departments');
     // Removed unused Master Data state variables
 
+
+    const { startCall } = useVoiceCall();
 
     const handleExportExcel = () => {
         const headers = ['No', 'Nama Lengkap', 'ID Karyawan', 'NIK KTP', 'Email', 'Telepon', 'Departemen', 'Posisi', 'Status Akun'];
@@ -370,11 +373,26 @@ export default function EmployeesPage() {
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start">
                                                             <h4 className="font-bold text-slate-900 truncate">{emp.full_name}</h4>
-                                                            {emp.is_active ? (
-                                                                <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] mt-1.5" />
-                                                            ) : (
-                                                                <div className="h-2 w-2 rounded-full bg-slate-300 mt-1.5" />
-                                                            )}
+                                                            <div className="flex items-center gap-2">
+                                                                {emp.id !== profile?.id && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 rounded-full text-blue-600 bg-blue-50"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            startCall(emp.id, emp.full_name);
+                                                                        }}
+                                                                    >
+                                                                        <Phone className="h-4 w-4 fill-blue-600" />
+                                                                    </Button>
+                                                                )}
+                                                                {emp.is_active ? (
+                                                                    <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] mt-1.5" />
+                                                                ) : (
+                                                                    <div className="h-2 w-2 rounded-full bg-slate-300 mt-1.5" />
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <p className="text-xs text-blue-600 font-semibold truncate mb-1">{(emp as any).job_position?.title || 'Posisi Kosong'}</p>
                                                         <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
@@ -397,9 +415,21 @@ export default function EmployeesPage() {
                                             <div className="grid grid-cols-2 gap-3">
                                                 {employees.filter(e => e.role === 'manager').map(mgr => (
                                                     <div key={mgr.id} className="bg-white p-3 rounded-2xl border border-blue-100 shadow-sm flex flex-col items-center text-center gap-2" onClick={() => handleEditClick(mgr)}>
-                                                        <Avatar className="h-14 w-14 border-4 border-blue-50">
+                                                        <Avatar className="h-14 w-14 border-4 border-blue-50 relative">
                                                             <AvatarImage src={mgr.avatar_url || ''} />
                                                             <AvatarFallback className="bg-blue-100 text-blue-600 font-bold">{mgr.full_name?.[0]}</AvatarFallback>
+                                                            {mgr.id !== profile?.id && (
+                                                                <Button
+                                                                    size="icon"
+                                                                    className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-blue-600 text-white border-2 border-white"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        startCall(mgr.id, mgr.full_name);
+                                                                    }}
+                                                                >
+                                                                    <Phone className="h-3 w-3 fill-white" />
+                                                                </Button>
+                                                            )}
                                                         </Avatar>
                                                         <div>
                                                             <p className="font-bold text-xs text-slate-900 line-clamp-1">{mgr.full_name}</p>
@@ -419,9 +449,21 @@ export default function EmployeesPage() {
                                             <div className="grid grid-cols-3 gap-2">
                                                 {employees.filter(e => e.role === 'employee').map(staff => (
                                                     <div key={staff.id} className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-1.5" onClick={() => handleEditClick(staff)}>
-                                                        <Avatar className="h-10 w-10">
+                                                        <Avatar className="h-10 w-10 relative">
                                                             <AvatarImage src={staff.avatar_url || ''} />
                                                             <AvatarFallback className="bg-slate-50 text-slate-400 text-xs font-bold">{staff.full_name?.[0]}</AvatarFallback>
+                                                            {staff.id !== profile?.id && (
+                                                                <Button
+                                                                    size="icon"
+                                                                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-blue-600 text-white border-2 border-white"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        startCall(staff.id, staff.full_name);
+                                                                    }}
+                                                                >
+                                                                    <Phone className="h-2.5 w-2.5 fill-white" />
+                                                                </Button>
+                                                            )}
                                                         </Avatar>
                                                         <p className="font-bold text-[10px] text-slate-700 leading-tight line-clamp-2">{staff.full_name}</p>
                                                         <div className={`h-1.5 w-1.5 rounded-full ${staff.is_active ? 'bg-green-500' : 'bg-slate-300'}`} />
@@ -674,6 +716,19 @@ export default function EmployeesPage() {
                                                                 <div className="flex items-center gap-2 text-xs text-slate-500">
                                                                     <Phone className="h-3 w-3 text-slate-400" />
                                                                     {employee.phone || '-'}
+                                                                    {employee.id !== profile?.id && (
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-100"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                startCall(employee.id, employee.full_name);
+                                                                            }}
+                                                                        >
+                                                                            <Phone className="h-3 w-3 fill-blue-600" />
+                                                                        </Button>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </TableCell>

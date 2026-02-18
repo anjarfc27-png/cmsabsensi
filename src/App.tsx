@@ -39,6 +39,7 @@ import Albums from "./pages/Albums";
 import AlbumDetail from "./pages/AlbumDetail";
 import AuditLogs from './pages/AuditLogs';
 import Settings from "./pages/Settings";
+import { CallOverlay } from "@/components/voice-call/CallOverlay";
 
 const queryClient = new QueryClient();
 
@@ -104,6 +105,7 @@ const App = () => {
           <AuthProvider>
             <RouteScrollHandler />
             <BackButtonHandler />
+            <CallOverlay />
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
