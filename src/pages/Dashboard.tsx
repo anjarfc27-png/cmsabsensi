@@ -62,6 +62,7 @@ type Announcement = {
   content: string;
   created_at: string;
   expires_at?: string;
+  deleted_at?: string;
   is_active: boolean;
 };
 
@@ -138,10 +139,13 @@ export default function Dashboard() {
       setTodaySchedule(scheduleRes.data);
 
       if (announcementsRes.data) {
-        const filteredAnnouncements = isAdmin ? (announcementsRes.data as Announcement[]) : (announcementsRes.data as Announcement[]).filter(a => {
+        // Dashboard should only show ACTIVE announcements for everyone (including admin)
+        // Expired and deleted ones are visible in /information History tab
+        const filteredAnnouncements = (announcementsRes.data as Announcement[]).filter(a => {
           if (!a.is_active) return false;
-          if (!a.expires_at) return true;
-          return new Date(a.expires_at) > new Date();
+          if (a.deleted_at) return false;
+          if (a.expires_at && new Date(a.expires_at) <= new Date()) return false;
+          return true;
         });
         setAnnouncements(filteredAnnouncements);
       }
