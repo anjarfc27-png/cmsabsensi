@@ -231,15 +231,24 @@ export const VoiceCallProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 table: 'calls',
                 filter: `receiver_id=eq.${user.id}`
             }, async (payload: any) => {
+                console.log('🔔 INCOMING CALL DETECTED IN-APP:', payload.new);
                 const newCall = payload.new as CallSession;
                 if (newCall.status === 'ringing') {
-                    const { data: prof } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', newCall.caller_id).single();
+                    // Beri delay sedikit agar database benar-benar siap
+                    const { data: prof } = await supabase
+                        .from('profiles')
+                        .select('full_name, avatar_url')
+                        .eq('id', newCall.caller_id)
+                        .single();
+
+                    console.log('📞 Caller Profile:', prof);
                     setCurrentCall({ ...newCall, profile: prof as any });
                     setIsIncoming(true);
 
+                    // Bunyi ringtone
                     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/1344/1344-preview.mp3');
                     audio.loop = true;
-                    audio.play().catch(() => { });
+                    audio.play().catch(e => console.error('Ringtone Error:', e));
                     ringtoneRef.current = audio;
                 }
             })
@@ -261,11 +270,15 @@ export const VoiceCallProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 filter: `id=eq.${currentCall.id}`
             }, (payload: any) => {
                 const updated = payload.new as CallSession;
+                console.log('Call status updated:', updated.status);
+
                 if (['ended', 'rejected', 'missed'].includes(updated.status)) {
                     cleanup();
                     setCurrentCall(null);
                     setIsIncoming(false);
                     toast({ title: "Panggilan Berakhir", description: `Status: ${updated.status}` });
+                } else if (updated.status === 'active') {
+                    setCurrentCall(prev => prev ? { ...prev, status: 'active' } : null);
                 }
             })
             .subscribe();

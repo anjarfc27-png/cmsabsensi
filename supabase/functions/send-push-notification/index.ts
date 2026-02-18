@@ -261,8 +261,12 @@ serve(async (req) => {
                                 requireInteraction: true,
                                 actions: [
                                     {
-                                        action: "open_app",
-                                        title: "Buka Aplikasi"
+                                        action: "accept",
+                                        title: "Terima ✅"
+                                    },
+                                    {
+                                        action: "reject",
+                                        title: "Tolak ❌"
                                     }
                                 ]
                             }
