@@ -37,7 +37,8 @@ import {
   CheckCircle2,
   UserCheck,
   Fingerprint,
-  UserX
+  UserX,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -538,7 +539,7 @@ export default function Dashboard() {
                   <div className="h-1 w-3 bg-pink-500 rounded-full" /> Lainnya
                 </h3>
                 <div className="grid grid-cols-4 md:grid-cols-8 gap-y-4 gap-x-2 text-center">
-                  <MenuGridItem href="/albums" icon={Image} label="Album" color="text-pink-600" bg="bg-pink-50" />
+                  <MenuGridItem href="/albums" icon={ImageIcon} label="Album" color="text-pink-600" bg="bg-pink-50" />
                   <div data-tour="nav-profile"><MenuGridItem href="/profile" icon={SettingsIcon} label="Profil" color="text-slate-600" bg="bg-slate-50" /></div>
                 </div>
               </div>
