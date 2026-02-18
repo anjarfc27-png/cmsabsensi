@@ -278,18 +278,9 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      // Try push notification (optional, best effort)
-      try {
-        await supabase.functions.invoke('send-push-notification', {
-          body: {
-            title: announcementForm.title,
-            body: announcementForm.content,
-            topic: 'all_employees'
-          }
-        });
-      } catch (e) {
-        console.warn('Push notification failed:', e);
-      }
+      // NOTE: Push notifications are automatically sent by DB trigger
+      // when notification rows are inserted. No need to call Edge Function here.
+      // Previously this caused duplicate push notifications.
 
       toast({ title: "Berhasil", description: "Pengumuman dipublikasikan & notifikasi dikirim" });
       setAnnouncementOpen(false);
