@@ -47,16 +47,17 @@ CREATE TABLE IF NOT EXISTS sent_agenda_reminders (
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     agenda_id UUID NOT NULL REFERENCES agendas(id) ON DELETE CASCADE,
     reminder_type TEXT NOT NULL, -- 'invitation' or '15min_reminder'
+    sent_date DATE NOT NULL DEFAULT CURRENT_DATE, -- Plain DATE column, no timezone issues
     sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    
+
     -- Ensure one reminder per user per agenda per day per type
-    UNIQUE(user_id, agenda_id, reminder_type, sent_at::date)
+    UNIQUE(user_id, agenda_id, reminder_type, sent_date)
 );
 
--- Add index for performance
+-- Add index for performance lookups
 CREATE INDEX IF NOT EXISTS idx_sent_agenda_reminders_lookup 
-ON sent_agenda_reminders(user_id, agenda_id, reminder_type, sent_at);
+ON sent_agenda_reminders(user_id, agenda_id, reminder_type, sent_date);
 
 COMMENT ON TABLE sent_agenda_reminders IS 'Tracks sent agenda reminders to prevent duplicates';
 
@@ -102,7 +103,7 @@ BEGIN
                 WHERE sar.user_id = ap.user_id 
                 AND sar.agenda_id = a.id
                 AND sar.reminder_type = '15min_reminder'
-                AND sar.sent_at::date = v_today
+                AND sar.sent_date = v_today
             )
     LOOP
         -- Insert notification
@@ -121,15 +122,16 @@ BEGIN
             '/agenda'
         );
         
-        -- Mark as sent in tracking table
-        INSERT INTO sent_agenda_reminders (user_id, agenda_id, reminder_type)
+        -- Mark as sent in tracking table (ignore if duplicate)
+        INSERT INTO sent_agenda_reminders (user_id, agenda_id, reminder_type, sent_date)
         VALUES (
             v_participant_record.user_id,
             v_participant_record.agenda_id,
-            '15min_reminder'
+            '15min_reminder',
+            v_today
         )
-        ON CONFLICT (user_id, agenda_id, reminder_type, sent_at::date) 
-        DO NOTHING; -- Ignore if already sent today
+        ON CONFLICT (user_id, agenda_id, reminder_type, sent_date)
+        DO NOTHING;
         
     END LOOP;
     
@@ -161,7 +163,7 @@ BEGIN
         WHERE user_id = NEW.user_id
         AND agenda_id = NEW.agenda_id
         AND reminder_type = 'invitation'
-        AND sent_at::date = v_today
+        AND sent_date = v_today
     ) THEN
         RETURN NEW; -- Already sent, skip
     END IF;
@@ -203,10 +205,10 @@ BEGIN
         false
     );
     
-    -- Track that invitation was sent
-    INSERT INTO sent_agenda_reminders (user_id, agenda_id, reminder_type)
-    VALUES (NEW.user_id, NEW.agenda_id, 'invitation')
-    ON CONFLICT (user_id, agenda_id, reminder_type, sent_at::date) 
+    -- Track that invitation was sent (ignore if duplicate)
+    INSERT INTO sent_agenda_reminders (user_id, agenda_id, reminder_type, sent_date)
+    VALUES (NEW.user_id, NEW.agenda_id, 'invitation', v_today)
+    ON CONFLICT (user_id, agenda_id, reminder_type, sent_date)
     DO NOTHING;
 
     RETURN NEW;
