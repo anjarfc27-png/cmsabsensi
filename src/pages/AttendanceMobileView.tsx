@@ -16,6 +16,7 @@ import {
     RefreshCw,
     LogIn,
     LogOut,
+    BellPlus,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
