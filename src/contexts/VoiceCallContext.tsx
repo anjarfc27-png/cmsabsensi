@@ -25,6 +25,10 @@ interface VoiceCallContextType {
     endCall: (status?: CallStatus) => Promise<void>;
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
+    isMuted: boolean;
+    isLoudspeaker: boolean;
+    toggleMute: () => void;
+    toggleLoudspeaker: () => void;
 }
 
 const VoiceCallContext = createContext<VoiceCallContextType | undefined>(undefined);
@@ -43,10 +47,26 @@ export const VoiceCallProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [isIncoming, setIsIncoming] = useState(false);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isLoudspeaker, setIsLoudspeaker] = useState(false);
 
     const pcRef = useRef<RTCPeerConnection | null>(null);
     const channelRef = useRef<any>(null);
     const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+
+    const toggleMute = useCallback(() => {
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMuted(!audioTrack.enabled);
+            }
+        }
+    }, [localStream]);
+
+    const toggleLoudspeaker = useCallback(() => {
+        setIsLoudspeaker(prev => !prev);
+    }, []);
 
     const cleanup = useCallback(() => {
         console.log('Cleaning up voice call resources...');
@@ -102,17 +122,32 @@ export const VoiceCallProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             setRemoteStream(event.streams[0]);
         };
 
+        pc.oniceconnectionstatechange = () => {
+            console.log('ICE Connection State:', pc.iceConnectionState);
+        };
+
         const channel = supabase.channel(signalingId);
         channelRef.current = channel;
 
         channel
             .on('broadcast', { event: 'ice-candidate' }, ({ payload }) => {
+                console.log('Received ICE Candidate');
                 if (payload.candidate) {
-                    pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                    pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(console.error);
+                }
+            })
+            .on('broadcast', { event: 'peer-joined' }, () => {
+                if (isCaller) {
+                    console.log('Receiver joined, sending offer...');
+                    pc.createOffer().then(async (offer) => {
+                        await pc.setLocalDescription(offer);
+                        channel.send({ type: 'broadcast', event: 'sdp-offer', payload: { sdp: offer } });
+                    });
                 }
             })
             .on('broadcast', { event: 'sdp-offer' }, async ({ payload }) => {
                 if (!isCaller) {
+                    console.log('Received SDP Offer');
                     await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
                     const answer = await pc.createAnswer();
                     await pc.setLocalDescription(answer);
@@ -121,14 +156,17 @@ export const VoiceCallProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             })
             .on('broadcast', { event: 'sdp-answer' }, async ({ payload }) => {
                 if (isCaller) {
+                    console.log('Received SDP Answer');
                     await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
                 }
             })
             .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED' && isCaller) {
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
-                    channel.send({ type: 'broadcast', event: 'sdp-offer', payload: { sdp: offer } });
+                if (status === 'SUBSCRIBED') {
+                    console.log('Successfully subscribed to signaling channel');
+                    if (!isCaller) {
+                        // Notify caller that receiver is ready
+                        channel.send({ type: 'broadcast', event: 'peer-joined', payload: {} });
+                    }
                 }
             });
 
@@ -294,7 +332,11 @@ export const VoiceCallProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             acceptCall,
             endCall,
             localStream,
-            remoteStream
+            remoteStream,
+            isMuted,
+            isLoudspeaker,
+            toggleMute,
+            toggleLoudspeaker
         }}>
             {children}
         </VoiceCallContext.Provider>

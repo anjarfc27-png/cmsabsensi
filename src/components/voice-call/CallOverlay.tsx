@@ -29,7 +29,12 @@ export const CallOverlay = () => {
             >
                 <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl pointer-events-auto" />
 
-                <audio ref={remoteAudioRef} autoPlay />
+                <audio
+                    ref={remoteAudioRef}
+                    autoPlay
+                    playsInline
+                    style={{ display: 'none' }}
+                />
 
                 <motion.div
                     layout
@@ -92,9 +97,13 @@ export const CallOverlay = () => {
                                 <>
                                     <Button
                                         variant="outline"
-                                        className="h-14 w-14 rounded-full border-slate-100 text-slate-400 hover:bg-slate-50"
+                                        onClick={toggleMute}
+                                        className={cn(
+                                            "h-14 w-14 rounded-full border-slate-100 transition-all",
+                                            isMuted ? "bg-red-50 text-red-600 border-red-100" : "text-slate-400 hover:bg-slate-50"
+                                        )}
                                     >
-                                        <Mic className="h-5 w-5" />
+                                        {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                                     </Button>
                                     <Button
                                         onClick={() => endCall('ended')}
@@ -104,7 +113,11 @@ export const CallOverlay = () => {
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        className="h-14 w-14 rounded-full border-slate-100 text-slate-400 hover:bg-slate-50"
+                                        onClick={toggleLoudspeaker}
+                                        className={cn(
+                                            "h-14 w-14 rounded-full border-slate-100 transition-all",
+                                            isLoudspeaker ? "bg-blue-50 text-blue-600 border-blue-100" : "text-slate-400 hover:bg-slate-50"
+                                        )}
                                     >
                                         <Volume2 className="h-5 w-5" />
                                     </Button>
