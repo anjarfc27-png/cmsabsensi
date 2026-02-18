@@ -163,6 +163,15 @@ export const usePushNotifications = () => {
         if (!user?.id) return;
 
         try {
+            // Delete ALL old tokens for this user first to prevent duplicate push notifications
+            // Each browser/device generates a unique token, but we only want the LATEST one
+            await supabase
+                .from('fcm_tokens' as any)
+                .delete()
+                .eq('user_id', user.id)
+                .neq('token', tokenValue); // Keep current token if already exists
+
+            // Upsert the current token
             const { error } = await supabase
                 .from('fcm_tokens' as any)
                 .upsert({
