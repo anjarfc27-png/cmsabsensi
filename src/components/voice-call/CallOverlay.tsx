@@ -7,7 +7,11 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const CallOverlay = () => {
-    const { currentCall, isIncoming, acceptCall, endCall, remoteStream, localStream } = useVoiceCall();
+    const {
+        currentCall, isIncoming, acceptCall, endCall,
+        remoteStream, localStream, isMuted, isLoudspeaker,
+        toggleMute, toggleLoudspeaker
+    } = useVoiceCall();
     const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
