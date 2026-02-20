@@ -55,6 +55,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { getDailyArticles } from '@/lib/articles';
 import { AppLogo } from '@/components/AppLogo';
 import { DashboardTour } from '@/components/DashboardTour';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 type Announcement = {
   id: string;
@@ -100,6 +101,16 @@ export default function Dashboard() {
   });
   const [submittingAnnouncement, setSubmittingAnnouncement] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
+
+  // Notification Reliability States
+  const push = usePushNotifications();
+  const [reliabilityModalOpen, setReliabilityModalOpen] = useState(false);
+  const [testSuccess, setTestSuccess] = useState<boolean | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Check if push is ready
+  const isPushActive = push.permission === 'granted';
+  const isPushOptimized = push.isOptimized;
 
   // Allow admin_hr OR any email containing 'admin' (for dev convenience)
   // Allow admin_hr, manager OR any email containing 'admin' (for dev convenience)
@@ -347,6 +358,21 @@ export default function Dashboard() {
                       {profile?.full_name?.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
+
+                  {/* Notification Reliability Indicator */}
+                  <div
+                    onClick={(e) => { e.stopPropagation(); setReliabilityModalOpen(true); }}
+                    className={cn(
+                      "absolute -bottom-1 -right-1 h-7 w-7 rounded-full border-2 border-white flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-110 active:scale-95 transition-all z-20",
+                      isPushActive && isPushOptimized ? "bg-emerald-500" : (isPushActive ? "bg-amber-500" : "bg-red-500")
+                    )}
+                  >
+                    {isPushActive && isPushOptimized ? (
+                      <CheckCircle2 className="h-4 w-4 text-white" />
+                    ) : (
+                      <Bell className="h-4 w-4 text-white animate-pulse" />
+                    )}
+                  </div>
                 </div>
                 <div className="min-w-0">
                   <p className="text-[9px] text-blue-50 font-bold opacity-80 uppercase tracking-widest leading-none mb-1">{getGreeting()} 👋</p>
@@ -823,6 +849,141 @@ export default function Dashboard() {
                   onClick={() => setAgendaPopupOpen(false)}
                 >
                   SIAP, SAYA MENGERTI
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* NOTIFICATION RELIABILITY WIZARD (Mobile) */}
+        <Dialog open={reliabilityModalOpen} onOpenChange={setReliabilityModalOpen}>
+          <DialogContent className="max-w-md p-0 overflow-hidden border-none rounded-[32px] bg-white shadow-2xl">
+            <div className="relative">
+              {/* Header */}
+              <div className={cn(
+                "p-8 text-white relative overflow-hidden transition-colors duration-500",
+                isPushActive && isPushOptimized ? "bg-emerald-600" : "bg-blue-600"
+              )}>
+                <div className="absolute right-0 top-0 h-32 w-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+                <div className="relative z-10 flex flex-col items-center text-center">
+                  <div className="h-20 w-20 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md mb-4 shadow-xl">
+                    <Bell className={cn("h-10 w-10 text-white", !isPushActive && "animate-bounce")} />
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tight mb-2">Keandalan Notifikasi</h2>
+                  <p className="text-blue-100 text-sm font-medium">Pastikan pengingat absen masuk ke HP Anda tepat waktu.</p>
+                </div>
+              </div>
+
+              {/* Wizard Steps */}
+              <div className="p-6 space-y-6 max-h-[450px] overflow-y-auto scrollbar-hide bg-white">
+
+                {/* Step 1: Permission */}
+                <div className="flex gap-4">
+                  <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm",
+                    isPushActive ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
+                  )}>
+                    {isPushActive ? <CheckCircle2 className="h-5 w-5" /> : "1"}
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-slate-800">Izin Notifikasi Browser</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Wajib aktif agar browser bisa menampilkan pengingat di layar kunci.
+                    </p>
+                    {!isPushActive && (
+                      <Button
+                        size="sm"
+                        onClick={() => push.register()}
+                        className="mt-2 h-8 rounded-lg bg-blue-600 text-xs font-bold"
+                      >
+                        Aktifkan Izin
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 2: Battery Optimization (The "Lure" for Sleep) */}
+                <div className="flex gap-4">
+                  <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm",
+                    isPushOptimized ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
+                  )}>
+                    {isPushOptimized ? <CheckCircle2 className="h-5 w-5" /> : "2"}
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-slate-800">Matikan Optimasi Baterai</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Agar HP tidak "menidurkan" aplikasi ini saat tidak dibuka lama.
+                    </p>
+                    <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Langkah Android:</p>
+                      <ol className="text-[11px] text-slate-600 space-y-1.5 list-decimal pl-4">
+                        <li>Tekan lama ikon aplikasi ini di Home Screen.</li>
+                        <li>Pilih <strong>Info Aplikasi</strong> (huruf 'i').</li>
+                        <li>Cari menu <strong>Baterai</strong> / Penggunaan Baterai.</li>
+                        <li>Pilih <strong>Tidak Dibatasi</strong> (Unrestricted).</li>
+                      </ol>
+                    </div>
+                    {!isPushOptimized && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { push.completeGuide(); toast({ title: "Siap!", description: "Status keandalan diperbarui." }); }}
+                        className="mt-2 h-8 rounded-lg text-blue-600 bg-blue-50 text-xs font-bold hover:bg-blue-100"
+                      >
+                        Saya Sudah Lakukan Ini ✅
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 3: Test Push */}
+                <div className="flex gap-4">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold text-sm">
+                    3
+                  </div>
+                  <div className="space-y-1 w-full">
+                    <h4 className="text-sm font-bold text-slate-800">Test Pengingat</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Kirim sinyal test ke HP Anda sekarang untuk memastikan semua OK.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isRefreshing}
+                      onClick={async () => {
+                        setIsRefreshing(true);
+                        const res = await push.sendTestPush();
+                        setTestSuccess(res?.success || false);
+                        setIsRefreshing(false);
+                      }}
+                      className="mt-2 w-full h-10 rounded-xl border-blue-200 text-blue-600 text-xs font-bold hover:bg-blue-50"
+                    >
+                      {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kirim Test Notifikasi 🚀"}
+                    </Button>
+
+                    {testSuccess === true && (
+                      <p className="text-[10px] text-emerald-600 font-bold mt-2 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Berhasil dikirim! Cek bilah notifikasi HP Anda.
+                      </p>
+                    )}
+                    {testSuccess === false && (
+                      <p className="text-[10px] text-red-500 font-bold mt-2 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Gagal. Hubungi Admin jika Anda tidak menerima notif.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-slate-50 bg-slate-50/50 flex justify-center">
+                <Button
+                  onClick={() => setReliabilityModalOpen(false)}
+                  className="w-full h-12 rounded-2xl bg-blue-600 text-sm font-bold shadow-lg"
+                >
+                  Tutup & Selesai
                 </Button>
               </div>
             </div>

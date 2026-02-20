@@ -111,6 +111,22 @@ export const usePushNotifications = () => {
                 });
                 console.log('Messaging service worker registered:', registration);
 
+                // Try to register periodic sync (the 'lure' to keep SW alive)
+                if ('periodicSync' in registration) {
+                    try {
+                        const status = await (navigator as any).permissions.query({
+                            name: 'periodic-background-sync',
+                        });
+                        if (status.state === 'granted') {
+                            await (registration as any).periodicSync.register('fcm-heartbeat', {
+                                minInterval: 24 * 60 * 60 * 1000, // 24 hours
+                            });
+                        }
+                    } catch (e) {
+                        console.log('Periodic sync registration failed (expected if not granted or standalone):', e);
+                    }
+                }
+
                 // Get FCM token using Firebase SDK
                 const VAPID_PUBLIC_KEY = 'BCT-K19g5pQvHIioEfMYsz0_J1GW9KTxOsYIxWDGAr_fNfsuE3O5q5iijBHIhm1TCfpkjy-DGsaVE51OHH7Gcxo';
 
@@ -153,6 +169,35 @@ export const usePushNotifications = () => {
         }
     }, [user?.id, toast]);
 
+    const sendTestPush = useCallback(async () => {
+        if (!user?.id) return;
+
+        try {
+            toast({ title: "Mengirim Test...", description: "Harap tunggu sebentar." });
+
+            const { data, error } = await supabase.functions.invoke('send-push-notification', {
+                body: {
+                    userId: user.id,
+                    title: "Test Notifikasi 🚀",
+                    body: "Jika Anda menerima ini, berarti push notifikasi Anda AKTIF!",
+                    data: { type: 'test' }
+                }
+            });
+
+            if (error) throw error;
+
+            return { success: true, data };
+        } catch (error: any) {
+            console.error('Test push failed:', error);
+            toast({
+                title: "Test Gagal",
+                description: error.message || "Pastikan Anda sudah mengizinkan notifikasi.",
+                variant: 'destructive'
+            });
+            return { success: false, error };
+        }
+    }, [user?.id, toast]);
+
     const saveTokenToDatabase = async (tokenValue: string, platform: string) => {
         if (!user?.id) return;
 
@@ -185,6 +230,13 @@ export const usePushNotifications = () => {
         permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
         isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream,
         isStandalone: (window.navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches,
-        register: registerPush
-    }), [registerPush]);
+        isOptimized: localStorage.getItem('notif_guide_completed') === 'true',
+        completeGuide: () => {
+            localStorage.setItem('notif_guide_completed', 'true');
+            window.dispatchEvent(new Event('storage')); // Notify other components
+        },
+        register: registerPush,
+        sendTestPush
+    }), [registerPush, sendTestPush]);
 };
+

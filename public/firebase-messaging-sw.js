@@ -64,3 +64,11 @@ self.addEventListener('notificationclick', (event) => {
 // Immediately take control of the page
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', () => clients.claim());
+
+// Handler for periodic sync (keep-alive lure)
+self.addEventListener('periodicsync', (event) => {
+    if (event.tag === 'fcm-heartbeat') {
+        console.log('[SW] Periodic heartbeat event triggered');
+        // No specific action needed, just the act of waking up helps stay registered
+    }
+});
