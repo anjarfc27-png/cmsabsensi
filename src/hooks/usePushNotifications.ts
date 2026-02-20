@@ -4,10 +4,17 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
-// Firebase config should match your project
+// ⚠️  CATATAN KEAMANAN (Firebase Web Config):
+// Config ini adalah CLIENT-SIDE config yang memang HARUS ada di frontend.
+// Firebase dirancang agar API key ini terekspos — keamanan dijaga oleh
+// Firebase Security Rules, bukan oleh kerahasiaan config ini.
+// Ref: https://firebase.google.com/docs/projects/api-keys
+//
+// Yang TIDAK boleh diekspos: Firebase Admin SDK / Service Account private key.
+// Itu disimpan HANYA di Supabase Edge Function env variables.
 const firebaseConfig = {
     apiKey: "AIzaSyDeuXMVp1Y4Ss-Py4-qeTlZYqDk-s7Xg-s",
     authDomain: "cmsabsensibenar.firebaseapp.com",
@@ -15,11 +22,10 @@ const firebaseConfig = {
     storageBucket: "cmsabsensibenar.firebasestorage.app",
     messagingSenderId: "1005997535417",
     appId: "1:1005997535417:web:b73c7477ea5af5134d2b68",
-    measurementId: "G-E9V7ZGM5FH"
 };
 
-// Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+// Guard: Hindari re-initialize Firebase saat hot-reload (React dev mode)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const messaging = getMessaging(app);
 
 export const usePushNotifications = () => {
@@ -33,18 +39,6 @@ export const usePushNotifications = () => {
             hasRegistered.current = true;
         }
     }, [user?.id]);
-
-    // Helper for Web Push VAPID key
-    const urlBase64ToUint8Array = (base64String: string) => {
-        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
-    };
 
     const registerPush = useCallback(async () => {
         if (!user?.id) return;

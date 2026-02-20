@@ -136,6 +136,9 @@ export interface Profile {
   has_seen_tour: boolean;
   has_seen_attendance_tour: boolean;
 
+  // Shift Default
+  default_shift_id: string | null;
+
   created_at: string;
   updated_at: string;
 }

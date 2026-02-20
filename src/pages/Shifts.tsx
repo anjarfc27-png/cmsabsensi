@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Clock, CalendarDays, Moon, Sun, Trash2, Edit, ChevronLeft, Search, Users, Calendar } from 'lucide-react';
+import { Loader2, Plus, Clock, CalendarDays, Moon, Sun, Trash2, Edit, ChevronLeft, Search, Users, Calendar, Star } from 'lucide-react';
 import { Shift, EmployeeSchedule, Profile } from '@/types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -333,6 +333,33 @@ export default function ShiftsPage() {
         }
     };
 
+    const handleSetDefault = async (shiftId: string, isCurrentlyDefault: boolean) => {
+        try {
+            if (isCurrentlyDefault) {
+                // Unset default
+                await (supabase.from('shifts') as any)
+                    .update({ is_default: false })
+                    .eq('id', shiftId);
+                toast({ title: 'Shift default dihapus', description: 'Sistem akan menggunakan jadwal eksplisit saja.' });
+            } else {
+                // Unset semua dulu, lalu set yang baru
+                await (supabase.from('shifts') as any)
+                    .update({ is_default: false })
+                    .eq('is_default', true);
+                await (supabase.from('shifts') as any)
+                    .update({ is_default: true })
+                    .eq('id', shiftId);
+                toast({
+                    title: '✅ Shift Default Berhasil Diset',
+                    description: 'Pengingat otomatis akan menggunakan shift ini untuk semua karyawan yang belum dijadwalkan.',
+                });
+            }
+            fetchShifts();
+        } catch (error) {
+            toast({ title: 'Gagal mengubah shift default', variant: 'destructive' });
+        }
+    };
+
     // Filter employees
     const filteredEmployees = employees.filter(e => {
         const matchesSearch = e.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -551,19 +578,37 @@ export default function ShiftsPage() {
                             <TabsContent value="master" className="h-full mt-0 border-none outline-none overflow-y-auto">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {shifts.map(shift => (
-                                        <Card key={shift.id} className="border-none shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden bg-white rounded-2xl">
+                                        <Card key={shift.id} className={cn(
+                                            "border-none shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden bg-white rounded-2xl",
+                                            (shift as any).is_default && "ring-2 ring-emerald-400 ring-offset-1"
+                                        )}>
                                             <div className={cn("absolute top-0 right-0 w-24 h-24 -mr-10 -mt-10 rounded-full opacity-10 transition-transform group-hover:scale-110",
                                                 shift.is_night_shift ? "bg-purple-600" : "bg-orange-500"
                                             )} />
 
                                             <CardHeader className="pb-2 relative pt-6 px-6">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <Badge variant={shift.is_night_shift ? 'secondary' : 'outline'} className={cn("border-0 font-bold",
-                                                        shift.is_night_shift ? "bg-purple-100 text-purple-700" : "bg-orange-100 text-orange-700"
-                                                    )}>
-                                                        {shift.is_night_shift ? "Shift Malam" : "Shift Siang"}
-                                                    </Badge>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Badge variant={shift.is_night_shift ? 'secondary' : 'outline'} className={cn("border-0 font-bold",
+                                                            shift.is_night_shift ? "bg-purple-100 text-purple-700" : "bg-orange-100 text-orange-700"
+                                                        )}>
+                                                            {shift.is_night_shift ? "Shift Malam" : "Shift Siang"}
+                                                        </Badge>
+                                                        {(shift as any).is_default && (
+                                                            <Badge className="bg-emerald-100 text-emerald-700 border-0 font-bold gap-1">
+                                                                <Star className="h-2.5 w-2.5 fill-emerald-600" /> DEFAULT
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                     <div className="flex gap-1 -mr-2 -mt-2">
+                                                        <Button
+                                                            variant="ghost" size="icon"
+                                                            onClick={() => handleSetDefault(shift.id, !!(shift as any).is_default)}
+                                                            title={(shift as any).is_default ? 'Hapus shift default' : 'Set sebagai shift default untuk pengingat otomatis'}
+                                                            className={cn("h-8 w-8", (shift as any).is_default ? "text-emerald-500 hover:text-emerald-700" : "text-slate-300 hover:text-emerald-500")}
+                                                        >
+                                                            <Star className={cn("h-4 w-4", (shift as any).is_default && "fill-emerald-500")} />
+                                                        </Button>
                                                         <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(shift)} className="h-8 w-8 text-slate-300 hover:text-blue-600">
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
@@ -597,9 +642,16 @@ export default function ShiftsPage() {
                                                         <p className="font-bold text-slate-700">{shift.tolerance_minutes} Menit</p>
                                                     </div>
                                                 </div>
+
+                                                {(shift as any).is_default && (
+                                                    <div className="mt-3 p-2 bg-emerald-50 rounded-xl border border-emerald-100 text-[10px] text-emerald-700 font-semibold text-center">
+                                                        ⭐ Pengingat otomatis fallback untuk semua karyawan tanpa jadwal
+                                                    </div>
+                                                )}
                                             </CardContent>
                                         </Card>
                                     ))}
+
 
                                     {/* Add New Card Button */}
                                     <div

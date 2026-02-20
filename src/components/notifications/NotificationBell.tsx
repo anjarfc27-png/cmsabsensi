@@ -41,7 +41,9 @@ export function NotificationBell({ iconClassName }: NotificationBellProps) {
   useEffect(() => {
     if (user?.id) {
       fetchNotifications();
-      requestNotificationPermission();
+      // NOTE: requestNotificationPermission() dihapus dari sini.
+      // Permission sudah dikelola secara terpusat oleh usePushNotifications()
+      // yang dipanggil di DashboardLayout untuk menghindari double prompt.
 
       // Subscribe to Realtime Notifications
       const channel = supabase
@@ -96,13 +98,6 @@ export function NotificationBell({ iconClassName }: NotificationBellProps) {
       };
     }
   }, [user?.id, activeRole]);
-
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) return;
-    if (Notification.permission === 'default') {
-      await Notification.requestPermission();
-    }
-  };
 
   const fetchNotifications = async () => {
     try {

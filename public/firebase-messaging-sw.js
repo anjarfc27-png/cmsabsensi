@@ -13,24 +13,54 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// This handles the notification when the app is in the background
+// Handles background FCM messages (app not in foreground)
 messaging.onBackgroundMessage((payload) => {
-    console.log('Background Message:', payload);
+    console.log('[SW] Background Message received:', payload);
 
-    const title = payload.data?.title || payload.notification?.title || "CMS Absensi";
+    const notifData = payload.data || {};
+    const notifTitle = notifData.title || payload.notification?.title || 'CMS Absensi';
+    const notifBody = notifData.body || payload.notification?.body || 'Anda memiliki notifikasi baru';
+    // Support navigating to a specific route when the notification is clicked
+    const notifLink = notifData.link || notifData.url || '/';
+
     const options = {
-        body: payload.data?.body || payload.notification?.body || "Anda memiliki notifikasi baru",
-        icon: "/logo.png",
-        badge: "/logo.png",
+        body: notifBody,
+        icon: '/logo.png',
+        badge: '/logo.png',
         vibrate: [100, 50, 100],
-        data: {
-            url: payload.data?.url || '/'
-        }
+        data: { url: notifLink },
+        // Prevent duplicate notifications when FCM also provides a notification block
+        tag: notifData.notification_id || 'cms-push-' + Date.now(),
     };
 
-    return self.registration.showNotification(title, options);
+    return self.registration.showNotification(notifTitle, options);
 });
 
-// Immediately take control
+// Handle notification click: open/focus the correct tab
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    const targetUrl = (event.notification.data && event.notification.data.url)
+        ? event.notification.data.url
+        : '/';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+            // If a window with the same origin is already open, focus it and navigate
+            for (const client of windowClients) {
+                if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+                    client.focus();
+                    return client.navigate(targetUrl);
+                }
+            }
+            // Otherwise open a new window
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+        })
+    );
+});
+
+// Immediately take control of the page
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', () => self.clients.claim());
+self.addEventListener('activate', () => clients.claim());
